@@ -1,6 +1,44 @@
 from marshmallow import Schema, fields, validate
 
 
+class ProductVariantCreateSchema(Schema):
+    """Schema for creating a product variant."""
+
+    sku = fields.String(required=True, validate=validate.Length(min=1, max=64))
+    name = fields.String(required=True, validate=validate.Length(min=1, max=128))
+    size = fields.String(required=False)
+    color = fields.String(required=False)
+    price = fields.Float(required=True, validate=validate.Range(min=0.01))
+    total_stock = fields.Integer(required=False, load_default=0, validate=validate.Range(min=0))
+    available_stock = fields.Integer(required=False, load_default=0, validate=validate.Range(min=0))
+
+
+class ProductVariantUpdateSchema(Schema):
+    """Schema for updating a product variant."""
+
+    sku = fields.String(required=False, validate=validate.Length(min=1, max=64))
+    name = fields.String(required=False, validate=validate.Length(min=1, max=128))
+    size = fields.String(required=False)
+    color = fields.String(required=False)
+    price = fields.Float(required=False, validate=validate.Range(min=0.01))
+    total_stock = fields.Integer(required=False, validate=validate.Range(min=0))
+    available_stock = fields.Integer(required=False, validate=validate.Range(min=0))
+
+
+class ProductVariantResponseSchema(Schema):
+    """Schema for product variant response."""
+
+    id = fields.String(dump_only=True)
+    product_id = fields.String(dump_only=True)
+    sku = fields.String(dump_only=True)
+    name = fields.String(dump_only=True)
+    size = fields.String(dump_only=True)
+    color = fields.String(dump_only=True)
+    price = fields.Float(dump_only=True)
+    total_stock = fields.Integer(dump_only=True)
+    available_stock = fields.Integer(dump_only=True)
+
+
 class ProductCreateSchema(Schema):
     """Schema for product creation request."""
 
@@ -27,6 +65,7 @@ class ProductCreateSchema(Schema):
     category_id = fields.String(required=False)
     description = fields.String(required=False)
     images = fields.List(fields.String(), required=False)
+    variants = fields.List(fields.Nested(ProductVariantCreateSchema), required=False)
 
 
 class ProductUpdateSchema(Schema):
@@ -41,6 +80,7 @@ class ProductUpdateSchema(Schema):
     description = fields.String(required=False)
     images = fields.List(fields.String(), required=False)
     is_active = fields.Boolean(required=False)
+    variants = fields.List(fields.Nested(ProductVariantCreateSchema), required=False)
 
 
 class ProductQuerySchema(Schema):
@@ -68,5 +108,5 @@ class ProductResponseSchema(Schema):
     price = fields.Float(dump_only=True)
     is_active = fields.Boolean(dump_only=True)
     version = fields.Integer(dump_only=True)
-    variants = fields.List(fields.Dict(), dump_only=True)
+    variants = fields.Nested(ProductVariantResponseSchema, many=True, dump_only=True)
     created_at = fields.String(dump_only=True)

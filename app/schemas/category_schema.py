@@ -10,6 +10,15 @@ class CategoryCreateSchema(Schema):
     parent_id = fields.String(required=False, metadata={"description": "Parent category UUID"})
 
 
+class CategoryUpdateSchema(Schema):
+    """Schema for updating a category."""
+
+    name = fields.String(required=False, metadata={"description": "Category name"})
+    slug = fields.String(required=False, metadata={"description": "URL slug"})
+    description = fields.String(required=False, metadata={"description": "Category description"})
+    parent_id = fields.String(required=False, metadata={"description": "Parent category UUID"})
+
+
 class CategoryResponseSchema(Schema):
     """Schema for category response."""
 

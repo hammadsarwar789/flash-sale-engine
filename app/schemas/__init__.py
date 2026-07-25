@@ -6,7 +6,17 @@ from app.schemas.auth_schema import (
 )
 from app.schemas.product_schema import (
     ProductCreateSchema,
+    ProductUpdateSchema,
+    ProductQuerySchema,
     ProductResponseSchema,
+    ProductVariantCreateSchema,
+    ProductVariantUpdateSchema,
+    ProductVariantResponseSchema,
+)
+from app.schemas.category_schema import (
+    CategoryCreateSchema,
+    CategoryUpdateSchema,
+    CategoryResponseSchema,
 )
 from app.schemas.order_schema import (
     OrderReserveSchema,
@@ -26,7 +36,15 @@ __all__ = [
     "UserResponseSchema",
     "TokenResponseSchema",
     "ProductCreateSchema",
+    "ProductUpdateSchema",
+    "ProductQuerySchema",
     "ProductResponseSchema",
+    "ProductVariantCreateSchema",
+    "ProductVariantUpdateSchema",
+    "ProductVariantResponseSchema",
+    "CategoryCreateSchema",
+    "CategoryUpdateSchema",
+    "CategoryResponseSchema",
     "OrderReserveSchema",
     "OrderResponseSchema",
     "ReservationAcceptedSchema",

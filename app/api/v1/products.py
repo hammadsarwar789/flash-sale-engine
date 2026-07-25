@@ -4,13 +4,21 @@ from flask_smorest import Blueprint
 from app.core.extensions import db, redis_client
 from app.models.product import Product
 from app.models.category import Category
+from app.models.product_variant import ProductVariant
 from app.schemas.product_schema import (
     ProductCreateSchema,
     ProductUpdateSchema,
     ProductQuerySchema,
     ProductResponseSchema,
+    ProductVariantCreateSchema,
+    ProductVariantUpdateSchema,
+    ProductVariantResponseSchema,
 )
-from app.schemas.category_schema import CategoryCreateSchema, CategoryResponseSchema
+from app.schemas.category_schema import (
+    CategoryCreateSchema,
+    CategoryUpdateSchema,
+    CategoryResponseSchema,
+)
 from app.services.inventory_service import InventoryService
 from app.api.decorators import admin_required
 
@@ -59,6 +67,36 @@ def create_category(category_data):
     db.session.add(category)
     db.session.commit()
     return category.to_dict(), 201
+
+
+@products_bp.route("/categories/<string:category_id>", methods=["PUT"])
+@admin_required
+@products_bp.arguments(CategoryUpdateSchema)
+@products_bp.response(200, CategoryResponseSchema)
+def update_category(category_data, category_id):
+    """Update category details (Admin)."""
+    category = db.session.query(Category).filter_by(id=category_id).first()
+    if not category:
+        return jsonify({"message": f"Category '{category_id}' not found"}), 404
+
+    for key, value in category_data.items():
+        setattr(category, key, value)
+
+    db.session.commit()
+    return category.to_dict(), 200
+
+
+@products_bp.route("/categories/<string:category_id>", methods=["DELETE"])
+@admin_required
+def delete_category(category_id):
+    """Delete category (Admin)."""
+    category = db.session.query(Category).filter_by(id=category_id).first()
+    if not category:
+        return jsonify({"message": f"Category '{category_id}' not found"}), 404
+
+    db.session.delete(category)
+    db.session.commit()
+    return jsonify({"message": f"Category '{category_id}' deleted successfully"}), 200
 
 
 # --- Product Endpoints ---
@@ -158,6 +196,8 @@ def create_product(product_data):
             409,
         )
 
+    variants_data = product_data.pop("variants", [])
+
     product = Product(
         name=product_data["name"],
         sku=product_data["sku"],
@@ -170,6 +210,21 @@ def create_product(product_data):
         is_active=True,
     )
     db.session.add(product)
+    db.session.flush()
+
+    for var_data in variants_data:
+        variant = ProductVariant(
+            product_id=product.id,
+            sku=var_data["sku"],
+            name=var_data["name"],
+            size=var_data.get("size"),
+            color=var_data.get("color"),
+            price=var_data["price"],
+            total_stock=var_data.get("total_stock", 0),
+            available_stock=var_data.get("available_stock", 0),
+        )
+        db.session.add(variant)
+
     db.session.commit()
 
     try:
@@ -200,8 +255,25 @@ def update_product(product_data, product_id):
             404,
         )
 
+    variants_data = product_data.pop("variants", None)
+
     for field, val in product_data.items():
         setattr(product, field, val)
+
+    if variants_data is not None:
+        db.session.query(ProductVariant).filter_by(product_id=product.id).delete()
+        for var_data in variants_data:
+            variant = ProductVariant(
+                product_id=product.id,
+                sku=var_data["sku"],
+                name=var_data["name"],
+                size=var_data.get("size"),
+                color=var_data.get("color"),
+                price=var_data["price"],
+                total_stock=var_data.get("total_stock", 0),
+                available_stock=var_data.get("available_stock", 0),
+            )
+            db.session.add(variant)
 
     db.session.commit()
     try:
@@ -233,6 +305,77 @@ def delete_product(product_id):
     product.is_active = False
     db.session.commit()
     return jsonify({"message": f"Product '{product_id}' deactivated successfully"}), 200
+
+
+# --- Variant Endpoints ---
+
+@products_bp.route("/<string:product_id>/variants", methods=["GET"])
+@products_bp.response(200, ProductVariantResponseSchema(many=True))
+def list_product_variants(product_id):
+    """List variants for a specific product."""
+    product = db.session.query(Product).filter_by(id=product_id).first()
+    if not product:
+        return jsonify({"message": f"Product '{product_id}' not found"}), 404
+    return [v.to_dict() for v in product.variants], 200
+
+
+@products_bp.route("/<string:product_id>/variants", methods=["POST"])
+@admin_required
+@products_bp.arguments(ProductVariantCreateSchema)
+@products_bp.response(201, ProductVariantResponseSchema)
+def create_product_variant(variant_data, product_id):
+    """Create a new product variant (Admin)."""
+    product = db.session.query(Product).filter_by(id=product_id).first()
+    if not product:
+        return jsonify({"message": f"Product '{product_id}' not found"}), 404
+
+    existing = db.session.query(ProductVariant).filter_by(sku=variant_data["sku"]).first()
+    if existing:
+        return jsonify({"message": f"Variant SKU '{variant_data['sku']}' already exists"}), 409
+
+    variant = ProductVariant(
+        product_id=product_id,
+        sku=variant_data["sku"],
+        name=variant_data["name"],
+        size=variant_data.get("size"),
+        color=variant_data.get("color"),
+        price=variant_data["price"],
+        total_stock=variant_data.get("total_stock", 0),
+        available_stock=variant_data.get("available_stock", 0),
+    )
+    db.session.add(variant)
+    db.session.commit()
+    return variant.to_dict(), 201
+
+
+@products_bp.route("/<string:product_id>/variants/<string:variant_id>", methods=["PUT"])
+@admin_required
+@products_bp.arguments(ProductVariantUpdateSchema)
+@products_bp.response(200, ProductVariantResponseSchema)
+def update_product_variant(variant_data, product_id, variant_id):
+    """Update a product variant (Admin)."""
+    variant = db.session.query(ProductVariant).filter_by(id=variant_id, product_id=product_id).first()
+    if not variant:
+        return jsonify({"message": f"Variant '{variant_id}' not found"}), 404
+
+    for key, value in variant_data.items():
+        setattr(variant, key, value)
+
+    db.session.commit()
+    return variant.to_dict(), 200
+
+
+@products_bp.route("/<string:product_id>/variants/<string:variant_id>", methods=["DELETE"])
+@admin_required
+def delete_product_variant(product_id, variant_id):
+    """Delete a product variant (Admin)."""
+    variant = db.session.query(ProductVariant).filter_by(id=variant_id, product_id=product_id).first()
+    if not variant:
+        return jsonify({"message": f"Variant '{variant_id}' not found"}), 404
+
+    db.session.delete(variant)
+    db.session.commit()
+    return jsonify({"message": f"Variant '{variant_id}' deleted successfully"}), 200
 
 
 @products_bp.route("/<string:product_id>/sync-stock", methods=["POST"])
