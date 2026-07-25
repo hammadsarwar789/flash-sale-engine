@@ -6,8 +6,11 @@ from app.schemas.order_schema import (
     OrderReserveSchema,
     OrderResponseSchema,
     ReservationAcceptedSchema,
+    PaymentIntentRequestSchema,
+    PaymentIntentResponseSchema,
 )
 from app.services.order_service import OrderService
+from app.services.payment_service import PaymentService
 from app.api.decorators import jwt_required, idempotent, rate_limit
 
 orders_bp = Blueprint("orders", "orders", url_prefix="/api/v1/orders", description="Order & Reservation operations")
@@ -228,12 +231,34 @@ def pay_order(order_id):
 
 @orders_bp.route("/payments/intent", methods=["POST"])
 @jwt_required
-def create_payment_intent():
-    """Payment Gateway Intent Creation Endpoint (Development Progress Stub)."""
-    return jsonify({
-        "status": "in_development",
-        "message": "Payment Integration in Development Progress",
-    }), 200
+@orders_bp.arguments(PaymentIntentRequestSchema)
+@orders_bp.response(201, PaymentIntentResponseSchema)
+def create_payment_intent(intent_data):
+    """Create a Stripe PaymentIntent for a pending order."""
+    user_id = g.current_user_id
+    order_id = intent_data["order_id"]
+    currency = intent_data.get("currency", "usd")
+
+    success, msg, data = PaymentService.create_payment_intent(
+        order_id=order_id,
+        user_id=user_id,
+        currency=currency,
+    )
+
+    if not success:
+        return (
+            jsonify(
+                {
+                    "type": "https://api.flashsale.com/errors/payment-intent-failed",
+                    "title": "PaymentIntent Creation Failed",
+                    "status": 400,
+                    "detail": msg,
+                }
+            ),
+            400,
+        )
+
+    return data, 201
 
 
 @orders_bp.route("/<string:order_id>/cancel", methods=["POST"])

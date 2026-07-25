@@ -96,3 +96,32 @@ def test_guest_checkout_workflow(client, test_product):
     data = res.get_json()
     assert "order" in data
     assert data["order"]["status"] == "PENDING"
+
+
+def test_create_payment_intent(client, user_token, test_user, test_product):
+    """Test creating Stripe payment intent for pending order."""
+    with client.application.app_context():
+        order = Order(
+            user_id=test_user.id,
+            product_id=test_product.id,
+            quantity=1,
+            unit_price=test_product.price,
+            subtotal=test_product.price,
+            total_amount=test_product.price,
+            idempotency_key=f"pi-intent-key-{str(uuid.uuid4())}",
+            status=OrderStatus.PENDING,
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+        )
+        db.session.add(order)
+        db.session.commit()
+        order_id = order.id
+
+    headers = {"Authorization": f"Bearer {user_token}"}
+    payload = {"order_id": order_id, "currency": "usd"}
+
+    res = client.post("/api/v1/orders/payments/intent", json=payload, headers=headers)
+    assert res.status_code == 201
+    data = res.get_json()
+    assert "payment_intent_id" in data
+    assert "client_secret" in data
+    assert data["amount"] == float(test_product.price)

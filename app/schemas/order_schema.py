@@ -53,3 +53,22 @@ class ReservationAcceptedSchema(Schema):
     order = fields.Nested(OrderResponseSchema, dump_only=True)
     task_id = fields.String(dump_only=True)
     status_url = fields.String(dump_only=True)
+
+
+class PaymentIntentRequestSchema(Schema):
+    """Schema for payment intent creation request."""
+
+    order_id = fields.String(required=True, metadata={"description": "Target order ID"})
+    currency = fields.String(required=False, load_default="usd", metadata={"description": "ISO currency code"})
+
+
+class PaymentIntentResponseSchema(Schema):
+    """Schema for payment intent creation response."""
+
+    payment_intent_id = fields.String(dump_only=True)
+    client_secret = fields.String(dump_only=True)
+    amount = fields.Float(dump_only=True)
+    currency = fields.String(dump_only=True)
+    status = fields.String(dump_only=True)
+    mode = fields.String(dump_only=True)
+    message = fields.String(dump_only=True)

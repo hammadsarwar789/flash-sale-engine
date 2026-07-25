@@ -4,15 +4,32 @@ from app.models.order import Order, OrderStatus
 from app.core.extensions import db
 
 
-def test_payment_stub_in_development(client, user_token, test_product):
-    """Test payment endpoints return 'in_development' progress response."""
+def test_payment_stub_in_development(client, user_token, test_user, test_product):
+    """Test payment intent endpoint creates PaymentIntent object."""
+    from datetime import datetime, timedelta, timezone
+    with client.application.app_context():
+        order = Order(
+            user_id=test_user.id,
+            product_id=test_product.id,
+            quantity=1,
+            unit_price=test_product.price,
+            subtotal=test_product.price,
+            total_amount=test_product.price,
+            idempotency_key=f"pi-stub-key-{str(uuid.uuid4())}",
+            status=OrderStatus.PENDING,
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+        )
+        db.session.add(order)
+        db.session.commit()
+        order_id = order.id
+
     headers = {"Authorization": f"Bearer {user_token}"}
     
-    res = client.post("/api/v1/orders/payments/intent", headers=headers)
-    assert res.status_code == 200
+    res = client.post("/api/v1/orders/payments/intent", json={"order_id": order_id}, headers=headers)
+    assert res.status_code == 201
     data = res.get_json()
-    assert data["status"] == "in_development"
-    assert "Development Progress" in data["message"]
+    assert "payment_intent_id" in data
+    assert "client_secret" in data
 
 
 def test_category_and_product_filtering(client, admin_token, user_token):
