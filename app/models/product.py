@@ -1,0 +1,60 @@
+import uuid
+from datetime import datetime, timezone
+from app.core.extensions import db
+
+
+class Product(db.Model):
+    """Flash sale Product model with stock tracking and optimistic locking."""
+
+    __tablename__ = "products"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    category_id = db.Column(db.String(36), db.ForeignKey("categories.id"), nullable=True, index=True)
+    name = db.Column(db.String(255), nullable=False)
+    sku = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    description = db.Column(db.Text, nullable=True)
+    images = db.Column(db.JSON, nullable=True, default=list)
+    total_stock = db.Column(db.Integer, nullable=False)
+    available_stock = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Numeric(12, 2), nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    version = db.Column(db.Integer, nullable=False, default=1)
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    category = db.relationship("Category", back_populates="products")
+    variants = db.relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan", lazy="joined")
+    orders = db.relationship("Order", back_populates="product", lazy="select")
+
+    __table_args__ = (
+        db.CheckConstraint("total_stock >= 0", name="check_total_stock_non_negative"),
+        db.CheckConstraint("available_stock >= 0", name="check_available_stock_non_negative"),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "category_id": self.category_id,
+            "category_name": self.category.name if self.category else None,
+            "name": self.name,
+            "sku": self.sku,
+            "description": self.description,
+            "images": self.images or [],
+            "total_stock": self.total_stock,
+            "available_stock": self.available_stock,
+            "price": float(self.price),
+            "is_active": self.is_active,
+            "version": self.version,
+            "variants": [v.to_dict() for v in self.variants] if self.variants else [],
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
