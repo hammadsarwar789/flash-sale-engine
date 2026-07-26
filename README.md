@@ -1,6 +1,6 @@
 # High-Scale E-Commerce & Distributed Flash Sale Engine Backend
 
-A production-grade, event-driven e-commerce platform and inventory reservation engine engineered to handle extreme concurrent traffic during flash sale events. Built with **Flask 3.x**, **Flask-Smorest / Marshmallow**, **PostgreSQL**, **Redis**, **RabbitMQ**, and **Celery**, this platform delivers a full-featured e-commerce suite—including multi-item shopping carts, product catalog depth with hierarchical categories and SKU variants, order fulfillment lifecycle tracking, Stripe PaymentIntents & signature-verified webhooks, guest checkout, promo coupons, customer reviews, and wishlists.
+A production-grade, event-driven e-commerce platform and inventory reservation engine engineered to handle extreme concurrent traffic during flash sale events. Built with **Flask 3.x**, **Flask-Smorest / Marshmallow**, **PostgreSQL**, **Redis**, **RabbitMQ**, and **Celery**, this platform delivers a full-featured e-commerce suite—including multi-item shopping carts with per-variant purchasing, product catalog depth with hierarchical categories and SKU variants, order fulfillment lifecycle tracking, Stripe PaymentIntents & signature-verified webhooks, guest checkout, automated sales tax calculation, promo coupons, customer reviews, and wishlists.
 
 ---
 
@@ -54,17 +54,20 @@ During high-concurrency flash sales, hitting a relational database directly for 
 
 ### Key Distributed Systems & E-Commerce Patterns Implemented
 
-1. **Atomic Multi-SKU In-Memory Reservations (Redis Lua Scripting)**: Reads, validates, and decrements stock counters for multiple cart items atomically in Redis, preventing race conditions and overselling without database row locking.
-2. **Transactional Outbox Pattern**: Writes order entities, order line items, and outbox event records into PostgreSQL within the same atomic SQL transaction. A background publisher relay polls outbox records and dispatches events to RabbitMQ with zero event loss.
-3. **Idempotency Key Validation**: Custom Flask decorators validate `Idempotency-Key` headers against Redis to guarantee that retried requests safely return cached responses without duplicate processing.
-4. **Stripe Payment Gateway Integration & Signature-Verified Webhooks**:
-   - `POST /api/v1/orders/payments/intent`: Creates Stripe `PaymentIntent` objects (with automatic Sandbox mode fallback when API keys are not configured).
+1. **Per-Variant Stock Isolation & Purchasing Integration**: Both `cart_items` and `order_items` link directly to specific SKU variants via `variant_id`. `InventoryService` generates independent stock keys (`variant:<variant_id>:stock`), isolating variant inventory so selling out "Red / Large" decrements only that variant's pool without blocking "Red / Small".
+2. **Atomic Multi-SKU In-Memory Reservations (Redis Lua Scripting)**: Reads, validates, and decrements stock counters for multiple cart items and variants atomically in Redis, preventing race conditions and overselling without database row locking.
+3. **Automated Sales Tax Calculation Engine**: `OrderService` calculates an 8% sales tax automatically during checkout (`tax = round(subtotal * 0.08, 2)`), computing `subtotal`, `tax`, and `total_amount`.
+4. **Transactional Outbox Pattern**: Writes order entities, order line items, and outbox event records into PostgreSQL within the same atomic SQL transaction. A background publisher relay polls outbox records and dispatches events to RabbitMQ with zero event loss.
+5. **Idempotency Key Validation**: Custom Flask decorators validate `Idempotency-Key` headers against Redis to guarantee that retried requests safely return cached responses without duplicate processing.
+6. **Stripe Gateway, PaymentIntents, & Refunds**:
+   - `POST /api/v1/orders/payments/intent`: Creates Stripe `PaymentIntent` objects (with automatic Sandbox mode fallback when API keys are omitted).
    - `POST /api/v1/webhooks/stripe`: Signature-verified webhook handler processing `payment_intent.succeeded` (marks order `PAID`) and `payment_intent.payment_failed` (cancels order and restores stock).
-5. **Full Product Catalog Depth**: Hierarchical product categories, size/color SKU variants, multi-image product galleries, PostgreSQL full-text search, filtering, price/date sorting, and paginated catalog queries.
-6. **Complete Order Lifecycle & Fulfillment**: Supports status transitions (`PENDING`, `PAID`, `SHIPPED`, `DELIVERED`, `CANCELLED`, `REFUNDED`, `RETURNED`) along with customer shipping addresses, tracking numbers, and carrier details.
-7. **Guest Checkout**: `POST /api/v1/orders/guest-checkout` enables non-authenticated users to place orders directly without creating a prior account.
-8. **Automatic Schema Synchronization**: Startup hooks ([app/core/db_init.py](file:///d:/Flash%20Sale%20Engine/app/core/db_init.py)) automatically execute safe `ALTER TABLE` statements and `db.create_all()` across PostgreSQL and SQLite databases.
-9. **Production WSGI & CI/CD**: Production process manager config ([gunicorn.conf.py](file:///d:/Flash%20Sale%20Engine/gunicorn.conf.py)), automated GitHub Actions pipeline ([.github/workflows/ci.yml](file:///d:/Flash%20Sale%20Engine/.github/workflows/ci.yml)), and optional Sentry error tracking integration.
+   - `PATCH /api/v1/admin/orders/<id>`: Updating status to `REFUNDED` automatically executes `stripe.Refund.create()`.
+7. **Full Product Catalog Depth**: Hierarchical product categories, size/color SKU variants, multi-image product galleries, PostgreSQL full-text search, filtering, price/date sorting, and paginated catalog queries.
+8. **Complete Order Lifecycle & Fulfillment**: Supports status transitions (`PENDING`, `PAID`, `SHIPPED`, `DELIVERED`, `CANCELLED`, `REFUNDED`, `RETURNED`) along with customer shipping addresses, tracking numbers, and carrier details.
+9. **Guest Checkout**: `POST /api/v1/orders/guest-checkout` enables non-authenticated users to place orders directly without creating a prior account.
+10. **Automatic Schema Synchronization**: Startup hooks ([app/core/db_init.py](file:///d:/Flash%20Sale%20Engine/app/core/db_init.py)) automatically execute safe `ALTER TABLE` statements and `db.create_all()` across PostgreSQL and SQLite databases.
+11. **Production WSGI & CI/CD**: Production process manager config ([gunicorn.conf.py](file:///d:/Flash%20Sale%20Engine/gunicorn.conf.py)), automated GitHub Actions pipeline ([.github/workflows/ci.yml](file:///d:/Flash%20Sale%20Engine/.github/workflows/ci.yml)), and optional Sentry error tracking integration.
 
 ---
 
@@ -77,10 +80,10 @@ During high-concurrency flash sales, hitting a relational database directly for 
 | **Primary Database** | **PostgreSQL 16** | Relational storage for transactional integrity and audit logging |
 | **Database ORM & Driver** | **Flask-SQLAlchemy + psycopg3** | Object-Relational Mapper with native PostgreSQL support |
 | **Schema Synchronization** | **Custom Auto-Sync + Flask-Migrate** | Non-destructive column additions and table auto-creation |
-| **In-Memory Store & Cache** | **Redis 7** | Atomic Lua scripting, distributed sliding-window rate limiting, and token blacklisting |
+| **In-Memory Store & Cache** | **Redis 7** | Atomic Lua scripting, per-variant inventory pools, sliding-window rate limiting |
 | **Message Broker** | **RabbitMQ 3** | AMQP event message queue supporting durable exchanges, queues, and DLQ |
 | **Distributed Task Queue** | **Celery** | Asynchronous background worker execution and task scheduling |
-| **Payment Gateway** | **Stripe API & Webhooks** | Stripe PaymentIntent creation and signature-verified webhook handler |
+| **Payment Gateway** | **Stripe API & Webhooks** | Stripe PaymentIntent creation, signature-verified webhooks, & refund processing |
 | **Production WSGI & Monitoring** | **Gunicorn + Sentry SDK** | Multi-worker WSGI process management and external error tracking |
 | **CI/CD Pipeline** | **GitHub Actions** | Automated linting, static analysis, and Pytest coverage pipeline |
 | **Testing & Verification** | **Pytest** | Automated integration and multi-thread concurrency test suite |
@@ -109,39 +112,43 @@ During high-concurrency flash sales, hitting a relational database directly for 
 │ id                │ UUID PRIMARY KEY  │   │     │ sku               │ VARCHAR(64) UNIQUE│
 │ user_id           │ UUID REFERENCES   │───┘     │ total_stock       │ INTEGER           │
 │ product_id        │ UUID REFERENCES   │──┐      │ available_stock   │ INTEGER           │
-│ quantity          │ INTEGER           │  │      │ price             │ NUMERIC(12,2)     │
-└───────────────────┴───────────────────┘  │      │ images            │ JSONB DEFAULT '[]'│
-                                            │      └───────────────────┴─────────┬─────────┘
-                                            │                                   │ 1
-                                            │                                   │ N
-┌───────────────────────────────────────┐   │     ┌─────────────────────────────▼─────────┐
-│                orders                 │   │     │           product_variants            │
-├───────────────────┬───────────────────┤   │     ├───────────────────┬───────────────────┤
-│ id                │ UUID PRIMARY KEY  │   │     │ id                │ UUID PRIMARY KEY  │
-│ user_id           │ UUID REFERENCES   │───┤     │ product_id        │ UUID REFERENCES   │
-│ status            │ VARCHAR(32)       │   │     │ sku               │ VARCHAR(64) UNIQUE│
-│ subtotal          │ NUMERIC(12,2)     │   │     │ name              │ VARCHAR(128)      │
-│ tax               │ NUMERIC(12,2)     │   │     │ size / color      │ VARCHAR(64)       │
-│ shipping_fee      │ NUMERIC(12,2)     │   │     │ price             │ NUMERIC(12,2)     │
-│ total_amount      │ NUMERIC(12,2)     │   │     └───────────────────────────────────────┘
-│ shipping_address_id│ UUID REFERENCES  │   │
-│ tracking_number   │ VARCHAR(128)      │   │     ┌───────────────────────────────────────┐
-│ carrier           │ VARCHAR(64)       │   │     │              order_items              │
-│ idempotency_key   │ VARCHAR(255)      │   │     ├───────────────────┬───────────────────┤
-│ expires_at        │ TIMESTAMPTZ       │   │     │ id                │ UUID PRIMARY KEY  │
-└───────────────────┴─────────┬─────────┘   │     │ order_id          │ UUID REFERENCES   │
-                              │ 1           │     │ product_id        │ UUID REFERENCES   │
-                              │             └────►│ quantity          │ INTEGER           │
-                              │ N                 │ unit_price        │ NUMERIC(12,2)     │
-┌─────────────────────────────▼─────────┐         │ subtotal          │ NUMERIC(12,2)     │
-│             outbox_events             │         └───────────────────────────────────────┘
-├───────────────────┬───────────────────┤
-│ id                │ UUID PRIMARY KEY  │         ┌───────────────────────────────────────┐
-│ aggregate_type    │ VARCHAR(64)       │         │    shipping_addresses / coupons /     │
-│ aggregate_id      │ VARCHAR(255)      │         │         reviews / wishlist_items        │
-│ payload           │ JSONB             │         ├───────────────────────────────────────┤
-│ status            │ VARCHAR(32)       │         │ Auxiliary user commerce state tables  │
-└───────────────────┴───────────────────┘         └───────────────────────────────────────┘
+│ variant_id        │ UUID REFERENCES   │──┼─┐    │ price             │ NUMERIC(12,2)     │
+│ quantity          │ INTEGER           │  │ │    │ images            │ JSONB DEFAULT '[]'│
+└───────────────────┴───────────────────┘  │ │    └───────────────────┴─────────┬─────────┘
+                                            │ │                                   │ 1
+                                            │ │                                   │ N
+┌───────────────────────────────────────┐   │ │   ┌─────────────────────────────▼─────────┐
+│                orders                 │   │ │   │           product_variants            │
+├───────────────────┬───────────────────┤   │ │   ├───────────────────┬───────────────────┤
+│ id                │ UUID PRIMARY KEY  │   │ │   │ id                │ UUID PRIMARY KEY  │
+│ user_id           │ UUID REFERENCES   │───┤ │   │ product_id        │ UUID REFERENCES   │
+│ status            │ VARCHAR(32)       │   │ │   │ sku               │ VARCHAR(64) UNIQUE│
+│ subtotal          │ NUMERIC(12,2)     │   │ │   │ name              │ VARCHAR(128)      │
+│ tax               │ NUMERIC(12,2)     │   │ │   │ size / color      │ VARCHAR(64)       │
+│ shipping_fee      │ NUMERIC(12,2)     │   │ │   │ total_stock       │ INTEGER           │
+│ total_amount      │ NUMERIC(12,2)     │   │ │   │ available_stock   │ INTEGER           │
+│ shipping_address_id│ UUID REFERENCES  │   │ │   │ price             │ NUMERIC(12,2)     │
+│ tracking_number   │ VARCHAR(128)      │   │ │   └─────────────────────────────▲─────────┘
+│ carrier           │ VARCHAR(64)       │   │ │                                 │
+│ idempotency_key   │ VARCHAR(255)      │   │ │                                 │ 1 (FK)
+│ expires_at        │ TIMESTAMPTZ       │   │ │   ┌─────────────────────────────┴─────────┐
+└───────────────────┴─────────┬─────────┘   │ │   │              order_items              │
+                              │ 1           │ │   ├───────────────────┬───────────────────┤
+                              │             └─┼──►│ id                │ UUID PRIMARY KEY  │
+                              │ N             │   │ order_id          │ UUID REFERENCES   │
+┌─────────────────────────────▼─────────┐     │   │ product_id        │ UUID REFERENCES   │
+│             outbox_events             │     └──►│ variant_id        │ UUID REFERENCES   │
+├───────────────────┬───────────────────┤         │ quantity          │ INTEGER           │
+│ id                │ UUID PRIMARY KEY  │         │ unit_price        │ NUMERIC(12,2)     │
+│ aggregate_type    │ VARCHAR(64)       │         │ subtotal          │ NUMERIC(12,2)     │
+│ aggregate_id      │ VARCHAR(255)      │         └───────────────────────────────────────┘
+│ payload           │ JSONB             │
+│ status            │ VARCHAR(32)       │         ┌───────────────────────────────────────┐
+└───────────────────┴───────────────────┘         │    shipping_addresses / coupons /     │
+                                                  │         reviews / wishlist_items        │
+                                                  ├───────────────────────────────────────┤
+                                                  │ Auxiliary user commerce state tables  │
+                                                  └───────────────────────────────────────┘
 ```
 
 ---
@@ -177,14 +184,14 @@ flash-sale-engine/
 │   │   ├── extensions.py        # Shared extension singletons (db, migrate, smorest_api, redis, celery)
 │   │   └── security.py          # Password hashing, JWT creation & token decode helpers
 │   ├── models/                  # SQLAlchemy Models
-│   │   ├── cart.py              # CartItem model
+│   │   ├── cart.py              # CartItem model (with variant_id)
 │   │   ├── category.py          # Category hierarchical model
 │   │   ├── coupon.py            # Coupon promo model
-│   │   ├── order.py             # Order model with status lifecycle
-│   │   ├── order_item.py        # OrderItem line item model
+│   │   ├── order.py             # Order model with status lifecycle & totals
+│   │   ├── order_item.py        # OrderItem line item model (with variant_id)
 │   │   ├── outbox.py            # OutboxEvent transactional model
 │   │   ├── product.py           # Product catalog model
-│   │   ├── product_variant.py   # ProductVariant SKU model
+│   │   ├── product_variant.py   # ProductVariant SKU model (with stock)
 │   │   ├── review.py            # Customer product review model
 │   │   ├── shipping_address.py  # User saved shipping address model
 │   │   ├── task_log.py          # Background Celery execution log model
@@ -197,10 +204,10 @@ flash-sale-engine/
 │   │   ├── order_schema.py
 │   │   └── product_schema.py
 │   ├── services/
-│   │   ├── inventory_service.py # Redis Lua multi-SKU atomic reservations & stock reconciliation
-│   │   ├── order_service.py     # Multi-item checkout, guest checkout, & order cancellation
+│   │   ├── inventory_service.py # Redis Lua multi-SKU & variant atomic reservations & reconciliation
+│   │   ├── order_service.py     # Multi-item checkout, guest checkout, tax calculation & cancellation
 │   │   ├── outbox_service.py    # Outbox table polling & RabbitMQ relay logic
-│   │   └── payment_service.py   # Stripe PaymentIntent creation & sandbox fallback service
+│   │   └── payment_service.py   # Stripe PaymentIntent creation, refunds, & sandbox fallback service
 │   └── workers/
 │       ├── celery_app.py        # Celery application initialization
 │       ├── publisher.py         # Transactional outbox publisher relay runner
@@ -253,8 +260,8 @@ All API endpoints follow RESTful standards, support JSON bodies, and return RFC 
 
 | Method | Endpoint | Auth | Status Code | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/v1/cart` | User | `200 OK` | Retrieve current user's shopping cart items |
-| **POST** | `/api/v1/cart/items` | User | `201 Created` | Add item to shopping cart or increment quantity |
+| **GET** | `/api/v1/cart` | User | `200 OK` | Retrieve current user's shopping cart items (with variant info) |
+| **POST** | `/api/v1/cart/items` | User | `201 Created` | Add item or specific SKU variant (`variant_id`) to shopping cart |
 | **PATCH** | `/api/v1/cart/items/<id>` | User | `200 OK` | Update item quantity in shopping cart |
 | **DELETE** | `/api/v1/cart/items/<id>` | User | `200 OK` | Remove item from shopping cart |
 | **DELETE** | `/api/v1/cart` | User | `200 OK` | Clear all items from shopping cart |
@@ -263,14 +270,14 @@ All API endpoints follow RESTful standards, support JSON bodies, and return RFC 
 
 | Method | Endpoint | Auth | Status Code | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/api/v1/orders/checkout` | User | `202 Accepted` | **Multi-Item Cart Checkout**. Requires `Idempotency-Key` header. Reserves stock via Lua, creates Order + OrderItems, clears cart. |
-| **POST** | `/api/v1/orders/guest-checkout` | None | `202 Accepted` | **Guest Checkout**. Place order directly with email & item list without account. |
+| **POST** | `/api/v1/orders/checkout` | User | `202 Accepted` | **Multi-Item Cart Checkout**. Requires `Idempotency-Key` header. Reserves per-variant stock via Lua, computes 8% sales tax, creates Order + OrderItems. |
+| **POST** | `/api/v1/orders/guest-checkout` | None | `202 Accepted` | **Guest Checkout**. Place order directly with email & item list (with optional `variant_id`) without account. |
 | **POST** | `/api/v1/orders/payments/intent` | User | `201 Created` | Create Stripe `PaymentIntent` (with Sandbox fallback mode). |
 | **POST** | `/api/v1/webhooks/stripe` | None | `200 OK` | **Stripe Webhook Handler**. Signature-verified callback for `payment_intent.succeeded` & `payment_intent.payment_failed`. |
 | **GET** | `/api/v1/orders` | User | `200 OK` | List authenticated user's order history |
-| **GET** | `/api/v1/orders/<id>` | User | `200 OK` | Retrieve specific order detail & fulfillment status |
+| **GET** | `/api/v1/orders/<id>` | User | `200 OK` | Retrieve specific order detail, line items, & fulfillment status |
 | **POST** | `/api/v1/orders/<id>/pay` | User | `200 OK` | Pay order directly |
-| **POST** | `/api/v1/orders/<id>/cancel` | User | `200 OK` | Cancel pending order reservation and release stock back to pool |
+| **POST** | `/api/v1/orders/<id>/cancel` | User | `200 OK` | Cancel pending order reservation and release per-variant stock back to pool |
 
 ### 5. Commerce Features (`/api/v1/coupons`, `/reviews`, `/wishlist`, `/shipping-addresses`)
 
@@ -292,7 +299,7 @@ All API endpoints follow RESTful standards, support JSON bodies, and return RFC 
 | :--- | :--- | :--- | :--- | :--- |
 | **GET** | `/api/v1/admin/stats` | Admin | `200 OK` | System aggregate metrics (Products, Orders, Revenue, Users) |
 | **GET** | `/api/v1/admin/orders` | Admin | `200 OK` | List all system orders with status filtering |
-| **PATCH** | `/api/v1/admin/orders/<id>` | Admin | `200 OK` | Update order status (`SHIPPED`, `DELIVERED`, `REFUNDED`) & tracking details |
+| **PATCH** | `/api/v1/admin/orders/<id>` | Admin | `200 OK` | Update order status (`SHIPPED`, `DELIVERED`, `REFUNDED`) & tracking details (triggers Stripe refund when status is set to `REFUNDED`) |
 | **GET** | `/api/v1/admin/outbox` | Admin | `200 OK` | View Transactional Outbox Event stream logs |
 | **GET** | `/api/v1/admin/users` | Admin | `200 OK` | Directory of registered user accounts |
 | **GET** | `/api/v1/admin/task-logs` | Admin | `200 OK` | View Celery background task execution logs |
