@@ -34,6 +34,17 @@ def stripe_webhook():
         except Exception:
             return jsonify({"error": "Invalid JSON payload"}), 400
 
+    event_id = event.get("id") if isinstance(event, dict) else getattr(event, "id", None)
+    if event_id:
+        from app.core.extensions import redis_client
+        try:
+            is_new = redis_client.set(f"stripe:event:{event_id}", "processed", nx=True, ex=86400)
+            if not is_new:
+                logger.info(f"Duplicate Stripe webhook event '{event_id}' skipped.")
+                return jsonify({"status": "already_processed", "event_id": event_id}), 200
+        except Exception as e:
+            logger.warning(f"Redis webhook event deduplication check skipped: {e}")
+
     event_type = event.get("type") if isinstance(event, dict) else getattr(event, "type", None)
     data_object = event.get("data", {}).get("object", {}) if isinstance(event, dict) else getattr(getattr(event, "data", None), "object", {})
 

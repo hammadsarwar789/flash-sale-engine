@@ -231,6 +231,7 @@ def pay_order(order_id):
 
 @orders_bp.route("/payments/intent", methods=["POST"])
 @jwt_required
+@idempotent(required=False, expire_seconds=86400)
 @orders_bp.arguments(PaymentIntentRequestSchema)
 @orders_bp.response(201, PaymentIntentResponseSchema)
 def create_payment_intent(intent_data):

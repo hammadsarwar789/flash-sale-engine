@@ -39,6 +39,19 @@ class PaymentService:
         if datetime.now(timezone.utc) > order.expires_at.replace(tzinfo=timezone.utc):
             return False, "Order reservation has expired", {}
 
+        from app.core.extensions import redis_client
+        import json
+
+        # Idempotency check: return cached PaymentIntent if one already exists for this order
+        cache_key = f"order:{order_id}:payment_intent"
+        try:
+            cached_intent = redis_client.get(cache_key)
+            if cached_intent:
+                logger.info(f"Returning cached PaymentIntent for order {order_id}")
+                return True, "PaymentIntent retrieved from cache (Idempotent)", json.loads(cached_intent)
+        except Exception as e:
+            logger.warning(f"Redis PaymentIntent lookup error: {e}")
+
         amount_cents = int(round(float(order.total_amount) * 100))
         stripe_key = os.getenv("STRIPE_SECRET_KEY")
 
@@ -56,7 +69,7 @@ class PaymentService:
                     description=f"Flash Sale Engine Order #{order.id}",
                 )
                 logger.info(f"Created live Stripe PaymentIntent {intent.id} for order {order.id}")
-                return True, "PaymentIntent created successfully", {
+                res_data = {
                     "payment_intent_id": intent.id,
                     "client_secret": intent.client_secret,
                     "amount": float(order.total_amount),
@@ -64,6 +77,11 @@ class PaymentService:
                     "status": intent.status,
                     "mode": "live",
                 }
+                try:
+                    redis_client.set(cache_key, json.dumps(res_data), ex=86400)
+                except Exception:
+                    pass
+                return True, "PaymentIntent created successfully", res_data
             except Exception as e:
                 logger.error(f"Stripe API error when creating PaymentIntent: {e}")
                 return False, f"Stripe gateway error: {str(e)}", {}
@@ -73,7 +91,7 @@ class PaymentService:
             mock_secret = f"{mock_id}_secret_{str(uuid.uuid4()).replace('-', '')[:16]}"
             logger.info(f"Created Sandbox PaymentIntent {mock_id} for order {order.id}")
 
-            return True, "Sandbox PaymentIntent created successfully", {
+            res_data = {
                 "payment_intent_id": mock_id,
                 "client_secret": mock_secret,
                 "amount": float(order.total_amount),
@@ -82,6 +100,11 @@ class PaymentService:
                 "mode": "sandbox",
                 "message": "Set STRIPE_SECRET_KEY environment variable for live Stripe transactions.",
             }
+            try:
+                redis_client.set(cache_key, json.dumps(res_data), ex=86400)
+            except Exception:
+                pass
+            return True, "Sandbox PaymentIntent created successfully", res_data
 
     @classmethod
     def issue_refund(

@@ -59,9 +59,9 @@ During high-concurrency flash sales, hitting a relational database directly for 
 3. **Automated Sales Tax Calculation Engine**: `OrderService` calculates an 8% sales tax automatically during checkout (`tax = round(subtotal * 0.08, 2)`), computing `subtotal`, `tax`, and `total_amount`.
 4. **Transactional Outbox Pattern**: Writes order entities, order line items, and outbox event records into PostgreSQL within the same atomic SQL transaction. A background publisher relay polls outbox records and dispatches events to RabbitMQ with zero event loss.
 5. **Idempotency Key Validation**: Custom Flask decorators validate `Idempotency-Key` headers against Redis to guarantee that retried requests safely return cached responses without duplicate processing.
-6. **Stripe Gateway, PaymentIntents, & Refunds**:
-   - `POST /api/v1/orders/payments/intent`: Creates Stripe `PaymentIntent` objects (with automatic Sandbox mode fallback when API keys are omitted).
-   - `POST /api/v1/webhooks/stripe`: Signature-verified webhook handler processing `payment_intent.succeeded` (marks order `PAID`) and `payment_intent.payment_failed` (cancels order and restores stock).
+6. **Stripe Gateway, PaymentIntents, Webhook Deduplication & Refunds**:
+   - `POST /api/v1/orders/payments/intent`: Creates Stripe `PaymentIntent` objects (cached in Redis by `order_id` for 24h to guarantee idempotency when retried).
+   - `POST /api/v1/webhooks/stripe`: Signature-verified webhook handler with **Redis Event Deduplication** (`stripe:event:<event_id>` via `SET NX`) preventing duplicate event processing.
    - `PATCH /api/v1/admin/orders/<id>`: Updating status to `REFUNDED` automatically executes `stripe.Refund.create()`.
 7. **Full Product Catalog Depth**: Hierarchical product categories, size/color SKU variants, multi-image product galleries, PostgreSQL full-text search, filtering, price/date sorting, and paginated catalog queries.
 8. **Complete Order Lifecycle & Fulfillment**: Supports status transitions (`PENDING`, `PAID`, `SHIPPED`, `DELIVERED`, `CANCELLED`, `REFUNDED`, `RETURNED`) along with customer shipping addresses, tracking numbers, and carrier details.
