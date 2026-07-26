@@ -13,7 +13,6 @@ ENV/
 # Database / SQLite
 *.sqlite3
 *.db
-test_temp.db
 
 # Celery
 celerybeat-schedule
@@ -24,13 +23,18 @@ celerybeat.pid
 .coverage
 htmlcov/
 
-# Node / Frontend
-node_modules/
-dist/
-.vite/
-
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+
+# Distribution / packaging
+build/
+devel/
+dist/
+*.egg-info/
+
+# Node / Frontend
+node_modules/
+
