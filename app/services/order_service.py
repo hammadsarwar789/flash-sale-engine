@@ -117,6 +117,7 @@ class OrderService:
         if existing_order:
             return True, "Order already created (Idempotent)", existing_order, None
 
+        TAX_RATE = 0.08  # 8% Sales Tax Rate
         cart_items = db.session.query(CartItem).filter_by(user_id=user_id).all()
         if not cart_items:
             return False, "Cart is empty", None, None
@@ -129,17 +130,30 @@ class OrderService:
             product = db.session.query(Product).filter_by(id=cart_item.product_id, is_active=True).first()
             if not product:
                 return False, f"Product ID '{cart_item.product_id}' is no longer active or available", None, None
-            
-            line_subtotal = float(product.price) * cart_item.quantity
+
+            variant = None
+            if cart_item.variant_id:
+                from app.models.product_variant import ProductVariant
+                variant = db.session.query(ProductVariant).filter_by(id=cart_item.variant_id, product_id=product.id).first()
+                if not variant:
+                    return False, f"Variant ID '{cart_item.variant_id}' is unavailable", None, None
+
+            item_price = float(variant.price) if variant else float(product.price)
+            line_subtotal = round(item_price * cart_item.quantity, 2)
             subtotal += line_subtotal
-            reservation_items.append((cart_item.product_id, cart_item.quantity))
+
+            reservation_items.append((cart_item.product_id, cart_item.variant_id, cart_item.quantity))
             order_line_items_data.append({
                 "product": product,
+                "variant": variant,
                 "quantity": cart_item.quantity,
-                "unit_price": product.price,
+                "unit_price": item_price,
                 "subtotal": line_subtotal,
             })
 
+        tax = round(subtotal * TAX_RATE, 2)
+        shipping_fee = 0.00
+        total_amount = round(subtotal + tax + shipping_fee, 2)
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
 
         # Atomic multi-item Redis reservation
@@ -152,9 +166,9 @@ class OrderService:
                 user_id=user_id,
                 status=OrderStatus.PENDING,
                 subtotal=subtotal,
-                tax=0.00,
-                shipping_fee=0.00,
-                total_amount=subtotal,
+                tax=tax,
+                shipping_fee=shipping_fee,
+                total_amount=total_amount,
                 idempotency_key=idempotency_key,
                 expires_at=expires_at,
             )
@@ -166,6 +180,7 @@ class OrderService:
                 order_item = OrderItem(
                     order_id=order.id,
                     product_id=item_data["product"].id,
+                    variant_id=item_data["variant"].id if item_data["variant"] else None,
                     quantity=item_data["quantity"],
                     unit_price=item_data["unit_price"],
                     subtotal=item_data["subtotal"],
@@ -174,8 +189,11 @@ class OrderService:
                 created_items.append(order_item)
 
                 # Deduct DB available stock
-                prod = item_data["product"]
-                prod.available_stock = max(0, prod.available_stock - item_data["quantity"])
+                if item_data["variant"]:
+                    item_data["variant"].available_stock = max(0, item_data["variant"].available_stock - item_data["quantity"])
+                else:
+                    prod = item_data["product"]
+                    prod.available_stock = max(0, prod.available_stock - item_data["quantity"])
 
             # Clear user cart
             db.session.query(CartItem).filter_by(user_id=user_id).delete()
@@ -183,7 +201,9 @@ class OrderService:
             outbox_payload = {
                 "order_id": order.id,
                 "user_id": user_id,
-                "total_amount": float(subtotal),
+                "subtotal": subtotal,
+                "tax": tax,
+                "total_amount": total_amount,
                 "items": [item.to_dict() for item in created_items],
                 "expires_at": expires_at.isoformat(),
             }
@@ -216,12 +236,11 @@ class OrderService:
         expiry_minutes: int = 10,
     ) -> Tuple[bool, str, Optional[Order], Optional[OutboxEvent]]:
         """
-        Executes Guest Checkout:
-        1. Gets or creates guest user.
-        2. Atomic Multi-Item Redis Lua reservation.
-        3. Transactional PostgreSQL write (Order, OrderItems, OutboxEvent).
+        Executes Guest Checkout with tax calculation & variant support.
         """
+        TAX_RATE = 0.08
         from app.models.user import User
+        from app.models.product_variant import ProductVariant
         from app.core.security import hash_password
 
         guest_user = db.session.query(User).filter_by(email=guest_email).first()
@@ -248,21 +267,34 @@ class OrderService:
 
         for item_in in items_data:
             pid = item_in["product_id"]
+            vid = item_in.get("variant_id")
             qty = int(item_in.get("quantity", 1))
             product = db.session.query(Product).filter_by(id=pid, is_active=True).first()
             if not product:
                 return False, f"Product ID '{pid}' is no longer active or available", None, None
 
-            line_subtotal = float(product.price) * qty
+            variant = None
+            if vid:
+                variant = db.session.query(ProductVariant).filter_by(id=vid, product_id=pid).first()
+                if not variant:
+                    return False, f"Variant ID '{vid}' is unavailable", None, None
+
+            item_price = float(variant.price) if variant else float(product.price)
+            line_subtotal = round(item_price * qty, 2)
             subtotal += line_subtotal
-            reservation_items.append((pid, qty))
+
+            reservation_items.append((pid, vid, qty))
             order_line_items_data.append({
                 "product": product,
+                "variant": variant,
                 "quantity": qty,
-                "unit_price": product.price,
+                "unit_price": item_price,
                 "subtotal": line_subtotal,
             })
 
+        tax = round(subtotal * TAX_RATE, 2)
+        shipping_fee = 0.00
+        total_amount = round(subtotal + tax + shipping_fee, 2)
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
 
         success, msg = InventoryService.reserve_multi_stock(reservation_items)
@@ -274,9 +306,9 @@ class OrderService:
                 user_id=guest_user.id,
                 status=OrderStatus.PENDING,
                 subtotal=subtotal,
-                tax=0.00,
-                shipping_fee=0.00,
-                total_amount=subtotal,
+                tax=tax,
+                shipping_fee=shipping_fee,
+                total_amount=total_amount,
                 idempotency_key=idempotency_key,
                 expires_at=expires_at,
             )
@@ -288,6 +320,7 @@ class OrderService:
                 order_item = OrderItem(
                     order_id=order.id,
                     product_id=item_data["product"].id,
+                    variant_id=item_data["variant"].id if item_data["variant"] else None,
                     quantity=item_data["quantity"],
                     unit_price=item_data["unit_price"],
                     subtotal=item_data["subtotal"],
@@ -295,13 +328,18 @@ class OrderService:
                 db.session.add(order_item)
                 created_items.append(order_item)
 
-                prod = item_data["product"]
-                prod.available_stock = max(0, prod.available_stock - item_data["quantity"])
+                if item_data["variant"]:
+                    item_data["variant"].available_stock = max(0, item_data["variant"].available_stock - item_data["quantity"])
+                else:
+                    prod = item_data["product"]
+                    prod.available_stock = max(0, prod.available_stock - item_data["quantity"])
 
             outbox_payload = {
                 "order_id": order.id,
                 "guest_email": guest_email,
-                "total_amount": float(subtotal),
+                "subtotal": subtotal,
+                "tax": tax,
+                "total_amount": total_amount,
                 "items": [item.to_dict() for item in created_items],
                 "expires_at": expires_at.isoformat(),
             }
@@ -327,7 +365,7 @@ class OrderService:
 
     @classmethod
     def cancel_order(cls, order_id: str, user_id: str = None) -> Tuple[bool, str]:
-        """Cancel reservation, update status to CANCELLED, and restore Redis stock for all items."""
+        """Cancel reservation, update status to CANCELLED, and restore Redis stock for all items/variants."""
         query = db.session.query(Order).filter_by(id=order_id)
         if user_id:
             query = query.filter_by(user_id=user_id)
@@ -345,15 +383,22 @@ class OrderService:
 
             if order.items:
                 for item in order.items:
-                    product = db.session.query(Product).filter_by(id=item.product_id).first()
-                    if product:
-                        product.available_stock += item.quantity
-                    release_items.append((item.product_id, item.quantity))
+                    if item.variant_id:
+                        from app.models.product_variant import ProductVariant
+                        variant = db.session.query(ProductVariant).filter_by(id=item.variant_id).first()
+                        if variant:
+                            variant.available_stock += item.quantity
+                        release_items.append((item.product_id, item.variant_id, item.quantity))
+                    else:
+                        product = db.session.query(Product).filter_by(id=item.product_id).first()
+                        if product:
+                            product.available_stock += item.quantity
+                        release_items.append((item.product_id, None, item.quantity))
             elif order.product_id and order.quantity:
                 product = db.session.query(Product).filter_by(id=order.product_id).first()
                 if product:
                     product.available_stock += order.quantity
-                release_items.append((order.product_id, order.quantity))
+                release_items.append((order.product_id, None, order.quantity))
 
             db.session.commit()
 
@@ -369,7 +414,7 @@ class OrderService:
 
     @classmethod
     def pay_order(cls, order_id: str, user_id: str = None) -> Tuple[bool, str]:
-        """Mark order as PAID and decrement total stock in DB for all items."""
+        """Mark order as PAID and decrement total stock in DB for all items/variants."""
         query = db.session.query(Order).filter_by(id=order_id)
         if user_id:
             query = query.filter_by(user_id=user_id)
@@ -389,9 +434,15 @@ class OrderService:
             order.status = OrderStatus.PAID
             if order.items:
                 for item in order.items:
-                    product = db.session.query(Product).filter_by(id=item.product_id).first()
-                    if product:
-                        product.total_stock = max(0, product.total_stock - item.quantity)
+                    if item.variant_id:
+                        from app.models.product_variant import ProductVariant
+                        variant = db.session.query(ProductVariant).filter_by(id=item.variant_id).first()
+                        if variant:
+                            variant.total_stock = max(0, variant.total_stock - item.quantity)
+                    else:
+                        product = db.session.query(Product).filter_by(id=item.product_id).first()
+                        if product:
+                            product.total_stock = max(0, product.total_stock - item.quantity)
             elif order.product_id and order.quantity:
                 product = db.session.query(Product).filter_by(id=order.product_id).first()
                 if product:

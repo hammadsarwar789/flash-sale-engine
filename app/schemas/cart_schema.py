@@ -8,6 +8,10 @@ class AddToCartSchema(Schema):
         required=True,
         metadata={"description": "UUID of product to add to cart"},
     )
+    variant_id = fields.String(
+        required=False,
+        metadata={"description": "Optional UUID of specific product SKU variant"},
+    )
     quantity = fields.Integer(
         required=False,
         load_default=1,
@@ -33,6 +37,9 @@ class CartItemResponseSchema(Schema):
     user_id = fields.String(dump_only=True)
     product_id = fields.String(dump_only=True)
     product_name = fields.String(dump_only=True)
+    variant_id = fields.String(dump_only=True)
+    variant_name = fields.String(dump_only=True)
+    variant_sku = fields.String(dump_only=True)
     quantity = fields.Integer(dump_only=True)
     unit_price = fields.Float(dump_only=True)
     subtotal = fields.Float(dump_only=True)

@@ -35,6 +35,10 @@ def sync_database_schema():
                 conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(128);"))
                 conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS carrier VARCHAR(64);"))
 
+                # 4. Update 'cart_items' & 'order_items' for variant_id
+                conn.execute(text("ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))
+                conn.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))
+
         # Create any new tables (categories, product_variants, cart_items, order_items, shipping_addresses, coupons, reviews, wishlist_items)
         db.create_all()
         logger.info("Database schema synchronized successfully.")

@@ -38,9 +38,10 @@ def get_cart():
 @cart_bp.arguments(AddToCartSchema)
 @cart_bp.response(201, CartItemResponseSchema)
 def add_to_cart(data):
-    """Add a product item to the shopping cart."""
+    """Add a product item or SKU variant to the shopping cart."""
     user_id = g.current_user_id
     product_id = data["product_id"]
+    variant_id = data.get("variant_id")
     quantity = data.get("quantity", 1)
 
     product = db.session.query(Product).filter_by(id=product_id, is_active=True).first()
@@ -57,7 +58,23 @@ def add_to_cart(data):
             404,
         )
 
-    cart_item = db.session.query(CartItem).filter_by(user_id=user_id, product_id=product_id).first()
+    if variant_id:
+        from app.models.product_variant import ProductVariant
+        variant = db.session.query(ProductVariant).filter_by(id=variant_id, product_id=product_id).first()
+        if not variant:
+            return (
+                jsonify(
+                    {
+                        "type": "https://api.flashsale.com/errors/not-found",
+                        "title": "Variant Not Found",
+                        "status": 404,
+                        "detail": f"Variant with ID '{variant_id}' not found for product '{product_id}'.",
+                    }
+                ),
+                404,
+            )
+
+    cart_item = db.session.query(CartItem).filter_by(user_id=user_id, product_id=product_id, variant_id=variant_id).first()
 
     if cart_item:
         cart_item.quantity += quantity
@@ -65,6 +82,7 @@ def add_to_cart(data):
         cart_item = CartItem(
             user_id=user_id,
             product_id=product_id,
+            variant_id=variant_id,
             quantity=quantity,
         )
         db.session.add(cart_item)

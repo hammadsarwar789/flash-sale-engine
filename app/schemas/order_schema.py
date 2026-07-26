@@ -8,6 +8,10 @@ class OrderReserveSchema(Schema):
         required=True,
         metadata={"description": "UUID of product to reserve"},
     )
+    variant_id = fields.String(
+        required=False,
+        metadata={"description": "Optional UUID of product variant to reserve"},
+    )
     quantity = fields.Integer(
         required=True,
         validate=validate.Range(min=1),
@@ -22,6 +26,9 @@ class OrderItemResponseSchema(Schema):
     order_id = fields.String(dump_only=True)
     product_id = fields.String(dump_only=True)
     product_name = fields.String(dump_only=True)
+    variant_id = fields.String(dump_only=True)
+    variant_name = fields.String(dump_only=True)
+    variant_sku = fields.String(dump_only=True)
     quantity = fields.Integer(dump_only=True)
     unit_price = fields.Float(dump_only=True)
     subtotal = fields.Float(dump_only=True)

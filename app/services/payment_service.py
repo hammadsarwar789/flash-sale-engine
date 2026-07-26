@@ -82,3 +82,51 @@ class PaymentService:
                 "mode": "sandbox",
                 "message": "Set STRIPE_SECRET_KEY environment variable for live Stripe transactions.",
             }
+
+    @classmethod
+    def issue_refund(
+        cls,
+        order_id: str,
+        amount: Optional[float] = None,
+        reason: Optional[str] = None,
+    ) -> Tuple[bool, str, Dict[str, Any]]:
+        """
+        Issues a Stripe Refund for a paid order.
+        """
+        order = db.session.query(Order).filter_by(id=order_id).first()
+        if not order:
+            return False, f"Order '{order_id}' not found", {}
+
+        stripe_key = os.getenv("STRIPE_SECRET_KEY")
+        refund_amount = amount if amount is not None else float(order.total_amount)
+        amount_cents = int(round(refund_amount * 100))
+
+        if stripe_key:
+            try:
+                import stripe
+                stripe.api_key = stripe_key
+                refund = stripe.Refund.create(
+                    amount=amount_cents,
+                    reason="requested_by_customer",
+                    metadata={"order_id": order.id, "reason": reason or "Admin refund"},
+                )
+                logger.info(f"Issued live Stripe refund {refund.id} for order {order.id}")
+                return True, "Refund processed via Stripe", {
+                    "refund_id": refund.id,
+                    "amount": refund_amount,
+                    "status": refund.status,
+                    "mode": "live",
+                }
+            except Exception as e:
+                logger.error(f"Stripe API error issuing refund: {e}")
+                return False, f"Stripe refund error: {str(e)}", {}
+        else:
+            mock_refund_id = f"re_mock_{str(uuid.uuid4()).replace('-', '')[:16]}"
+            logger.info(f"Created Sandbox refund {mock_refund_id} for order {order.id}")
+            return True, "Sandbox refund issued successfully", {
+                "refund_id": mock_refund_id,
+                "amount": refund_amount,
+                "status": "succeeded",
+                "mode": "sandbox",
+                "message": "Stripe refund issued (Sandbox mode - set STRIPE_SECRET_KEY for live Stripe refunds).",
+            }

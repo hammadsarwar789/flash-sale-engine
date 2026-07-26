@@ -80,15 +80,26 @@ def update_admin_order(order_id):
     if not order:
         return jsonify({"message": f"Order '{order_id}' not found"}), 404
 
+    refund_detail = None
     if "status" in data:
-        order.status = data["status"]
+        new_status = str(data["status"]).upper()
+        if new_status == "REFUNDED" or new_status == OrderStatus.REFUNDED:
+            from app.services.payment_service import PaymentService
+            success, msg, refund_detail = PaymentService.issue_refund(order_id)
+            order.status = OrderStatus.REFUNDED
+        else:
+            order.status = data["status"]
+
     if "tracking_number" in data:
         order.tracking_number = data["tracking_number"]
     if "carrier" in data:
         order.carrier = data["carrier"]
 
     db.session.commit()
-    return jsonify({"message": "Order updated successfully", "order": order.to_dict()}), 200
+    res_payload = {"message": "Order updated successfully", "order": order.to_dict()}
+    if refund_detail:
+        res_payload["refund"] = refund_detail
+    return jsonify(res_payload), 200
 
 
 @admin_bp.route("/task-logs", methods=["GET"])

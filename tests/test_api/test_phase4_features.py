@@ -125,3 +125,51 @@ def test_create_payment_intent(client, user_token, test_user, test_product):
     assert "payment_intent_id" in data
     assert "client_secret" in data
     assert data["amount"] == float(test_product.price)
+
+
+def test_variant_cart_checkout_and_admin_refund(client, user_token, admin_token, test_product):
+    """Test variant purchasing, per-variant stock deduction, dynamic tax calculation, and admin refund."""
+    from app.models.product_variant import ProductVariant
+    headers = {"Authorization": f"Bearer {user_token}"}
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # 1. Create two distinct variants for test_product
+    with client.application.app_context():
+        v1 = ProductVariant(product_id=test_product.id, sku=f"VAR-{test_product.sku}-RED-L", name="Red Large", size="L", color="Red", price=50.00, total_stock=10, available_stock=10)
+        v2 = ProductVariant(product_id=test_product.id, sku=f"VAR-{test_product.sku}-RED-S", name="Red Small", size="S", color="Red", price=45.00, total_stock=5, available_stock=5)
+        db.session.add_all([v1, v2])
+        db.session.commit()
+        v1_id, v2_id = v1.id, v2.id
+
+    # 2. Add Red Large variant to cart
+    res = client.post("/api/v1/cart/items", json={"product_id": test_product.id, "variant_id": v1_id, "quantity": 2}, headers=headers)
+    assert res.status_code == 201
+    assert res.get_json()["variant_id"] == v1_id
+
+    # 3. Checkout Cart
+    checkout_headers = {"Authorization": f"Bearer {user_token}", "Idempotency-Key": f"var-chk-{str(uuid.uuid4())}"}
+    res = client.post("/api/v1/orders/checkout", headers=checkout_headers)
+    assert res.status_code == 202
+    order_data = res.get_json()["order"]
+    order_id = order_data["id"]
+
+    # Verify subtotal (50 * 2 = 100), tax (100 * 0.08 = 8.00), total (108.00)
+    assert order_data["subtotal"] == 100.00
+    assert order_data["tax"] == 8.00
+    assert order_data["total_amount"] == 108.00
+    assert order_data["items"][0]["variant_id"] == v1_id
+
+    # Verify Red Large stock decremented (10 -> 8) while Red Small remains 5
+    with client.application.app_context():
+        v1_db = db.session.query(ProductVariant).filter_by(id=v1_id).first()
+        v2_db = db.session.query(ProductVariant).filter_by(id=v2_id).first()
+        assert v1_db.available_stock == 8
+        assert v2_db.available_stock == 5
+
+    # 4. Admin updates status to REFUNDED -> triggers Stripe refund integration
+    res = client.patch(f"/api/v1/admin/orders/{order_id}", json={"status": "REFUNDED"}, headers=admin_headers)
+    assert res.status_code == 200
+    res_data = res.get_json()
+    assert res_data["order"]["status"] == "REFUNDED"
+    assert "refund" in res_data
+    assert res_data["refund"]["amount"] == 108.00
