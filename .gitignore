@@ -34,3 +34,7 @@ build/
 devel/
 dist/
 *.egg-info/
+
+# Node / Frontend
+node_modules/
+
