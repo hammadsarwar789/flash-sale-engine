@@ -145,6 +145,9 @@ def logout():
 def forgot_password():
     """Request password reset link/token."""
     from flask import request
+    from app.core.extensions import redis_client
+    import secrets
+
     data = request.get_json() or {}
     email = data.get("email")
     if not email:
@@ -152,8 +155,13 @@ def forgot_password():
 
     user = db.session.query(User).filter_by(email=email).first()
     if user:
-        # Generate dummy reset token for demonstration
-        return jsonify({"message": "Password reset link sent to email", "reset_token": f"reset-{user.id}"}), 200
+        # Generate cryptographically secure reset token
+        reset_token = secrets.token_urlsafe(48)
+        try:
+            redis_client.set(f"password_reset:{reset_token}", user.id, ex=3600)  # 1 hour TTL
+        except Exception:
+            pass
+        return jsonify({"message": "Password reset link sent to email", "reset_token": reset_token}), 200
 
     return jsonify({"message": "If that email exists, a reset link has been sent"}), 200
 
@@ -162,6 +170,8 @@ def forgot_password():
 def reset_password():
     """Reset password using reset token."""
     from flask import request
+    from app.core.extensions import redis_client
+
     data = request.get_json() or {}
     token = data.get("reset_token")
     new_password = data.get("new_password")
@@ -169,13 +179,29 @@ def reset_password():
     if not token or not new_password:
         return jsonify({"message": "reset_token and new_password are required"}), 400
 
-    user_id = token.replace("reset-", "")
+    # Look up token in Redis
+    try:
+        user_id = redis_client.get(f"password_reset:{token}")
+        if user_id:
+            user_id = user_id.decode() if isinstance(user_id, bytes) else user_id
+        else:
+            return jsonify({"message": "Invalid or expired reset token"}), 400
+    except Exception:
+        return jsonify({"message": "Unable to verify reset token"}), 500
+
     user = db.session.query(User).filter_by(id=user_id).first()
     if not user:
         return jsonify({"message": "Invalid or expired reset token"}), 400
 
     user.password_hash = hash_password(new_password)
     db.session.commit()
+
+    # Invalidate used token
+    try:
+        redis_client.delete(f"password_reset:{token}")
+    except Exception:
+        pass
+
     return jsonify({"message": "Password reset successfully"}), 200
 
 

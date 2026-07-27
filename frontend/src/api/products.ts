@@ -9,8 +9,16 @@ export interface ProductQuery {
   per_page?: number;
 }
 
+export interface PaginatedProducts {
+  items: Product[];
+  total: number;
+  page: number;
+  pages: number;
+  per_page: number;
+}
+
 export const productsApi = {
-  async getProducts(params: ProductQuery = {}): Promise<Product[]> {
+  async getProducts(params: ProductQuery = {}): Promise<PaginatedProducts> {
     const query = new URLSearchParams();
     if (params.search) query.append('search', params.search);
     if (params.category_id) query.append('category_id', params.category_id);
@@ -20,7 +28,7 @@ export const productsApi = {
 
     const queryString = query.toString();
     const endpoint = queryString ? `/products?${queryString}` : '/products';
-    return apiFetch<Product[]>(endpoint);
+    return apiFetch<PaginatedProducts>(endpoint);
   },
 
   async getProduct(id: string): Promise<Product> {

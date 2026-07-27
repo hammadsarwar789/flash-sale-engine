@@ -35,6 +35,18 @@ def create_app(config_name: str = None) -> Flask:
         except Exception:
             pass
 
+    # CORS cross-origin configuration
+    try:
+        from flask_cors import CORS
+        CORS(app, supports_credentials=True, origins=["http://localhost:5173", "http://127.0.0.1:5173", "*"])
+    except Exception:
+        @app.after_request
+        def add_cors_headers(response):
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Idempotency-Key"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            return response
+
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)

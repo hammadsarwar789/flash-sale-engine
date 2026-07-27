@@ -68,6 +68,8 @@ class PaymentService:
                     },
                     description=f"Flash Sale Engine Order #{order.id}",
                 )
+                order.payment_intent_id = intent.id
+                db.session.commit()
                 logger.info(f"Created live Stripe PaymentIntent {intent.id} for order {order.id}")
                 res_data = {
                     "payment_intent_id": intent.id,
@@ -89,6 +91,8 @@ class PaymentService:
             # Sandbox / Development Mode
             mock_id = f"pi_mock_{str(uuid.uuid4()).replace('-', '')[:16]}"
             mock_secret = f"{mock_id}_secret_{str(uuid.uuid4()).replace('-', '')[:16]}"
+            order.payment_intent_id = mock_id
+            db.session.commit()
             logger.info(f"Created Sandbox PaymentIntent {mock_id} for order {order.id}")
 
             res_data = {
@@ -128,11 +132,15 @@ class PaymentService:
             try:
                 import stripe
                 stripe.api_key = stripe_key
-                refund = stripe.Refund.create(
-                    amount=amount_cents,
-                    reason="requested_by_customer",
-                    metadata={"order_id": order.id, "reason": reason or "Admin refund"},
-                )
+                refund_kwargs: Dict[str, Any] = {
+                    "amount": amount_cents,
+                    "reason": "requested_by_customer",
+                    "metadata": {"order_id": order.id, "reason": reason or "Admin refund"},
+                }
+                if order.payment_intent_id:
+                    refund_kwargs["payment_intent"] = order.payment_intent_id
+
+                refund = stripe.Refund.create(**refund_kwargs)
                 logger.info(f"Issued live Stripe refund {refund.id} for order {order.id}")
                 return True, "Refund processed via Stripe", {
                     "refund_id": refund.id,

@@ -1,4 +1,5 @@
 import logging
+import os
 import psycopg
 from app import create_app
 from app.core.extensions import db
@@ -14,14 +15,19 @@ logger = logging.getLogger("seed")
 def ensure_postgres_db_exists():
     """Ensure the target PostgreSQL database exists before SQLAlchemy connects."""
     try:
-        conn = psycopg.connect("postgresql://postgres:Pakistan12@localhost:5432/postgres", autocommit=True)
+        pg_user = os.getenv("POSTGRES_USER", "postgres")
+        pg_pass = os.getenv("POSTGRES_PASSWORD", "postgres")
+        pg_host = os.getenv("POSTGRES_HOST", "localhost")
+        pg_port = os.getenv("POSTGRES_PORT", "5432")
+        pg_db = os.getenv("POSTGRES_DB", "flash_sale_db")
+        conn = psycopg.connect(f"postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/postgres", autocommit=True)
         with conn.cursor() as cur:
-            cur.execute("SELECT 1 FROM pg_database WHERE datname = 'flash_sale_db'")
+            cur.execute(f"SELECT 1 FROM pg_database WHERE datname = '{pg_db}'")
             exists = cur.fetchone()
             if not exists:
-                logger.info("Database 'flash_sale_db' does not exist. Creating database...")
-                cur.execute("CREATE DATABASE flash_sale_db")
-                logger.info("Database 'flash_sale_db' created successfully.")
+                logger.info(f"Database '{pg_db}' does not exist. Creating database...")
+                cur.execute(f"CREATE DATABASE {pg_db}")
+                logger.info(f"Database '{pg_db}' created successfully.")
         conn.close()
     except Exception as e:
         logger.warning(f"PostgreSQL database check skipped/handled: {e}")
@@ -68,11 +74,30 @@ def seed_database():
 
         db.session.commit()
 
-        # 3. Create Sample Flash Sale Products
+        # 3. Create Sample Categories
+        from app.models.category import Category
+        categories_data = [
+            {"name": "TECH", "slug": "tech", "description": "High-performance tech and devices"},
+            {"name": "OUTERWEAR", "slug": "outerwear", "description": "Technical apparel and outerwear"},
+            {"name": "FOOTWEAR", "slug": "footwear", "description": "Performance and luxury footwear"},
+        ]
+        created_categories = {}
+        for cat_in in categories_data:
+            cat = db.session.query(Category).filter_by(slug=cat_in["slug"]).first()
+            if not cat:
+                cat = Category(name=cat_in["name"], slug=cat_in["slug"], description=cat_in["description"])
+                db.session.add(cat)
+                db.session.commit()
+                logger.info(f"Created Category: '{cat.name}'")
+            created_categories[cat_in["slug"]] = cat.id
+
+        # 4. Create Sample Flash Sale Products
+        tech_cat_id = created_categories.get("tech")
         sample_products = [
             {
                 "name": "Apple iPhone 15 Pro Max 256GB",
                 "sku": "IPHONE-15-PRO-MAX",
+                "category_id": tech_cat_id,
                 "total_stock": 50,
                 "available_stock": 50,
                 "price": 1199.99,
@@ -80,6 +105,7 @@ def seed_database():
             {
                 "name": "Sony PlayStation 5 Pro Console",
                 "sku": "PS5-PRO-CONSOLE",
+                "category_id": tech_cat_id,
                 "total_stock": 25,
                 "available_stock": 25,
                 "price": 699.99,
@@ -87,6 +113,7 @@ def seed_database():
             {
                 "name": "Apple MacBook Pro 16-inch M3 Max",
                 "sku": "MACBOOK-PRO-M3-MAX",
+                "category_id": tech_cat_id,
                 "total_stock": 10,
                 "available_stock": 10,
                 "price": 3499.99,
@@ -99,6 +126,7 @@ def seed_database():
                 prod = Product(
                     name=p_data["name"],
                     sku=p_data["sku"],
+                    category_id=p_data.get("category_id"),
                     total_stock=p_data["total_stock"],
                     available_stock=p_data["available_stock"],
                     price=p_data["price"],

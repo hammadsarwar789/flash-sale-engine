@@ -201,6 +201,7 @@ export const CheckoutPage: React.FC = () => {
       }
 
       setCreatedOrder(orderRes);
+      localStorage.removeItem('cart_hold_expires_at');
 
       // If Cash on Delivery, complete immediately without credit card
       if (paymentMethod === 'cod') {

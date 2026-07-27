@@ -39,8 +39,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
   const quickLinks = [
     { label: 'ALL PRODUCTS & DROPS', path: '/products' },
-    { label: 'OUTERWEAR CATEGORY', path: '/products?category=Outerwear' },
-    { label: 'FOOTWEAR CATEGORY', path: '/products?category=Footwear' },
+    { label: 'OUTERWEAR CATEGORY', path: '/products?category_id=outerwear' },
+    { label: 'FOOTWEAR CATEGORY', path: '/products?category_id=footwear' },
+    { label: 'TECH & DEVICES CATEGORY', path: '/products?category_id=tech' },
     { label: 'MY ORDER HISTORY', path: '/orders' },
     { label: 'ADMIN CONTROL CENTER', path: '/admin' },
   ];

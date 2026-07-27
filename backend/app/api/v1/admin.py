@@ -89,6 +89,11 @@ def update_admin_order(order_id):
             order.status = OrderStatus.REFUNDED
         else:
             order.status = data["status"]
+            if new_status == "SHIPPED" or new_status == OrderStatus.SHIPPED:
+                if not order.tracking_number and "tracking_number" not in data:
+                    order.tracking_number = f"TRK-{order.id[:8].upper()}-GLOBAL"
+                if not order.carrier and "carrier" not in data:
+                    order.carrier = "FEDEX EXPRESS"
 
     if "tracking_number" in data:
         order.tracking_number = data["tracking_number"]

@@ -25,6 +25,7 @@ class Order(db.Model):
     shipping_address_id = db.Column(db.String(36), db.ForeignKey("shipping_addresses.id"), nullable=True)
     tracking_number = db.Column(db.String(128), nullable=True)
     carrier = db.Column(db.String(64), nullable=True)
+    payment_intent_id = db.Column(db.String(255), nullable=True)
     status = db.Column(db.String(32), nullable=False, default=OrderStatus.PENDING, index=True)
     quantity = db.Column(db.Integer, nullable=True)
     unit_price = db.Column(db.Numeric(12, 2), nullable=True)
@@ -59,8 +60,9 @@ class Order(db.Model):
             "user_id": self.user_id,
             "product_id": self.product_id,
             "shipping_address_id": self.shipping_address_id,
-            "tracking_number": self.tracking_number or f"TRK-{self.id[:8].upper()}-GLOBAL",
-            "carrier": self.carrier or "FEDEX EXPRESS",
+            "tracking_number": self.tracking_number if self.status in (OrderStatus.SHIPPED, OrderStatus.DELIVERED) else None,
+            "carrier": self.carrier if self.status in (OrderStatus.SHIPPED, OrderStatus.DELIVERED) else None,
+            "payment_intent_id": self.payment_intent_id,
             "status": self.status,
             "quantity": self.quantity,
             "unit_price": float(self.unit_price) if self.unit_price is not None else None,

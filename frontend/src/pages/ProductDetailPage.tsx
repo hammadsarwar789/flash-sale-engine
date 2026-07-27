@@ -36,10 +36,9 @@ export const ProductDetailPage: React.FC = () => {
 
   const activePrice = Number(selectedVariant?.price ?? product?.price ?? 0);
   const activeStock = selectedVariant?.available_stock ?? product?.available_stock ?? product?.total_stock ?? 0;
+  const totalStock = product?.total_stock ?? 100;
   const isOut = activeStock <= 0;
   const isLive = activeStock > 0 && activeStock <= 15;
-
-  const originalPrice = activePrice * 1.25;
 
   const images = product?.images && product.images.length > 0
     ? product.images
@@ -175,7 +174,12 @@ export const ProductDetailPage: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <Eyebrow className="text-ash">RATING</Eyebrow>
-              <span className="text-ink">★★★★☆ 4.2 ({reviews.length})</span>
+              <span className="text-ink">{(() => {
+                if (reviews.length === 0) return '☆☆☆☆☆ NO REVIEWS';
+                const avg = reviews.reduce((s: number, r: any) => s + (r.rating || 0), 0) / reviews.length;
+                const filled = Math.round(avg);
+                return '★'.repeat(filled) + '☆'.repeat(5 - filled) + ` ${avg.toFixed(1)} (${reviews.length})`;
+              })()}</span>
             </div>
           </div>
 
@@ -184,12 +188,6 @@ export const ProductDetailPage: React.FC = () => {
             <Eyebrow className="text-ash block">PRICE</Eyebrow>
             <div className="flex items-baseline space-x-3">
               <Numeric value={activePrice} format="price" zeroPadInt={3} className="text-3xl font-medium text-ink" />
-              <span className="font-mono text-xs text-ash line-through">
-                was ${originalPrice.toFixed(2)}
-              </span>
-              <span className="font-mono text-xs text-gain font-semibold">
-                save 20%
-              </span>
             </div>
           </div>
 
@@ -207,7 +205,11 @@ export const ProductDetailPage: React.FC = () => {
             <div className="flex items-center justify-between font-mono text-xs">
               <Eyebrow className="text-ash">STOCK</Eyebrow>
               <span className={`font-semibold ${isOut ? 'text-loss' : isLive ? 'text-warn' : 'text-gain'}`}>
-                {isOut ? 'OUT OF STOCK' : `▓░░░░░░░ ${activeStock} LEFT`}
+                {isOut ? 'OUT OF STOCK' : (() => {
+                  const ratio = Math.min(1, activeStock / Math.max(1, totalStock));
+                  const filled = Math.max(1, Math.round(ratio * 8));
+                  return '▓'.repeat(filled) + '░'.repeat(8 - filled) + ` ${activeStock} LEFT`;
+                })()}
               </span>
             </div>
 

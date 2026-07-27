@@ -117,7 +117,16 @@ def list_products(query_args):
 
     category_id = query_args.get("category_id")
     if category_id:
-        query = query.filter(Product.category_id == category_id)
+        # Try to resolve category by UUID first, then by slug or name
+        category = db.session.query(Category).filter_by(id=category_id).first()
+        if not category:
+            category = db.session.query(Category).filter(
+                (Category.slug == category_id) | (Category.name.ilike(category_id))
+            ).first()
+        if category:
+            query = query.filter(Product.category_id == category.id)
+        else:
+            query = query.filter(Product.category_id == category_id)
 
     sort_by = query_args.get("sort_by", "created_at")
     if sort_by == "price_asc":
@@ -143,7 +152,13 @@ def list_products(query_args):
             logger.warning(f"Redis cache lookup bypassed for product {p.id}: {e}")
         result.append(p_dict)
 
-    return result, 200
+    return jsonify({
+        "items": result,
+        "total": pagination.total,
+        "page": pagination.page,
+        "pages": pagination.pages,
+        "per_page": per_page,
+    }), 200
 
 
 @products_bp.route("/<string:product_id>", methods=["GET"])

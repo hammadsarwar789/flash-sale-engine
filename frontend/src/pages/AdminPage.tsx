@@ -45,7 +45,7 @@ export const AdminPage: React.FC = () => {
     try {
       const [statsData, prodsData, catsData, ordersData, usersData, outboxData, logsData] = await Promise.all([
         adminApi.getStats().catch(() => null),
-        productsApi.getProducts({ per_page: 100 }).catch(() => []),
+        productsApi.getProducts({ per_page: 100 }).catch(() => ({ items: [] as Product[] })),
         productsApi.getCategories().catch(() => []),
         adminApi.getAdminOrders(orderStatusFilter || undefined).catch(() => []),
         adminApi.listUsers().catch(() => []),
@@ -54,7 +54,7 @@ export const AdminPage: React.FC = () => {
       ]);
 
       if (statsData) setStats(statsData);
-      setProducts(prodsData);
+      setProducts(Array.isArray(prodsData) ? prodsData : (prodsData as any)?.items || []);
       setCategories(catsData);
       setOrders(ordersData);
       setUsersList(usersData);

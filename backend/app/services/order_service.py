@@ -251,6 +251,7 @@ class OrderService:
         Executes Guest Checkout with tax calculation & variant support.
         """
         TAX_RATE = 0.08
+        import secrets
         from app.models.user import User
         from app.models.product_variant import ProductVariant
         from app.core.security import hash_password
@@ -259,7 +260,7 @@ class OrderService:
         if not guest_user:
             guest_user = User(
                 email=guest_email,
-                password_hash=hash_password("GuestPass123!"),
+                password_hash=hash_password(secrets.token_urlsafe(32)),
                 full_name="Guest User",
                 role="guest",
             )

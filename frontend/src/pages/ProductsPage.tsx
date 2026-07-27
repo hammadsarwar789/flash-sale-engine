@@ -37,13 +37,17 @@ export const ProductsPage: React.FC = () => {
   };
 
   const { data: categories = [] } = useCategories();
-  const { data: products = [], isLoading, isError, error } = useProducts({
+  const { data: productsData, isLoading, isError, error } = useProducts({
     search: search.trim() || undefined,
     category_id: categoryId || undefined,
     sort_by: sortBy,
     page,
     per_page: 12,
   });
+
+  const products = productsData?.items || [];
+  const totalItems = productsData?.total || 0;
+  const totalPages = productsData?.pages || 1;
 
   return (
     <div className="space-y-8">
@@ -59,11 +63,11 @@ export const ProductsPage: React.FC = () => {
             The Flash<br />Sale Floor.
           </h1>
           <div className="font-mono text-xs text-ash pt-2">
-            <span>1,204 items</span>
+            <span>{totalItems.toLocaleString()} items</span>
             <span className="mx-2">·</span>
-            <span>42 live drops</span>
+            <span>{products.length} on this page</span>
             <span className="mx-2">·</span>
-            <span>next drop 00:14:22</span>
+            <span>page {page} of {totalPages}</span>
           </div>
         </div>
       </div>
@@ -167,11 +171,11 @@ export const ProductsPage: React.FC = () => {
               ← PREVIOUS
             </button>
             <span className="text-ink">
-              {String((page - 1) * 12 + 1).padStart(3, '0')}–{String((page - 1) * 12 + products.length).padStart(3, '0')} OF 1,204
+              {String((page - 1) * 12 + 1).padStart(3, '0')}–{String((page - 1) * 12 + products.length).padStart(3, '0')} OF {totalItems.toLocaleString()}
             </span>
             <button
               onClick={() => updateFilters({ page: (page + 1).toString() })}
-              disabled={products.length < 12}
+              disabled={page >= totalPages}
               className="hover:text-signal disabled:text-ash disabled:no-underline underline"
             >
               NEXT →

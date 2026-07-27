@@ -28,7 +28,7 @@ class OrderItem(db.Model):
             "id": self.id,
             "order_id": self.order_id,
             "product_id": self.product_id,
-            "product_name": self.product.name if self.product else None,
+            "product_name": self.product.name if self.product else f"Product #{self.product_id[:8]}",
             "variant_id": self.variant_id,
             "variant_name": self.variant.name if self.variant else None,
             "variant_sku": self.variant.sku if self.variant else None,
