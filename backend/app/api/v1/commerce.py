@@ -5,7 +5,6 @@ from app.models.coupon import Coupon
 from app.models.review import Review
 from app.models.wishlist import WishlistItem
 from app.models.shipping_address import ShippingAddress
-from app.models.product import Product
 from app.api.decorators import jwt_required, admin_required
 
 commerce_bp = Blueprint("commerce", "commerce", url_prefix="/api/v1", description="Coupons, Reviews, Wishlists & Addresses")
