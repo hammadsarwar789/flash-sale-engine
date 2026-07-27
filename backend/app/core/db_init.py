@@ -23,6 +23,7 @@ def sync_database_schema():
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS category_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT;"))
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;"))
+                conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percentage DOUBLE PRECISION DEFAULT 0.0;"))
 
                 # 3. Update existing 'orders' table
                 conn.execute(text("ALTER TABLE orders ALTER COLUMN product_id DROP NOT NULL;"))

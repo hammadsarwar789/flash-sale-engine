@@ -1,3 +1,4 @@
+from datetime import datetime, timezone, timedelta
 from flask import jsonify, g, request
 from flask_smorest import Blueprint
 from app.core.extensions import db
@@ -12,6 +13,13 @@ commerce_bp = Blueprint("commerce", "commerce", url_prefix="/api/v1", descriptio
 
 # --- Coupon Endpoints ---
 
+@commerce_bp.route("/coupons", methods=["GET"])
+def list_coupons():
+    """List all promotional coupons."""
+    coupons = db.session.query(Coupon).order_by(Coupon.created_at.desc()).all()
+    return jsonify([c.to_dict() for c in coupons]), 200
+
+
 @commerce_bp.route("/coupons/validate", methods=["POST"])
 def validate_coupon():
     """Validate a promo code for discount applicability."""
@@ -25,6 +33,11 @@ def validate_coupon():
     coupon = db.session.query(Coupon).filter_by(code=code.upper(), is_active=True).first()
     if not coupon:
         return jsonify({"valid": False, "message": "Invalid or expired coupon code"}), 404
+
+    if coupon.expires_at:
+        exp_dt = coupon.expires_at.replace(tzinfo=timezone.utc) if coupon.expires_at.tzinfo is None else coupon.expires_at
+        if datetime.now(timezone.utc) > exp_dt:
+            return jsonify({"valid": False, "message": "This promo coupon code has expired"}), 400
 
     if amount < float(coupon.min_order_amount):
         return jsonify({
@@ -50,11 +63,21 @@ def validate_coupon():
 @commerce_bp.route("/coupons", methods=["POST"])
 @admin_required
 def create_coupon():
-    """Create a new promotional coupon code (Admin)."""
+    """Create a new promotional coupon code with optional expiration (Admin)."""
     data = request.get_json() or {}
     code = data.get("code", "").upper()
     if not code:
         return jsonify({"message": "Coupon code is required"}), 400
+
+    expires_at = None
+    valid_days = data.get("valid_days")
+    if valid_days is not None and str(valid_days).isdigit() and int(valid_days) > 0:
+        expires_at = datetime.now(timezone.utc) + timedelta(days=int(valid_days))
+    elif data.get("expires_at"):
+        try:
+            expires_at = datetime.fromisoformat(str(data["expires_at"]).replace("Z", "+00:00"))
+        except Exception:
+            pass
 
     coupon = Coupon(
         code=code,
@@ -62,6 +85,7 @@ def create_coupon():
         discount_value=data.get("discount_value", 10.0),
         min_order_amount=data.get("min_order_amount", 0.0),
         usage_limit=data.get("usage_limit"),
+        expires_at=expires_at,
         is_active=True,
     )
     db.session.add(coupon)

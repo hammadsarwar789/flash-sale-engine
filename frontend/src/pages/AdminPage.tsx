@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi, SystemStats, OutboxEventItem, TaskLogItem } from '../api/admin';
 import { productsApi } from '../api/products';
-import { Product, Category, Order, User } from '../types/api';
+import { Product, Category, Order, User, Coupon } from '../types/api';
 import { Eyebrow } from '../components/ui/Eyebrow';
 import { Numeric } from '../components/ui/Numeric';
 import { StatusDot } from '../components/ui/StatusDot';
@@ -26,12 +26,15 @@ export const AdminPage: React.FC = () => {
   const [prodStock, setProdStock] = useState<number>(100);
   const [prodDesc, setProdDesc] = useState('');
   const [prodCatId, setProdCatId] = useState('');
+  const [prodDiscountPct, setProdDiscountPct] = useState<number>(0);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
   // Coupon Generator state
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [couponCode, setCouponCode] = useState('');
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState<number>(15);
+  const [couponValidDays, setCouponValidDays] = useState<number>(7);
   const [isCreatingCoupon, setIsCreatingCoupon] = useState(false);
 
   // Order Fulfillment update state & search/modals
@@ -55,13 +58,14 @@ export const AdminPage: React.FC = () => {
   const [editProdPrice, setEditProdPrice] = useState<number>(0);
   const [editProdStock, setEditProdStock] = useState<number>(0);
   const [editProdCatId, setEditProdCatId] = useState('');
+  const [editProdDiscountPct, setEditProdDiscountPct] = useState<number>(0);
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
 
   const loadAdminData = async () => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const [statsData, prodsData, catsData, ordersData, usersData, outboxData, logsData] = await Promise.all([
+      const [statsData, prodsData, catsData, ordersData, usersData, outboxData, logsData, couponsData] = await Promise.all([
         adminApi.getStats().catch(() => null),
         productsApi.getProducts({ per_page: 100 }).catch(() => ({ items: [] as Product[] })),
         productsApi.getCategories().catch(() => []),
@@ -69,6 +73,7 @@ export const AdminPage: React.FC = () => {
         adminApi.listUsers().catch(() => []),
         adminApi.getOutboxEvents().catch(() => []),
         adminApi.listTaskLogs().catch(() => []),
+        adminApi.listCoupons().catch(() => []),
       ]);
 
       if (statsData) setStats(statsData);
@@ -78,6 +83,7 @@ export const AdminPage: React.FC = () => {
       setUsersList(usersData);
       setOutboxEvents(outboxData);
       setTaskLogs(logsData);
+      setCoupons(couponsData || []);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to load admin telemetry data.');
     } finally {
@@ -102,11 +108,13 @@ export const AdminPage: React.FC = () => {
         total_stock: prodStock,
         description: prodDesc,
         category_id: prodCatId || undefined,
-      });
-      setSuccessMsg(`Product '${prodName}' created.`);
+        discount_percentage: prodDiscountPct,
+      } as any);
+      setSuccessMsg(`Product '${prodName}' created with ${prodDiscountPct}% discount.`);
       setProdName('');
       setProdSku('');
       setProdDesc('');
+      setProdDiscountPct(0);
       loadAdminData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to create product.');
@@ -121,6 +129,7 @@ export const AdminPage: React.FC = () => {
     setEditProdPrice(Number(p.price) || 0);
     setEditProdStock(p.total_stock || p.available_stock || 0);
     setEditProdCatId(typeof p.category === 'object' ? (p.category as any)?.id || '' : p.category_id || '');
+    setEditProdDiscountPct(Number((p as any).discount_percentage) || 0);
   };
 
   const handleSaveEditProduct = async (e: React.FormEvent) => {
@@ -136,8 +145,9 @@ export const AdminPage: React.FC = () => {
         total_stock: editProdStock,
         available_stock: editProdStock,
         category_id: editProdCatId || undefined,
-      });
-      setSuccessMsg(`Product '${editProdName}' stock updated to ${editProdStock} units (Redis cache synced).`);
+        discount_percentage: editProdDiscountPct,
+      } as any);
+      setSuccessMsg(`Product '${editProdName}' updated successfully (${editProdDiscountPct}% discount applied).`);
       setEditProduct(null);
       loadAdminData();
     } catch (err: any) {
@@ -214,8 +224,9 @@ export const AdminPage: React.FC = () => {
         code: couponCode.toUpperCase(),
         discount_type: discountType,
         discount_value: discountValue,
+        valid_days: couponValidDays > 0 ? couponValidDays : undefined,
       });
-      setSuccessMsg(`Coupon '${couponCode}' issued.`);
+      setSuccessMsg(`Promo code '${couponCode}' issued (${couponValidDays > 0 ? `Valid for ${couponValidDays} days` : 'Perpetual'}).`);
       setCouponCode('');
       loadAdminData();
     } catch (err: any) {
@@ -374,7 +385,7 @@ export const AdminPage: React.FC = () => {
             {/* Create Product Form */}
             <form onSubmit={handleCreateProduct} className="border border-rule p-4 bg-paper-sunk space-y-3 font-mono text-xs">
               <Eyebrow className="text-ink block">ISSUE NEW PRODUCT RECORD</Eyebrow>
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
                 <input
                   type="text"
                   required
@@ -395,9 +406,16 @@ export const AdminPage: React.FC = () => {
                   type="number"
                   required
                   step="0.01"
-                  placeholder="PRICE"
+                  placeholder="PRICE ($)"
                   value={prodPrice}
                   onChange={(e) => setProdPrice(parseFloat(e.target.value))}
+                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                />
+                <input
+                  type="number"
+                  placeholder="DISCOUNT (% OFF)"
+                  value={prodDiscountPct || ''}
+                  onChange={(e) => setProdDiscountPct(parseFloat(e.target.value) || 0)}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
                 <input
@@ -447,6 +465,7 @@ export const AdminPage: React.FC = () => {
                     <th className="py-2.5 px-3">SKU</th>
                     <th className="py-2.5 px-3">CATEGORY</th>
                     <th className="py-2.5 px-3">PRICE</th>
+                    <th className="py-2.5 px-3">DISCOUNT</th>
                     <th className="py-2.5 px-3">REDIS STOCK</th>
                     <th className="py-2.5 px-3">DB STOCK</th>
                     <th className="py-2.5 px-3 text-right">ACTIONS</th>
@@ -463,6 +482,13 @@ export const AdminPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-ink"><Numeric value={Number(p.price)} format="price" zeroPadInt={3} /></td>
+                      <td className="py-2.5 px-3 font-semibold">
+                        {(p as any).discount_percentage > 0 ? (
+                          <span className="bg-signal text-paper px-1.5 py-0.5 text-[10px]">SAVE {(p as any).discount_percentage}% OFF</span>
+                        ) : (
+                          <span className="text-ash">— NONE</span>
+                        )}
+                      </td>
                       <td className="py-2.5 px-3 text-gain font-semibold">{p.available_stock ?? p.total_stock} UNITS</td>
                       <td className="py-2.5 px-3 text-ash">{p.total_stock} UNITS</td>
                       <td className="py-2.5 px-3 text-right space-x-2">
@@ -624,7 +650,7 @@ export const AdminPage: React.FC = () => {
 
             <form onSubmit={handleCreateCoupon} className="border border-rule p-4 bg-paper-sunk space-y-3 font-mono text-xs">
               <Eyebrow className="text-ink block">ISSUE NEW PROMOTIONAL CODE</Eyebrow>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <input
                   type="text"
                   required
@@ -649,6 +675,13 @@ export const AdminPage: React.FC = () => {
                   onChange={(e) => setDiscountValue(Number(e.target.value))}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
+                <input
+                  type="number"
+                  placeholder="VALID DURATION (DAYS, E.G. 7)"
+                  value={couponValidDays || ''}
+                  onChange={(e) => setCouponValidDays(parseInt(e.target.value, 10) || 0)}
+                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                />
               </div>
               <button
                 type="submit"
@@ -658,6 +691,50 @@ export const AdminPage: React.FC = () => {
                 {isCreatingCoupon ? 'CREATING...' : 'ISSUE PROMO CODE →'}
               </button>
             </form>
+
+            {/* Coupons List Table */}
+            <div className="border border-rule bg-paper overflow-x-auto font-mono text-xs">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-paper-sunk border-b border-rule text-ash">
+                    <th className="py-2.5 px-3">PROMO CODE</th>
+                    <th className="py-2.5 px-3">DISCOUNT</th>
+                    <th className="py-2.5 px-3">MIN ORDER</th>
+                    <th className="py-2.5 px-3">TIMES USED</th>
+                    <th className="py-2.5 px-3">EXPIRATION DATE / STATUS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rule/40">
+                  {coupons.map((c) => {
+                    const isExp = c.expires_at && new Date(c.expires_at).getTime() < Date.now();
+                    return (
+                      <tr key={c.id} className="hover:bg-paper-sunk/40">
+                        <td className="py-2.5 px-3 font-semibold text-ink">{c.code}</td>
+                        <td className="py-2.5 px-3 text-signal font-semibold">
+                          {c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `$${c.discount_value} OFF`}
+                        </td>
+                        <td className="py-2.5 px-3 text-ash">${c.min_order_amount || '0.00'}</td>
+                        <td className="py-2.5 px-3 text-ink">{c.times_used || 0} TIMES</td>
+                        <td className="py-2.5 px-3">
+                          {c.expires_at ? (
+                            <span className={isExp ? 'text-loss font-semibold' : 'text-gain font-semibold'}>
+                              {isExp ? `EXPIRED (${new Date(c.expires_at).toLocaleDateString()})` : `VALID UNTIL ${new Date(c.expires_at).toLocaleDateString()}`}
+                            </span>
+                          ) : (
+                            <span className="text-ash">NO EXPIRATION (PERPETUAL)</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {coupons.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-4 text-center text-ash">No active promotional coupon codes issued yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -753,7 +830,7 @@ export const AdminPage: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Eyebrow className="text-ash block">PRICE ($)</Eyebrow>
                   <input
@@ -767,7 +844,17 @@ export const AdminPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <Eyebrow className="text-ash block">INVENTORY STOCK (UNITS)</Eyebrow>
+                  <Eyebrow className="text-ash block">DISCOUNT (%)</Eyebrow>
+                  <input
+                    type="number"
+                    value={editProdDiscountPct}
+                    onChange={(e) => setEditProdDiscountPct(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Eyebrow className="text-ash block">STOCK (UNITS)</Eyebrow>
                   <input
                     type="number"
                     required

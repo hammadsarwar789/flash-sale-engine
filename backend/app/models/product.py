@@ -17,6 +17,7 @@ class Product(db.Model):
     total_stock = db.Column(db.Integer, nullable=False)
     available_stock = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Numeric(12, 2), nullable=False)
+    discount_percentage = db.Column(db.Float, nullable=False, default=0.0)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     version = db.Column(db.Integer, nullable=False, default=1)
 
@@ -54,6 +55,8 @@ class Product(db.Model):
             "total_stock": self.total_stock,
             "available_stock": self.available_stock,
             "price": float(self.price),
+            "discount_percentage": float(self.discount_percentage or 0.0),
+            "sale_price": round(float(self.price) * (1 - float(self.discount_percentage or 0.0) / 100.0), 2) if (self.discount_percentage or 0.0) > 0 else float(self.price),
             "is_active": self.is_active,
             "version": self.version,
             "variants": [v.to_dict() for v in self.variants] if self.variants else [],

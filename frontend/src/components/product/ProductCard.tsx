@@ -30,7 +30,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }
   if (stock <= 5) stockColorClass = 'text-signal';
   else if (stock <= 15) stockColorClass = 'text-warn';
 
-  const numericPrice = Number(product.price) || 0;
+  const discountPct = Number((product as any).discount_percentage) || 0;
+  const originalPrice = Number(product.price) || 0;
+  const numericPrice = discountPct > 0
+    ? Number((product as any).sale_price) || Math.round(originalPrice * (1 - discountPct / 100) * 100) / 100
+    : originalPrice;
 
   return (
     <Link
@@ -78,13 +82,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }
 
       {/* Pricing & Monospace Block Stock Gauge */}
       <div className="pt-4 mt-4 border-t border-rule/50 space-y-2">
-        <div className="flex items-baseline space-x-2">
-          <Numeric
-            value={numericPrice}
-            format="price"
-            zeroPadInt={3}
-            className="text-[20px] leading-[24px] text-ink font-medium"
-          />
+        <div className="flex items-baseline justify-between">
+          <div className="flex items-baseline space-x-2">
+            <Numeric
+              value={numericPrice}
+              format="price"
+              zeroPadInt={3}
+              className="text-[20px] leading-[24px] text-ink font-medium"
+            />
+            {discountPct > 0 && (
+              <span className="line-through text-ash font-mono text-xs">
+                ${originalPrice.toFixed(2)}
+              </span>
+            )}
+          </div>
+          {discountPct > 0 && (
+            <span className="bg-signal text-paper px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider">
+              SAVE {discountPct}%
+            </span>
+          )}
         </div>
 
         {/* Monospace Block Characters Gauge */}

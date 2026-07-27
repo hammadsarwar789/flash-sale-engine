@@ -187,7 +187,22 @@ export const ProductDetailPage: React.FC = () => {
           <div className="space-y-1">
             <Eyebrow className="text-ash block">PRICE</Eyebrow>
             <div className="flex items-baseline space-x-3">
-              <Numeric value={activePrice} format="price" zeroPadInt={3} className="text-3xl font-medium text-ink" />
+              <Numeric
+                value={(product as any)?.discount_percentage > 0 ? ((product as any)?.sale_price || activePrice * (1 - (product as any).discount_percentage / 100)) : activePrice}
+                format="price"
+                zeroPadInt={3}
+                className="text-3xl font-medium text-ink"
+              />
+              {(product as any)?.discount_percentage > 0 && (
+                <>
+                  <span className="line-through text-ash font-mono text-sm">
+                    ${Number(product.price).toFixed(2)}
+                  </span>
+                  <span className="bg-signal text-paper px-2 py-0.5 font-mono text-xs font-semibold">
+                    SAVE {(product as any).discount_percentage}% OFF
+                  </span>
+                </>
+              )}
             </div>
           </div>
 

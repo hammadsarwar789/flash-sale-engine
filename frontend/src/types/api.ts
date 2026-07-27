@@ -2017,6 +2017,8 @@ export interface Coupon {
   discount_value: number;
   min_order_amount: number;
   usage_limit?: number;
+  times_used?: number;
+  expires_at?: string | null;
   is_active: boolean;
   created_at?: string;
 }

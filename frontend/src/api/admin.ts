@@ -135,11 +135,16 @@ export const adminApi = {
     });
   },
 
+  async listCoupons(): Promise<Coupon[]> {
+    return apiFetch<Coupon[]>('/coupons');
+  },
+
   async createCoupon(data: {
     code: string;
     discount_type: 'percentage' | 'fixed';
     discount_value: number;
     min_order_amount?: number;
+    valid_days?: number;
   }): Promise<Coupon> {
     return apiFetch<Coupon>('/coupons', {
       method: 'POST',
