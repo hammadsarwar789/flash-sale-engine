@@ -105,6 +105,7 @@ class OrderService:
         user_id: str,
         idempotency_key: str,
         coupon_code: Optional[str] = None,
+        shipping_address_id: Optional[str] = None,
         expiry_minutes: int = 10,
     ) -> Tuple[bool, str, Optional[Order], Optional[OutboxEvent]]:
         """
@@ -117,6 +118,12 @@ class OrderService:
         existing_order = db.session.query(Order).filter_by(idempotency_key=idempotency_key).first()
         if existing_order:
             return True, "Order already created (Idempotent)", existing_order, None
+
+        if not shipping_address_id:
+            from app.models.shipping_address import ShippingAddress
+            latest_addr = db.session.query(ShippingAddress).filter_by(user_id=user_id).order_by(ShippingAddress.created_at.desc()).first()
+            if latest_addr:
+                shipping_address_id = latest_addr.id
 
         TAX_RATE = 0.08  # 8% Sales Tax Rate
         cart_items = db.session.query(CartItem).filter_by(user_id=user_id).all()
@@ -175,6 +182,7 @@ class OrderService:
         try:
             order = Order(
                 user_id=user_id,
+                shipping_address_id=shipping_address_id,
                 status=OrderStatus.PENDING,
                 subtotal=subtotal,
                 tax=tax,
@@ -245,6 +253,7 @@ class OrderService:
         items_data: List[dict],
         idempotency_key: str,
         coupon_code: Optional[str] = None,
+        shipping_address_data: Optional[dict] = None,
         expiry_minutes: int = 10,
     ) -> Tuple[bool, str, Optional[Order], Optional[OutboxEvent]]:
         """
@@ -254,6 +263,7 @@ class OrderService:
         import secrets
         from app.models.user import User
         from app.models.product_variant import ProductVariant
+        from app.models.shipping_address import ShippingAddress
         from app.core.security import hash_password
 
         guest_user = db.session.query(User).filter_by(email=guest_email).first()
@@ -273,6 +283,23 @@ class OrderService:
 
         if not items_data:
             return False, "No checkout items provided", None, None
+
+        shipping_address_id = None
+        if shipping_address_data and isinstance(shipping_address_data, dict):
+            guest_addr = ShippingAddress(
+                user_id=guest_user.id,
+                recipient_name=shipping_address_data.get("recipient_name", "Guest Customer"),
+                address_line1=shipping_address_data.get("address_line1", "Standard Delivery"),
+                address_line2=shipping_address_data.get("address_line2"),
+                city=shipping_address_data.get("city", "N/A"),
+                state=shipping_address_data.get("state", "N/A"),
+                postal_code=shipping_address_data.get("postal_code", "00000"),
+                country=shipping_address_data.get("country", "US"),
+                phone=shipping_address_data.get("phone"),
+            )
+            db.session.add(guest_addr)
+            db.session.flush()
+            shipping_address_id = guest_addr.id
 
         reservation_items = []
         subtotal = 0.0
@@ -327,6 +354,7 @@ class OrderService:
         try:
             order = Order(
                 user_id=guest_user.id,
+                shipping_address_id=shipping_address_id,
                 status=OrderStatus.PENDING,
                 subtotal=subtotal,
                 tax=tax,

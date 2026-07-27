@@ -90,6 +90,7 @@ export const CheckoutPage: React.FC = () => {
   const [state, setState] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [country, setCountry] = useState('UNITED STATES');
+  const [phone, setPhone] = useState('');
 
   // Payment Method State: 'card' or 'cod'
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cod'>('card');
@@ -130,6 +131,7 @@ export const CheckoutPage: React.FC = () => {
           setState(first.state || '');
           setPostalCode(first.postal_code || '');
           setCountry(first.country || 'UNITED STATES');
+          setPhone(first.phone || '');
         }
       }).catch((e) => console.warn('Could not load shipping addresses', e));
     }
@@ -143,6 +145,7 @@ export const CheckoutPage: React.FC = () => {
     setState(addr.state || '');
     setPostalCode(addr.postal_code || '');
     setCountry(addr.country || 'UNITED STATES');
+    setPhone(addr.phone || '');
   };
 
   const handleAddNewAddressOption = () => {
@@ -151,6 +154,7 @@ export const CheckoutPage: React.FC = () => {
     setCity('');
     setState('');
     setPostalCode('');
+    setPhone('');
   };
 
   const items = cart?.items || [];
@@ -159,8 +163,8 @@ export const CheckoutPage: React.FC = () => {
     e.preventDefault();
     setCheckoutError(null);
 
-    if (!addressLine1.trim() || !city.trim() || !state.trim() || !postalCode.trim() || !country.trim()) {
-      setCheckoutError('Please complete all required shipping address fields.');
+    if (!addressLine1.trim() || !city.trim() || !state.trim() || !postalCode.trim() || !country.trim() || !phone.trim()) {
+      setCheckoutError('Please complete all required shipping address & phone number fields.');
       return;
     }
 
@@ -169,6 +173,24 @@ export const CheckoutPage: React.FC = () => {
 
     try {
       let orderRes: Order;
+      let savedAddrId = selectedAddressId;
+
+      if (isAuthenticated && !savedAddrId && addressLine1.trim()) {
+        const newAddr = await commerceApi.createShippingAddress({
+          recipient_name: recipientName.trim() || user?.full_name || 'Customer',
+          address_line1: addressLine1.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          postal_code: postalCode.trim(),
+          country: country.trim(),
+          phone: phone.trim(),
+        }).catch((err) => {
+          console.warn('Could not save address to user profile:', err);
+          return null;
+        });
+        if (newAddr?.id) savedAddrId = newAddr.id;
+      }
+
       if (isGuestMode) {
         if (!guestEmail.trim()) {
           setCheckoutError('Guest email is required');
@@ -184,20 +206,23 @@ export const CheckoutPage: React.FC = () => {
           items: formattedItems,
           idempotencyKey,
           couponCode,
-        });
-        orderRes = res.order;
-      } else {
-        if (!selectedAddressId && addressLine1.trim()) {
-          await commerceApi.createShippingAddress({
-            recipient_name: recipientName.trim() || user?.full_name || 'Customer',
+          shippingAddress: {
+            recipient_name: recipientName.trim() || 'Guest Customer',
             address_line1: addressLine1.trim(),
             city: city.trim(),
             state: state.trim(),
             postal_code: postalCode.trim(),
             country: country.trim(),
-          }).catch((err) => console.warn('Could not save address to user profile:', err));
-        }
-        const res = await checkout({ idempotencyKey, couponCode });
+            phone: phone.trim(),
+          },
+        });
+        orderRes = res.order;
+      } else {
+        const res = await checkout({
+          idempotencyKey,
+          couponCode,
+          shippingAddressId: savedAddrId || undefined,
+        });
         orderRes = res.order;
       }
 
@@ -352,8 +377,8 @@ export const CheckoutPage: React.FC = () => {
                       type="button"
                       onClick={() => selectSavedAddress(addr)}
                       className={`p-3 border text-left font-mono text-xs transition-colors rounded-none ${selectedAddressId === addr.id
-                          ? 'bg-ink text-paper border-ink font-semibold'
-                          : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
+                        ? 'bg-ink text-paper border-ink font-semibold'
+                        : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
                         }`}
                     >
                       <p className="font-sans font-semibold">{addr.recipient_name}</p>
@@ -365,8 +390,8 @@ export const CheckoutPage: React.FC = () => {
                     type="button"
                     onClick={handleAddNewAddressOption}
                     className={`p-3 border border-dashed text-left font-mono text-xs transition-colors rounded-none flex items-center justify-center ${selectedAddressId === null
-                        ? 'bg-paper-sunk border-ink text-ink font-semibold'
-                        : 'border-rule text-ash hover:text-ink'
+                      ? 'bg-paper-sunk border-ink text-ink font-semibold'
+                      : 'border-rule text-ash hover:text-ink'
                       }`}
                   >
                     + ENTER NEW SHIPPING ADDRESS
@@ -377,16 +402,29 @@ export const CheckoutPage: React.FC = () => {
 
             {/* Address Input Fields */}
             <div className="space-y-4 pt-2">
-              <div>
-                <Eyebrow className="text-ash mb-1 block">FULL NAME</Eyebrow>
-                <input
-                  type="text"
-                  required
-                  placeholder="ENTER RECIPIENT NAME (E.G. JANE DOE)"
-                  value={recipientName}
-                  onChange={(e) => setRecipientName(e.target.value)}
-                  className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Eyebrow className="text-ash mb-1 block">FULL NAME</Eyebrow>
+                  <input
+                    type="text"
+                    required
+                    placeholder="ENTER RECIPIENT NAME (E.G. JANE DOE)"
+                    value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                    className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
+                  />
+                </div>
+                <div>
+                  <Eyebrow className="text-ash mb-1 block">PHONE NO. (FOR COURIER DISPATCH, NOTIFICATIONS)</Eyebrow>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="E.G. +1 555-0199 OR +92 300-1234567"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink focus:outline-none rounded-none"
+                  />
+                </div>
               </div>
 
               <div>
@@ -471,11 +509,10 @@ export const CheckoutPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setPaymentMethod('card')}
-                className={`p-4 border text-left flex flex-col justify-between space-y-2 rounded-none transition-colors ${
-                  paymentMethod === 'card'
-                    ? 'bg-ink text-paper border-ink font-semibold'
-                    : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
-                }`}
+                className={`p-4 border text-left flex flex-col justify-between space-y-2 rounded-none transition-colors ${paymentMethod === 'card'
+                  ? 'bg-ink text-paper border-ink font-semibold'
+                  : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
+                  }`}
               >
                 <div className="flex items-center justify-between w-full">
                   <span>💳 CREDIT / DEBIT CARD</span>
@@ -487,11 +524,10 @@ export const CheckoutPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setPaymentMethod('cod')}
-                className={`p-4 border text-left flex flex-col justify-between space-y-2 rounded-none transition-colors ${
-                  paymentMethod === 'cod'
-                    ? 'bg-ink text-paper border-ink font-semibold'
-                    : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
-                }`}
+                className={`p-4 border text-left flex flex-col justify-between space-y-2 rounded-none transition-colors ${paymentMethod === 'cod'
+                  ? 'bg-ink text-paper border-ink font-semibold'
+                  : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
+                  }`}
               >
                 <div className="flex items-center justify-between w-full">
                   <span>💵 CASH ON DELIVERY (COD)</span>
@@ -552,8 +588,8 @@ export const CheckoutPage: React.FC = () => {
               {isCheckingOut || isGuestCheckingOut
                 ? 'RESERVING INVENTORY...'
                 : paymentMethod === 'cod'
-                ? `PLACE COD ORDER — $${total.toFixed(2)}`
-                : `PLACE ORDER — $${total.toFixed(2)}`}
+                  ? `PLACE COD ORDER — $${total.toFixed(2)}`
+                  : `PLACE ORDER — $${total.toFixed(2)}`}
             </button>
 
             <div className="text-center font-mono text-[11px] text-ash">

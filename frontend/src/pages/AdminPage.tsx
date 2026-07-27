@@ -1056,6 +1056,9 @@ export const AdminPage: React.FC = () => {
                     <p>{(detailModalOrder as any).shipping_address.address_line1}</p>
                     <p>{(detailModalOrder as any).shipping_address.city}, {(detailModalOrder as any).shipping_address.state} {(detailModalOrder as any).shipping_address.postal_code}</p>
                     <p className="text-ash">{(detailModalOrder as any).shipping_address.country}</p>
+                    {(detailModalOrder as any).shipping_address.phone && (
+                      <p className="text-signal font-mono font-semibold mt-1">TEL: {(detailModalOrder as any).shipping_address.phone}</p>
+                    )}
                   </div>
                 ) : (
                   <p className="text-ash">STANDARD EXPRESS SHIPPING</p>
