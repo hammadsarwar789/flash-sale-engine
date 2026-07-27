@@ -34,10 +34,20 @@ export const AdminPage: React.FC = () => {
   const [discountValue, setDiscountValue] = useState<number>(15);
   const [isCreatingCoupon, setIsCreatingCoupon] = useState(false);
 
-  // Order Fulfillment update state
+  // Order Fulfillment update state & search/modals
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('');
-  const [trackingNumber, setTrackingNumber] = useState<string>('');
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [orderSearchQuery, setOrderSearchQuery] = useState<string>('');
+  
+  // Ship Modal state
+  const [shippingModalOrder, setShippingModalOrder] = useState<Order | null>(null);
+  const [shipCarrier, setShipCarrier] = useState<string>('FEDEX EXPRESS');
+  const [shipTrackingNum, setShipTrackingNum] = useState<string>('');
+
+  // Refund Confirmation Modal state
+  const [refundModalOrder, setRefundModalOrder] = useState<Order | null>(null);
+
+  // Order Detail Drawer/Modal state
+  const [detailModalOrder, setDetailModalOrder] = useState<Order | null>(null);
 
   const loadAdminData = async () => {
     setIsLoading(true);
@@ -107,15 +117,42 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const handleUpdateFulfillment = async (orderId: string, newStatus: string) => {
+  const handleOpenShipModal = (order: Order) => {
+    setShippingModalOrder(order);
+    setShipCarrier((order as any).carrier || 'FEDEX EXPRESS');
+    setShipTrackingNum((order as any).tracking_number || `TRK-${order.id.slice(0, 8).toUpperCase()}-GLOBAL`);
+  };
+
+  const handleConfirmShip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shippingModalOrder) return;
     try {
-      await adminApi.updateOrder(orderId, { status: newStatus, tracking_number: trackingNumber || undefined });
-      setSuccessMsg(`Order #${orderId} set to ${newStatus}.`);
-      setSelectedOrderId(null);
-      setTrackingNumber('');
+      await adminApi.updateOrder(shippingModalOrder.id, {
+        status: 'SHIPPED',
+        carrier: shipCarrier.trim() || 'FEDEX EXPRESS',
+        tracking_number: shipTrackingNum.trim() || `TRK-${shippingModalOrder.id.slice(0, 8).toUpperCase()}-GLOBAL`,
+      });
+      setSuccessMsg(`Order ORD-${shippingModalOrder.id.slice(0, 8)} marked as SHIPPED with tracking ${shipTrackingNum}`);
+      setShippingModalOrder(null);
       loadAdminData();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to update order status.');
+      setErrorMsg(err.message || 'Failed to update shipping status.');
+    }
+  };
+
+  const handleOpenRefundModal = (order: Order) => {
+    setRefundModalOrder(order);
+  };
+
+  const handleConfirmRefund = async () => {
+    if (!refundModalOrder) return;
+    try {
+      await adminApi.updateOrder(refundModalOrder.id, { status: 'REFUNDED' });
+      setSuccessMsg(`Order ORD-${refundModalOrder.id.slice(0, 8)} successfully refunded.`);
+      setRefundModalOrder(null);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to issue refund.');
     }
   };
 
@@ -139,7 +176,8 @@ export const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-[720px] border border-rule bg-paper">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row min-h-[720px] border border-rule bg-paper">
       
       {/* 240px Left Rail */}
       <aside className="w-full md:w-[240px] bg-ink text-bone border-r border-rule p-4 space-y-6 flex-shrink-0">
@@ -372,19 +410,34 @@ export const AdminPage: React.FC = () => {
         {/* TAB 3: ORDERS FULFILLMENT */}
         {activeTab === 'orders' && (
           <div className="space-y-6">
-            <div className="border-b border-rule pb-3 flex justify-between items-center">
-              <h2 className="font-serif text-3xl text-ink">Fulfillment Ledger</h2>
-              <select
-                value={orderStatusFilter}
-                onChange={(e) => setOrderStatusFilter(e.target.value)}
-                className="bg-paper-sunk border border-rule text-xs font-mono px-3 py-1 text-ink"
-              >
-                <option value="">ALL STATUSES ▾</option>
-                <option value="PENDING">PENDING</option>
-                <option value="PAID">PAID</option>
-                <option value="SHIPPED">SHIPPED</option>
-                <option value="DELIVERED">DELIVERED</option>
-              </select>
+            <div className="border-b border-rule pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="font-serif text-3xl text-ink">Fulfillment Ledger</h2>
+                <p className="font-mono text-xs text-ash mt-1">Real-time customer dispatch, carrier assignment, and refund management.</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                <input
+                  type="text"
+                  placeholder="SEARCH ORDER ID, EMAIL, TRACKING, OR CARRIER..."
+                  value={orderSearchQuery}
+                  onChange={(e) => setOrderSearchQuery(e.target.value)}
+                  className="bg-paper-sunk border border-rule text-xs font-mono px-3 py-1.5 text-ink placeholder-ash uppercase focus:outline-none focus:border-ink w-full sm:w-64"
+                />
+                <select
+                  value={orderStatusFilter}
+                  onChange={(e) => setOrderStatusFilter(e.target.value)}
+                  className="bg-paper-sunk border border-rule text-xs font-mono px-3 py-1.5 text-ink"
+                >
+                  <option value="">ALL STATUSES ▾</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="PAID">PAID</option>
+                  <option value="SHIPPED">SHIPPED</option>
+                  <option value="DELIVERED">DELIVERED</option>
+                  <option value="REFUNDED">REFUNDED</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                </select>
+              </div>
             </div>
 
             <div className="border border-rule bg-paper overflow-x-auto">
@@ -395,34 +448,79 @@ export const AdminPage: React.FC = () => {
                     <th className="py-2.5 px-3">CUSTOMER EMAIL</th>
                     <th className="py-2.5 px-3">AMOUNT</th>
                     <th className="py-2.5 px-3">STATUS</th>
-                    <th className="py-2.5 px-3">TRACKING #</th>
+                    <th className="py-2.5 px-3">CARRIER / TRACKING #</th>
                     <th className="py-2.5 px-3 text-right">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-rule/40">
-                  {orders.map((o) => (
-                    <tr key={o.id} className="hover:bg-paper-sunk/40">
-                      <td className="py-2.5 px-3 text-ink font-semibold">ORD-{o.id.slice(0, 8)}</td>
-                      <td className="py-2.5 px-3 text-ash">{o.user_id ? `USER #${o.user_id}` : 'GUEST'}</td>
-                      <td className="py-2.5 px-3 text-ink"><Numeric value={Number(o.total_amount || 0)} format="price" zeroPadInt={3} /></td>
-                      <td className="py-2.5 px-3"><StatusDot status={o.status} /> {o.status}</td>
-                      <td className="py-2.5 px-3 text-ash">{(o as any).tracking_number || '—'}</td>
-                      <td className="py-2.5 px-3 text-right space-x-2">
-                        <button
-                          onClick={() => handleUpdateFulfillment(o.id, 'SHIPPED')}
-                          className="underline text-ink hover:text-signal"
-                        >
-                          [ SHIP ]
-                        </button>
-                        <button
-                          onClick={() => handleUpdateFulfillment(o.id, 'REFUNDED')}
-                          className="underline text-loss hover:text-signal"
-                        >
-                          [ REFUND ]
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {orders
+                    .filter((o) => {
+                      if (!orderSearchQuery.trim()) return true;
+                      const q = orderSearchQuery.toLowerCase();
+                      const email = ((o as any).user_email || '').toLowerCase();
+                      const name = ((o as any).user_full_name || '').toLowerCase();
+                      const tracking = ((o as any).tracking_number || '').toLowerCase();
+                      const carrier = ((o as any).carrier || '').toLowerCase();
+                      const id = o.id.toLowerCase();
+                      const status = o.status.toLowerCase();
+                      return email.includes(q) || name.includes(q) || tracking.includes(q) || carrier.includes(q) || id.includes(q) || status.includes(q);
+                    })
+                    .map((o) => (
+                      <tr key={o.id} className="hover:bg-paper-sunk/40">
+                        <td className="py-2.5 px-3 font-semibold">
+                          <button
+                            onClick={() => setDetailModalOrder(o)}
+                            className="text-ink hover:text-signal underline text-left"
+                          >
+                            ORD-{o.id.slice(0, 8).toUpperCase()}
+                          </button>
+                        </td>
+                        <td className="py-2.5 px-3 text-graphite">
+                          <div className="font-semibold text-ink">{(o as any).user_email || 'guest@flashsale.com'}</div>
+                          <div className="text-[11px] text-ash">{(o as any).user_full_name || 'Guest Customer'}</div>
+                        </td>
+                        <td className="py-2.5 px-3 text-ink font-semibold">
+                          <Numeric value={Number(o.total_amount || 0)} format="price" zeroPadInt={3} />
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <StatusDot status={o.status} /> {o.status}
+                        </td>
+                        <td className="py-2.5 px-3 text-ash">
+                          {(o as any).tracking_number ? (
+                            <div>
+                              <span className="text-ink font-semibold">{(o as any).carrier || 'FEDEX EXPRESS'}</span>
+                              <span className="block text-[11px] text-signal font-mono">{(o as any).tracking_number}</span>
+                            </div>
+                          ) : (
+                            <span>— UNFULFILLED</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-right space-x-2">
+                          <button
+                            onClick={() => setDetailModalOrder(o)}
+                            className="underline text-ink hover:text-signal"
+                          >
+                            [ DETAILS ]
+                          </button>
+                          {o.status !== 'SHIPPED' && o.status !== 'DELIVERED' && o.status !== 'REFUNDED' && (
+                            <button
+                              onClick={() => handleOpenShipModal(o)}
+                              className="underline text-ink hover:text-signal font-semibold"
+                            >
+                              [ SHIP ]
+                            </button>
+                          )}
+                          {o.status !== 'REFUNDED' && o.status !== 'CANCELLED' && (
+                            <button
+                              onClick={() => handleOpenRefundModal(o)}
+                              className="underline text-loss hover:text-signal"
+                            >
+                              [ REFUND ]
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -452,52 +550,80 @@ export const AdminPage: React.FC = () => {
                   onChange={(e) => setDiscountType(e.target.value as any)}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 >
-                  <option value="percentage">PERCENTAGE DISCOUNT (%)</option>
-                  <option value="fixed">FIXED AMOUNT ($)</option>
+                  <option value="percentage">PERCENTAGE (%) DISCOUNT</option>
+                  <option value="fixed">FIXED DOLLAR ($) DISCOUNT</option>
                 </select>
                 <input
                   type="number"
                   required
-                  placeholder="DISCOUNT VALUE"
+                  placeholder="VALUE (E.G. 15 OR 30)"
                   value={discountValue}
-                  onChange={(e) => setDiscountValue(parseFloat(e.target.value))}
+                  onChange={(e) => setDiscountValue(Number(e.target.value))}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
               </div>
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={isCreatingCoupon}
-                  className="bg-ink text-paper px-4 py-1.5 hover:bg-graphite uppercase"
-                >
-                  {isCreatingCoupon ? 'ISSUING...' : '+ ISSUE COUPON'}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={isCreatingCoupon}
+                className="bg-ink text-paper font-sans text-xs uppercase px-6 py-2 hover:bg-graphite transition-colors disabled:opacity-50"
+              >
+                {isCreatingCoupon ? 'CREATING...' : 'ISSUE PROMO CODE →'}
+              </button>
             </form>
           </div>
         )}
 
-        {/* TAB 5: USER DIRECTORY */}
+        {/* TAB 5: CATEGORIES */}
+        {activeTab === 'categories' && (
+          <div className="space-y-6">
+            <div className="border-b border-rule pb-3">
+              <h2 className="font-serif text-3xl text-ink">Product Categories</h2>
+            </div>
+
+            <div className="border border-rule bg-paper overflow-x-auto font-mono text-xs">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-paper-sunk border-b border-rule text-ash">
+                    <th className="py-2.5 px-3">CATEGORY NAME</th>
+                    <th className="py-2.5 px-3">SLUG</th>
+                    <th className="py-2.5 px-3">DESCRIPTION</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rule/40">
+                  {categories.map((c) => (
+                    <tr key={c.id} className="hover:bg-paper-sunk/40">
+                      <td className="py-2.5 px-3 text-ink font-semibold">{c.name}</td>
+                      <td className="py-2.5 px-3 text-ash">{c.slug}</td>
+                      <td className="py-2.5 px-3 text-graphite">{c.description || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: USERS DIRECTORY */}
         {activeTab === 'users' && (
           <div className="space-y-6">
             <div className="border-b border-rule pb-3">
-              <h2 className="font-serif text-3xl text-ink">Registered User Directory</h2>
+              <h2 className="font-serif text-3xl text-ink">User Directory</h2>
             </div>
 
-            <div className="border border-rule bg-paper overflow-x-auto">
-              <table className="w-full text-left font-mono text-xs">
+            <div className="border border-rule bg-paper overflow-x-auto font-mono text-xs">
+              <table className="w-full text-left">
                 <thead>
                   <tr className="bg-paper-sunk border-b border-rule text-ash">
                     <th className="py-2.5 px-3">USER ID</th>
                     <th className="py-2.5 px-3">EMAIL ADDRESS</th>
                     <th className="py-2.5 px-3">ROLE</th>
-                    <th className="py-2.5 px-3 text-right">VERIFIED</th>
+                    <th className="py-2.5 px-3 text-right">ACTIVE</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-rule/40">
                   {usersList.map((u) => (
                     <tr key={u.id} className="hover:bg-paper-sunk/40">
-                      <td className="py-2.5 px-3 text-ink">USR-{u.id}</td>
+                      <td className="py-2.5 px-3 text-ink">USR-{u.id.slice(0, 8)}</td>
                       <td className="py-2.5 px-3 text-graphite">{u.email}</td>
                       <td className="py-2.5 px-3">
                         <span className={u.role === 'admin' ? 'text-signal font-semibold' : 'text-ash'}>
@@ -514,6 +640,211 @@ export const AdminPage: React.FC = () => {
         )}
 
       </main>
+    </div>
+
+
+      {/* 🚢 SHIP MODAL */}
+      {shippingModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-ink/60" onClick={() => setShippingModalOrder(null)} />
+          <div className="relative w-full max-w-md bg-paper border border-rule p-6 space-y-4 font-mono text-xs z-10">
+            <div className="border-b border-rule pb-3 flex justify-between items-center">
+              <h3 className="font-serif text-2xl text-ink">Ship Order ORD-{shippingModalOrder.id.slice(0, 8).toUpperCase()}</h3>
+              <button onClick={() => setShippingModalOrder(null)} className="text-ash hover:text-ink font-mono text-xs">✕</button>
+            </div>
+
+            <form onSubmit={handleConfirmShip} className="space-y-4">
+              <div className="space-y-1">
+                <Eyebrow className="text-ash block">CARRIER NAME</Eyebrow>
+                <input
+                  type="text"
+                  required
+                  placeholder="E.G. FEDEX, DHL, UPS, USPS"
+                  value={shipCarrier}
+                  onChange={(e) => setShipCarrier(e.target.value.toUpperCase())}
+                  className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink uppercase focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Eyebrow className="text-ash block">TRACKING NUMBER</Eyebrow>
+                <input
+                  type="text"
+                  required
+                  placeholder="E.G. TRK-84920194US"
+                  value={shipTrackingNum}
+                  onChange={(e) => setShipTrackingNum(e.target.value.toUpperCase())}
+                  className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink uppercase focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShippingModalOrder(null)}
+                  className="px-4 py-2 border border-rule bg-paper text-ink hover:bg-paper-sunk"
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-ink text-paper font-semibold hover:bg-graphite"
+                >
+                  SAVE & MARK SHIPPED →
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 💸 REFUND CONFIRMATION MODAL */}
+      {refundModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-ink/60" onClick={() => setRefundModalOrder(null)} />
+          <div className="relative w-full max-w-md bg-paper border border-loss p-6 space-y-4 font-mono text-xs z-10">
+            <div className="border-b border-loss pb-3 flex justify-between items-center">
+              <h3 className="font-serif text-2xl text-loss">Confirm Order Refund</h3>
+              <button onClick={() => setRefundModalOrder(null)} className="text-ash hover:text-ink font-mono text-xs">✕</button>
+            </div>
+
+            <p className="text-ink">
+              Are you sure you want to refund <strong className="text-loss">${(refundModalOrder.total_amount || 0).toFixed(2)}</strong> for Order <strong className="text-ink">ORD-{refundModalOrder.id.slice(0, 8).toUpperCase()}</strong> to customer <strong className="text-ink">{(refundModalOrder as any).user_email || 'guest@flashsale.com'}</strong>?
+            </p>
+            <p className="text-ash text-[11px]">
+              This action will trigger an immediate refund via Stripe / Gateway and mark the order as REFUNDED. This action cannot be undone.
+            </p>
+
+            <div className="pt-2 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setRefundModalOrder(null)}
+                className="px-4 py-2 border border-rule bg-paper text-ink hover:bg-paper-sunk"
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRefund}
+                className="px-4 py-2 bg-loss text-paper font-semibold hover:opacity-90"
+              >
+                CONFIRM REFUND →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
+      {/* 📄 ORDER DETAIL DRAWER / MODAL */}
+      {detailModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-ink/60" onClick={() => setDetailModalOrder(null)} />
+          <div className="relative w-full max-w-2xl bg-paper border border-rule p-6 space-y-6 font-mono text-xs max-h-[90vh] overflow-y-auto z-10">
+            <div className="border-b border-rule pb-3 flex justify-between items-center">
+              <div>
+                <h3 className="font-serif text-3xl text-ink">Order ORD-{detailModalOrder.id.slice(0, 12).toUpperCase()}</h3>
+                <span className="text-ash text-[11px]">RECORDED ON {detailModalOrder.created_at ? new Date(detailModalOrder.created_at).toUTCString().toUpperCase() : 'N/A'}</span>
+              </div>
+              <button onClick={() => setDetailModalOrder(null)} className="text-ash hover:text-ink text-sm">✕</button>
+            </div>
+
+            {/* Customer & Shipping Summary */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border border-rule p-4 bg-paper-sunk">
+              <div className="space-y-1">
+                <Eyebrow className="text-ash block">CUSTOMER DETAILS</Eyebrow>
+                <p className="font-semibold text-ink">{(detailModalOrder as any).user_full_name || 'Guest Customer'}</p>
+                <p className="text-graphite">{(detailModalOrder as any).user_email || 'guest@flashsale.com'}</p>
+              </div>
+
+              <div className="space-y-1">
+                <Eyebrow className="text-ash block">SHIPPING DESTINATION</Eyebrow>
+                {(detailModalOrder as any).shipping_address ? (
+                  <div className="text-graphite">
+                    <p className="font-semibold text-ink">{(detailModalOrder as any).shipping_address.recipient_name}</p>
+                    <p>{(detailModalOrder as any).shipping_address.address_line1}</p>
+                    <p>{(detailModalOrder as any).shipping_address.city}, {(detailModalOrder as any).shipping_address.state} {(detailModalOrder as any).shipping_address.postal_code}</p>
+                    <p className="text-ash">{(detailModalOrder as any).shipping_address.country}</p>
+                  </div>
+                ) : (
+                  <p className="text-ash">STANDARD EXPRESS SHIPPING</p>
+                )}
+              </div>
+            </div>
+
+            {/* Itemized Line Items Table */}
+            <div className="space-y-2">
+              <Eyebrow className="text-ash block">ORDERED ITEMS ({detailModalOrder.items?.length || 1})</Eyebrow>
+              <div className="border border-rule bg-paper">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-paper-sunk border-b border-rule text-ash">
+                      <th className="py-2 px-3">PRODUCT</th>
+                      <th className="py-2 px-3">VARIANT</th>
+                      <th className="py-2 px-3 text-center">QTY</th>
+                      <th className="py-2 px-3 text-right">UNIT PRICE</th>
+                      <th className="py-2 px-3 text-right">SUBTOTAL</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-rule/30">
+                    {detailModalOrder.items && detailModalOrder.items.length > 0 ? (
+                      detailModalOrder.items.map((item: any, idx: number) => (
+                        <tr key={idx}>
+                          <td className="py-2 px-3 font-semibold text-ink">{item.product_name || `Product #${item.product_id?.slice(0, 8)}`}</td>
+                          <td className="py-2 px-3 text-ash">{item.variant_name || item.variant_sku || 'DEFAULT'}</td>
+                          <td className="py-2 px-3 text-center text-ink">{item.quantity}</td>
+                          <td className="py-2 px-3 text-right text-ink">${Number(item.unit_price || 0).toFixed(2)}</td>
+                          <td className="py-2 px-3 text-right font-semibold text-ink">${Number(item.subtotal || 0).toFixed(2)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td className="py-2 px-3 font-semibold text-ink">Product #{(detailModalOrder as any).product_id?.slice(0, 8) || 'N/A'}</td>
+                        <td className="py-2 px-3 text-ash">STANDARD</td>
+                        <td className="py-2 px-3 text-center text-ink">{(detailModalOrder as any).quantity || 1}</td>
+                        <td className="py-2 px-3 text-right text-ink">${Number((detailModalOrder as any).unit_price || 0).toFixed(2)}</td>
+                        <td className="py-2 px-3 text-right font-semibold text-ink">${Number(detailModalOrder.total_amount || 0).toFixed(2)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Financial Metadata */}
+            <div className="border border-rule p-4 bg-paper space-y-2">
+              <div className="flex justify-between">
+                <span className="text-ash">SUBTOTAL</span>
+                <span>${Number((detailModalOrder.total_amount || 0) - ((detailModalOrder as any).tax || 0)).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ash">TAX</span>
+                <span>${Number((detailModalOrder as any).tax || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-t border-rule pt-2 font-semibold text-ink text-sm">
+                <span>TOTAL AMOUNT</span>
+                <span>${Number(detailModalOrder.total_amount || 0).toFixed(2)}</span>
+              </div>
+              <div className="text-[11px] text-ash pt-1 flex flex-wrap justify-between gap-2 border-t border-rule/30">
+                <span>STATUS: <strong className="text-ink">{detailModalOrder.status}</strong></span>
+                <span>PAYMENT INTENT: <strong className="text-ink">{(detailModalOrder as any).payment_intent_id || 'N/A (SANDBOX)'}</strong></span>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDetailModalOrder(null)}
+                className="px-6 py-2 bg-ink text-paper font-semibold hover:bg-graphite"
+              >
+                CLOSE LEDGER VIEW
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
