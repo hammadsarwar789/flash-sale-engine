@@ -180,6 +180,16 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleMarkDelivered = async (orderId: string) => {
+    try {
+      await adminApi.updateOrder(orderId, { status: 'DELIVERED' });
+      setSuccessMsg(`Order ORD-${orderId.slice(0, 8).toUpperCase()} marked as DELIVERED.`);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to update delivery status.');
+    }
+  };
+
   const handleOpenRefundModal = (order: Order) => {
     setRefundModalOrder(order);
   };
@@ -578,6 +588,14 @@ export const AdminPage: React.FC = () => {
                               className="underline text-ink hover:text-signal font-semibold"
                             >
                               [ SHIP ]
+                            </button>
+                          )}
+                          {o.status === 'SHIPPED' && (
+                            <button
+                              onClick={() => handleMarkDelivered(o.id)}
+                              className="underline text-gain hover:text-ink font-semibold"
+                            >
+                              [ MARK DELIVERED ]
                             </button>
                           )}
                           {o.status !== 'REFUNDED' && o.status !== 'CANCELLED' && (
