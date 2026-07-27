@@ -62,6 +62,7 @@ class ProductCreateSchema(Schema):
         validate=validate.Range(min=0.01),
         metadata={"description": "Unit price"},
     )
+    discount_percentage = fields.Float(required=False, validate=validate.Range(min=0.0, max=100.0), load_default=0.0)
     category_id = fields.String(required=False)
     description = fields.String(required=False)
     images = fields.List(fields.String(), required=False)
@@ -76,6 +77,7 @@ class ProductUpdateSchema(Schema):
     price = fields.Float(required=False, validate=validate.Range(min=0.01))
     total_stock = fields.Integer(required=False, validate=validate.Range(min=0))
     available_stock = fields.Integer(required=False, validate=validate.Range(min=0))
+    discount_percentage = fields.Float(required=False, validate=validate.Range(min=0.0, max=100.0))
     category_id = fields.String(required=False)
     description = fields.String(required=False)
     images = fields.List(fields.String(), required=False)

@@ -101,17 +101,20 @@ export const AdminPage: React.FC = () => {
     setIsCreatingProduct(true);
     setErrorMsg(null);
     setSuccessMsg(null);
+    const validPrice = Math.max(0.01, prodPrice || 0);
+    const validStock = Math.max(0, prodStock || 0);
+    const validDiscount = Math.min(100, Math.max(0, prodDiscountPct || 0));
     try {
       await adminApi.createProduct({
         name: prodName,
         sku: prodSku.toUpperCase(),
-        price: prodPrice,
-        total_stock: prodStock,
+        price: validPrice,
+        total_stock: validStock,
         description: prodDesc,
         category_id: prodCatId || undefined,
-        discount_percentage: prodDiscountPct,
+        discount_percentage: validDiscount,
       } as any);
-      setSuccessMsg(`Product '${prodName}' created with ${prodDiscountPct}% discount.`);
+      setSuccessMsg(`Product '${prodName}' created with ${validDiscount}% discount.`);
       setProdName('');
       setProdSku('');
       setProdDesc('');
@@ -127,10 +130,10 @@ export const AdminPage: React.FC = () => {
   const handleOpenEditProduct = (p: Product) => {
     setEditProduct(p);
     setEditProdName(p.name);
-    setEditProdPrice(Number(p.price) || 0);
-    setEditProdStock(p.total_stock || p.available_stock || 0);
+    setEditProdPrice(Math.max(0.01, Number(p.price) || 0));
+    setEditProdStock(Math.max(0, p.total_stock || p.available_stock || 0));
     setEditProdCatId(typeof p.category === 'object' ? (p.category as any)?.id || '' : p.category_id || '');
-    setEditProdDiscountPct(Number((p as any).discount_percentage) || 0);
+    setEditProdDiscountPct(Math.min(100, Math.max(0, Number((p as any).discount_percentage) || 0)));
   };
 
   const handleSaveEditProduct = async (e: React.FormEvent) => {
@@ -139,16 +142,19 @@ export const AdminPage: React.FC = () => {
     setIsUpdatingProduct(true);
     setErrorMsg(null);
     setSuccessMsg(null);
+    const validPrice = Math.max(0.01, editProdPrice || 0);
+    const validStock = Math.max(0, editProdStock || 0);
+    const validDiscount = Math.min(100, Math.max(0, editProdDiscountPct || 0));
     try {
       await adminApi.updateProduct(editProduct.id, {
         name: editProdName,
-        price: editProdPrice,
-        total_stock: editProdStock,
-        available_stock: editProdStock,
+        price: validPrice,
+        total_stock: validStock,
+        available_stock: validStock,
         category_id: editProdCatId || undefined,
-        discount_percentage: editProdDiscountPct,
+        discount_percentage: validDiscount,
       } as any);
-      setSuccessMsg(`Product '${editProdName}' updated successfully (${editProdDiscountPct}% discount applied).`);
+      setSuccessMsg(`Product '${editProdName}' updated successfully (${validDiscount}% discount applied).`);
       setEditProduct(null);
       loadAdminData();
     } catch (err: any) {
@@ -220,15 +226,18 @@ export const AdminPage: React.FC = () => {
   const handleCreateCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsCreatingCoupon(true);
+    const validVal = Math.max(0.01, discountValue || 0);
+    const validMin = Math.max(0, couponMinOrder || 0);
+    const validDays = Math.max(0, couponValidDays || 0);
     try {
       await adminApi.createCoupon({
         code: couponCode.toUpperCase(),
         discount_type: discountType,
-        discount_value: discountValue,
-        min_order_amount: couponMinOrder,
-        valid_days: couponValidDays > 0 ? couponValidDays : undefined,
+        discount_value: validVal,
+        min_order_amount: validMin,
+        valid_days: validDays > 0 ? validDays : undefined,
       });
-      setSuccessMsg(`Promo code '${couponCode}' issued (Min order: $${couponMinOrder.toFixed(2)}).`);
+      setSuccessMsg(`Promo code '${couponCode}' issued (Min order: $${validMin.toFixed(2)}).`);
       setCouponCode('');
       setCouponMinOrder(0);
       loadAdminData();
@@ -408,25 +417,29 @@ export const AdminPage: React.FC = () => {
                 <input
                   type="number"
                   required
+                  min="0.01"
                   step="0.01"
                   placeholder="PRICE ($)"
                   value={prodPrice}
-                  onChange={(e) => setProdPrice(parseFloat(e.target.value))}
+                  onChange={(e) => setProdPrice(Math.max(0.01, parseFloat(e.target.value) || 0))}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
                 <input
                   type="number"
+                  min="0"
+                  max="100"
                   placeholder="DISCOUNT (% OFF)"
                   value={prodDiscountPct || ''}
-                  onChange={(e) => setProdDiscountPct(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => setProdDiscountPct(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
                 <input
                   type="number"
                   required
+                  min="0"
                   placeholder="TOTAL STOCK"
                   value={prodStock}
-                  onChange={(e) => setProdStock(parseInt(e.target.value, 10))}
+                  onChange={(e) => setProdStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
                 <select
@@ -673,24 +686,29 @@ export const AdminPage: React.FC = () => {
                 <input
                   type="number"
                   required
+                  min="0.01"
+                  step="0.01"
                   placeholder="VALUE (E.G. 15 OR 30)"
                   value={discountValue}
-                  onChange={(e) => setDiscountValue(Number(e.target.value))}
+                  onChange={(e) => setDiscountValue(Math.max(0.01, parseFloat(e.target.value) || 0))}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
                 <input
                   type="number"
+                  min="0"
                   step="0.01"
                   placeholder="MIN ORDER ($)"
                   value={couponMinOrder || ''}
-                  onChange={(e) => setCouponMinOrder(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => setCouponMinOrder(Math.max(0, parseFloat(e.target.value) || 0))}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
                 <input
                   type="number"
+                  min="0"
+                  step="1"
                   placeholder="VALID DURATION (DAYS, E.G. 7)"
                   value={couponValidDays || ''}
-                  onChange={(e) => setCouponValidDays(parseInt(e.target.value, 10) || 0)}
+                  onChange={(e) => setCouponValidDays(Math.max(0, parseInt(e.target.value, 10) || 0))}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
               </div>
@@ -846,10 +864,11 @@ export const AdminPage: React.FC = () => {
                   <Eyebrow className="text-ash block">PRICE ($)</Eyebrow>
                   <input
                     type="number"
+                    min="0.01"
                     step="0.01"
                     required
                     value={editProdPrice}
-                    onChange={(e) => setEditProdPrice(parseFloat(e.target.value))}
+                    onChange={(e) => setEditProdPrice(Math.max(0.01, parseFloat(e.target.value) || 0))}
                     className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
                   />
                 </div>
@@ -858,8 +877,10 @@ export const AdminPage: React.FC = () => {
                   <Eyebrow className="text-ash block">DISCOUNT (%)</Eyebrow>
                   <input
                     type="number"
+                    min="0"
+                    max="100"
                     value={editProdDiscountPct}
-                    onChange={(e) => setEditProdDiscountPct(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => setEditProdDiscountPct(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
                     className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
                   />
                 </div>
@@ -868,9 +889,10 @@ export const AdminPage: React.FC = () => {
                   <Eyebrow className="text-ash block">STOCK (UNITS)</Eyebrow>
                   <input
                     type="number"
+                    min="0"
                     required
                     value={editProdStock}
-                    onChange={(e) => setEditProdStock(parseInt(e.target.value, 10))}
+                    onChange={(e) => setEditProdStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
                     className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink font-semibold focus:outline-none"
                   />
                 </div>
