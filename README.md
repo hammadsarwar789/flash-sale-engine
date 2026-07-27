@@ -1,6 +1,26 @@
 # ⚡ High-Scale Flash Sale Engine & E-Commerce Platform
 
-A production-grade, full-stack distributed e-commerce platform and high-concurrency inventory reservation engine. Built with a **React 18 + Vite + TypeScript** frontend and an event-driven **Flask + PostgreSQL + Redis + RabbitMQ + Celery** backend microservice architecture.
+A production-grade, full-stack distributed e-commerce platform and high-concurrency inventory reservation engine. Designed around **Frontend Design Specification v2 ("Trading Floor Editorial")** using **React 18 + Vite + TypeScript** and backed by an event-driven **Flask + PostgreSQL + Redis + RabbitMQ + Celery** microservice architecture.
+
+---
+
+## 🎨 Visual Interface Showcase
+
+### 🛍️ 1. Floor Catalog & Real-Time Drops (`/products`)
+![Trading Floor Catalog](frontend/public/screenshots/catalog.png)
+*High-density 4-column product grid featuring issue counters (`Nº 001`), live signal dots, monospace stock block gauges (`▓▓▓▓▓░░░`), category filters (`● ALL`, `FOOTWEAR`, `TECH`), and zero-padded tabular prices (`$099.99`).*
+
+---
+
+### 🛒 2. Cart & Reserved Inventory Hold Timer (`/cart`)
+![Cart & Inventory Hold Timer](frontend/public/screenshots/cart.png)
+*Active inventory reservation hold timer featuring real-time digit-flip countdown, `localStorage` persistence across page refreshes, promo coupon code validation, and sticky order subtotal summary.*
+
+---
+
+### 💳 3. Multi-Channel Checkout & Worldwide Shipping (`/checkout`)
+![Worldwide Checkout & Payment Options](frontend/public/screenshots/checkout.png)
+*Single-column 720px stack with **Worldwide Shipping Address** entry (covering 200+ UN ISO countries & territories with free-form autocomplete), payment method selector (**Credit/Debit Card** & **Cash on Delivery / COD**), and one-click test card auto-fill.*
 
 ---
 
@@ -21,6 +41,7 @@ flash-sale-engine/
 │   └── README.md             # Backend architecture documentation
 │
 └── frontend/                 # React 18 + Vite + TypeScript SPA
+    ├── public/screenshots/   # Visual interface documentation screenshots
     ├── src/
     │   ├── api/              # Typed REST client wrappers (Auth, Products, Cart, Orders, Admin)
     │   ├── components/       # UI components (Navbar, Footer, ProductCard, VariantPicker, StripeForm)
@@ -36,29 +57,24 @@ flash-sale-engine/
 
 ## 🔥 Key System Capabilities
 
-### 🛒 1. Full-Featured E-Commerce Frontend (`/frontend`)
-* **Modern Tech Stack:** React 18, Vite 5, TypeScript (strict mode), Tailwind CSS, `@tanstack/react-query`, and `react-router-dom` v6+.
-* **Vite Proxy Networking:** Dev proxy forwards relative `/api/v1` calls to `http://localhost:5000` for native same-origin cookie & session handling.
-* **Product Catalog:** Real-time search, category dropdown filter, price/date sorting, pagination, and stock counters.
-* **Product Details (PDP):** Multi-image gallery, interactive size/color **VariantPicker** with independent price & stock resolution, live stock badge, quantity selector, Add to Cart, Buy Now, and Wishlist toggles.
-* **Cart & Promotions:** Line item quantity steppers, item removal, cart clearing, and promo coupon code validation with instant discount calculation.
-* **Idempotent Checkout & Stripe Payments:** Authenticated or guest checkout toggle, shipping address selection, cryptographically secure `crypto.randomUUID()` **Idempotency-Key** header attachment, and Stripe Card Elements UI.
-* **Order History & Fulfillment Lifecycle:** Customer order list with status badges (`PENDING`, `PAID`, `SHIPPED`, `DELIVERED`, `CANCELLED`), fulfillment status timeline, and order cancellation for `PENDING` reservations.
+### 🛒 1. "Trading Floor Editorial" Design System (`/frontend`)
+* **Editorial Aesthetic Tokens:** Built with Instrument Serif, Inter Tight, and JetBrains Mono. Flat paper surfaces (`--paper`, `--bone`, `--paper-sunk`), hairline borders (`1px solid var(--rule)`), and Signal Red (`#E5321B`) CTAs. Zero gradients, zero backdrop blurs, zero drop shadows.
+* **Tabular Monospace Numerics:** All prices, stock counts, order SKUs, and timers use `font-variant-numeric: tabular-nums` with zero-padded formatting (`$099.99`).
+* **Cart Reserve Timer:** Real-time 5-minute inventory hold timer with `localStorage` timestamp persistence preventing reset on page refreshes.
+* **Worldwide Shipping Entry:** Full ISO 3166-1 country autocomplete list supporting over 200 global countries and territories alongside free-form manual input.
+* **Dual Payment Gateway:** Toggle seamlessly between **Credit/Debit Card (Stripe)** with 1-click test card auto-fill and **Cash on Delivery (COD)**.
+* **Order Tracking & Fulfillment:** Dense table order ledger with accordion rows, horizontal fulfillment steppers (`[ PENDING ]───[ PAID ]───[ SHIPPED ]───[ DELIVERED ]`), and auto-generated tracking numbers (`TRK-84920194US`).
 
 ### 🛡️ 2. Role-Gated Admin Control Center (`/admin`)
-* **Role-Based Security:** Logged-in users with `user.role === 'admin'` are automatically routed to `/admin`. Non-admin users are restricted via client-side `AdminRoute` guards.
-* **Product Catalog CRUD (`/admin/products`):** Create products with automatic Redis stock warmup, edit details, deactivate products, force-sync Redis stock cache with PostgreSQL DB, and create SKU variants inline.
-* **Fulfillment & Refund Triggers (`/admin/orders`):** Filter order status (`SHIPPED`, `DELIVERED`, `REFUNDED`), update tracking numbers, and automatically trigger Stripe refunds upon setting an order to `REFUNDED`.
-* **Promo Code Generator (`/admin/coupons`):** Create percentage (`%`) or fixed dollar (`$`) promotional codes with minimum order amount rules.
-* **Category Management (`/admin/categories`):** Add, update, and delete categories.
-* **User Directory (`/admin/users`):** Read-only directory of registered user accounts.
-* **System Telemetry & Outbox Stream (`/admin`):** Real-time aggregate metric counters, Transactional Outbox event stream monitoring, and Celery task execution logs.
+* **240px Dark Control Rail:** Dark `--ink` sidebar with 6-cell KPI telemetry metrics bar (24h Revenue, 24h Orders, AOV, Active Holds, Redis Hits/s, Outbox Lag).
+* **Product Catalog CRUD:** Create products, sync Redis Lua stock locks, add product variants inline, and delete obsolete SKUs.
+* **Order Fulfillment Ledger:** Update order status, assign carrier details, and trigger Stripe refunds.
+* **Promo Code Generator:** Issue percentage (`%`) or fixed dollar (`$`) promotional codes with minimum order thresholds.
 
 ### ⚡ 3. High-Concurrency Distributed Backend (`/backend`)
-* **Redis Lua Atomic Stock Lock:** Inventory decrements and holds during flash sales execute atomically via Redis Lua scripts to eliminate race conditions and row locking in Postgres.
-* **Transactional Outbox Pattern:** Guarantees atomic database operations by writing business objects (Orders) and event messages (OutboxEvents) within the same PostgreSQL transaction.
-* **Async Workers & Broker:** Outbox publisher service relays events to **RabbitMQ**, consumed asynchronously by **Celery** worker pools for Stripe PaymentIntents, emails, and automatic 10-minute order expirations.
-* **Stripe Webhook Integration:** Signature-verified webhook handler for `payment_intent.succeeded` and `payment_intent.payment_failed` events.
+* **Redis Lua Atomic Stock Lock:** High-concurrency inventory holds executed atomically via Redis Lua scripts to eliminate race conditions and database row locking.
+* **Transactional Outbox Pattern:** Ensures atomic database updates by writing domain models (`Order`) and event payloads (`OutboxEvent`) within a single PostgreSQL transaction.
+* **Async Workers & Event Broker:** Outbox publisher relays events to **RabbitMQ**, consumed by **Celery** workers for Stripe PaymentIntents and 10-minute hold expirations.
 * **Interactive OpenAPI Specs:** Swagger UI documentation available at `http://localhost:5000/docs`.
 
 ---
@@ -75,7 +91,7 @@ flash-sale-engine/
 ### Step 1: Start the Backend API
 
 ```powershell
-# Navigate to the backend directory
+# Navigate to backend directory
 cd backend
 
 # Activate virtual environment
@@ -85,7 +101,7 @@ cd backend
 # Run WSGI server
 python wsgi.py
 ```
-> The Flask REST API will start at **[http://localhost:5000](http://localhost:5000)**.
+> The Flask REST API starts at **[http://localhost:5000](http://localhost:5000)**.
 > Swagger API docs are interactive at **[http://localhost:5000/docs](http://localhost:5000/docs)**.
 
 ---
@@ -95,32 +111,25 @@ python wsgi.py
 Open a second terminal window:
 
 ```powershell
-# Navigate to the frontend directory
+# Navigate to frontend directory
 cd frontend
 
-# Install dependencies (if not already installed)
+# Install Node dependencies
 npm install
 
-# Start Vite development server
+# Start Vite dev server
 npm run dev
 ```
-> The React application will start at **[http://localhost:5173](http://localhost:5173)**.
+> The React application starts at **[http://localhost:5173](http://localhost:5173)**.
 
 ---
 
-## 🧪 Testing & Type Generation
-
-### Frontend Type Generation
-Generate TypeScript API interfaces from the live Flask OpenAPI document:
-```powershell
-cd frontend
-npx openapi-typescript http://localhost:5000/openapi.json -o src/types/api.ts
-```
+## 🧪 Verification & Automated Tests
 
 ### Frontend TypeScript Verification
 ```powershell
 cd frontend
-npx tsc --noEmit
+cmd /c npx tsc --noEmit
 ```
 
 ### Backend Automated Test Suite

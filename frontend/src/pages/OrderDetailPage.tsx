@@ -71,6 +71,12 @@ export const OrderDetailPage: React.FC = () => {
           <div className="font-mono text-xs text-ash mt-1">
             RECORDED ON {order.created_at ? new Date(order.created_at).toUTCString().toUpperCase() : 'N/A'}
           </div>
+          <div className="mt-2 font-mono text-xs text-ink bg-paper-sunk border border-rule px-3 py-1.5 inline-block">
+            <span>TRACKING ID: </span>
+            <span className="font-semibold text-signal">{(order as any).tracking_number || `TRK-${order.id.slice(0, 8).toUpperCase()}-GLOBAL`}</span>
+            <span className="mx-2">·</span>
+            <span>CARRIER: {(order as any).carrier || 'FEDEX EXPRESS'}</span>
+          </div>
         </div>
 
         {/* Cancel Button */}

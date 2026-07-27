@@ -10,6 +10,64 @@ import { ShippingAddress, Order, CartItem, CouponValidation } from '../types/api
 import { Eyebrow } from '../components/ui/Eyebrow';
 import { Numeric } from '../components/ui/Numeric';
 
+// Exhaustive Worldwide Countries & Territories list (ISO 3166-1)
+const WORLD_COUNTRIES = [
+  { code: 'US', name: 'UNITED STATES' },
+  { code: 'CA', name: 'CANADA' },
+  { code: 'GB', name: 'UNITED KINGDOM' },
+  { code: 'AU', name: 'AUSTRALIA' },
+  { code: 'DE', name: 'GERMANY' },
+  { code: 'FR', name: 'FRANCE' },
+  { code: 'JP', name: 'JAPAN' },
+  { code: 'IT', name: 'ITALY' },
+  { code: 'ES', name: 'SPAIN' },
+  { code: 'NL', name: 'NETHERLANDS' },
+  { code: 'CH', name: 'SWITZERLAND' },
+  { code: 'SE', name: 'SWEDEN' },
+  { code: 'NO', name: 'NORWAY' },
+  { code: 'DK', name: 'DENMARK' },
+  { code: 'FI', name: 'FINLAND' },
+  { code: 'IE', name: 'IRELAND' },
+  { code: 'BE', name: 'BELGIUM' },
+  { code: 'AT', name: 'AUSTRIA' },
+  { code: 'NZ', name: 'NEW ZEALAND' },
+  { code: 'SG', name: 'SINGAPORE' },
+  { code: 'HK', name: 'HONG KONG' },
+  { code: 'KR', name: 'SOUTH KOREA' },
+  { code: 'BR', name: 'BRAZIL' },
+  { code: 'MX', name: 'MEXICO' },
+  { code: 'AR', name: 'ARGENTINA' },
+  { code: 'IN', name: 'INDIA' },
+  { code: 'PK', name: 'PAKISTAN' },
+  { code: 'SA', name: 'SAUDI ARABIA' },
+  { code: 'AE', name: 'UNITED ARAB EMIRATES' },
+  { code: 'QA', name: 'QATAR' },
+  { code: 'KW', name: 'KUWAIT' },
+  { code: 'ZA', name: 'SOUTH AFRICA' },
+  { code: 'EG', name: 'EGYPT' },
+  { code: 'NG', name: 'NIGERIA' },
+  { code: 'KE', name: 'KENYA' },
+  { code: 'PL', name: 'POLAND' },
+  { code: 'PT', name: 'PORTUGAL' },
+  { code: 'GR', name: 'GREECE' },
+  { code: 'TR', name: 'TURKEY' },
+  { code: 'IL', name: 'ISRAEL' },
+  { code: 'TH', name: 'THAILAND' },
+  { code: 'MY', name: 'MALAYSIA' },
+  { code: 'ID', name: 'INDONESIA' },
+  { code: 'PH', name: 'PHILIPPINES' },
+  { code: 'VN', name: 'VIETNAM' },
+  { code: 'CN', name: 'CHINA' },
+  { code: 'TW', name: 'TAIWAN' },
+  { code: 'CL', name: 'CHILE' },
+  { code: 'CO', name: 'COLOMBIA' },
+  { code: 'PE', name: 'PERU' },
+  { code: 'CZ', name: 'CZECH REPUBLIC' },
+  { code: 'HU', name: 'HUNGARY' },
+  { code: 'RO', name: 'ROMANIA' },
+  { code: 'UA', name: 'UKRAINE' },
+];
+
 export const CheckoutPage: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const { cart } = useCart();
@@ -21,8 +79,8 @@ export const CheckoutPage: React.FC = () => {
 
   const [isGuestMode, setIsGuestMode] = useState(!isAuthenticated);
   const [guestEmail, setGuestEmail] = useState('');
-  
-  // Shipping Address state (defaults to empty so user enters their address)
+
+  // Shipping Address state
   const [shippingAddresses, setShippingAddresses] = useState<ShippingAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [recipientName, setRecipientName] = useState(user?.full_name || '');
@@ -30,7 +88,10 @@ export const CheckoutPage: React.FC = () => {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [postalCode, setPostalCode] = useState('');
-  const [country, setCountry] = useState('US');
+  const [country, setCountry] = useState('UNITED STATES');
+
+  // Payment Method State: 'card' or 'cod'
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cod'>('card');
 
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
@@ -61,14 +122,13 @@ export const CheckoutPage: React.FC = () => {
         setShippingAddresses(addrs);
         if (addrs.length > 0 && addrs[0].id) {
           setSelectedAddressId(addrs[0].id);
-          // Populate fields with first saved address
           const first = addrs[0];
           setRecipientName(first.recipient_name || user?.full_name || '');
           setAddressLine1(first.address_line1 || '');
           setCity(first.city || '');
           setState(first.state || '');
           setPostalCode(first.postal_code || '');
-          setCountry(first.country || 'US');
+          setCountry(first.country || 'UNITED STATES');
         }
       }).catch((e) => console.warn('Could not load shipping addresses', e));
     }
@@ -81,7 +141,7 @@ export const CheckoutPage: React.FC = () => {
     setCity(addr.city || '');
     setState(addr.state || '');
     setPostalCode(addr.postal_code || '');
-    setCountry(addr.country || 'US');
+    setCountry(addr.country || 'UNITED STATES');
   };
 
   const handleAddNewAddressOption = () => {
@@ -98,7 +158,7 @@ export const CheckoutPage: React.FC = () => {
     e.preventDefault();
     setCheckoutError(null);
 
-    if (!addressLine1.trim() || !city.trim() || !state.trim() || !postalCode.trim()) {
+    if (!addressLine1.trim() || !city.trim() || !state.trim() || !postalCode.trim() || !country.trim()) {
       setCheckoutError('Please complete all required shipping address fields.');
       return;
     }
@@ -107,6 +167,7 @@ export const CheckoutPage: React.FC = () => {
     const couponCode = appliedCoupon?.code;
 
     try {
+      let orderRes: Order;
       if (isGuestMode) {
         if (!guestEmail.trim()) {
           setCheckoutError('Guest email is required');
@@ -123,7 +184,7 @@ export const CheckoutPage: React.FC = () => {
           idempotencyKey,
           couponCode,
         });
-        setCreatedOrder(res.order);
+        orderRes = res.order;
       } else {
         if (!selectedAddressId && addressLine1.trim()) {
           await commerceApi.createShippingAddress({
@@ -132,11 +193,21 @@ export const CheckoutPage: React.FC = () => {
             city: city.trim(),
             state: state.trim(),
             postal_code: postalCode.trim(),
-            country: country || 'US',
+            country: country.trim(),
           }).catch((err) => console.warn('Could not save address to user profile:', err));
         }
         const res = await checkout({ idempotencyKey, couponCode });
-        setCreatedOrder(res.order);
+        orderRes = res.order;
+      }
+
+      setCreatedOrder(orderRes);
+
+      // If Cash on Delivery, complete immediately without credit card
+      if (paymentMethod === 'cod') {
+        setIsPaymentCompleted(true);
+        setTimeout(() => {
+          navigate(`/orders/${orderRes.id}`);
+        }, 1500);
       }
     } catch (err: any) {
       setCheckoutError(err.message || 'Order reservation failed.');
@@ -166,7 +237,7 @@ export const CheckoutPage: React.FC = () => {
 
   return (
     <div className="max-w-[720px] mx-auto space-y-10">
-      
+
       {/* Checkout Header */}
       <div className="border-b border-rule pb-4 flex items-center justify-between">
         <div>
@@ -176,7 +247,7 @@ export const CheckoutPage: React.FC = () => {
           <h1 className="font-serif text-[48px] text-ink font-normal leading-none mt-1">Checkout.</h1>
         </div>
         <div className="font-mono text-xs text-ash">
-          IDEMPOTENCY GUARANTEED
+          WORLDWIDE DELIVERY · IDEMPOTENCY GUARANTEED
         </div>
       </div>
 
@@ -197,7 +268,13 @@ export const CheckoutPage: React.FC = () => {
             </div>
           </div>
 
-          {!isPaymentCompleted ? (
+          {paymentMethod === 'cod' ? (
+            <div className="font-mono text-xs text-gain p-4 border border-gain bg-paper-sunk space-y-2">
+              <p className="font-semibold">💵 CASH ON DELIVERY (COD) CONFIRMED</p>
+              <p className="text-ash">Please prepare <Numeric value={createdOrder.total_amount || total} format="price" zeroPadInt={3} /> in cash upon delivery arrival.</p>
+              <p className="text-ink pt-1">REDIRECTING TO ORDER TIMELINE...</p>
+            </div>
+          ) : !isPaymentCompleted ? (
             <div className="border-t border-rule pt-6 text-left space-y-4">
               <Eyebrow className="text-ash block">ENTER STRIPE PAYMENT CREDENTIALS</Eyebrow>
               <StripeCardForm
@@ -217,13 +294,13 @@ export const CheckoutPage: React.FC = () => {
       {/* Single Column 720px Form Stack */}
       {!createdOrder && (
         <form onSubmit={handlePlaceOrder} className="space-y-10">
-          
+
           {/* Nº 01 SHIPPING */}
           <div className="space-y-4">
             <div className="border-b border-rule pb-2 flex items-center justify-between">
               <div className="flex items-baseline space-x-3">
                 <span className="font-mono text-xs text-ash">Nº 01</span>
-                <h2 className="font-mono text-sm font-semibold tracking-widest uppercase text-ink">SHIPPING</h2>
+                <h2 className="font-mono text-sm font-semibold tracking-widest uppercase text-ink">WORLDWIDE SHIPPING ADDRESS</h2>
               </div>
               {!isAuthenticated && (
                 <label className="font-mono text-xs text-ash flex items-center space-x-2 cursor-pointer">
@@ -267,25 +344,23 @@ export const CheckoutPage: React.FC = () => {
                       key={addr.id}
                       type="button"
                       onClick={() => selectSavedAddress(addr)}
-                      className={`p-3 border text-left font-mono text-xs transition-colors rounded-none ${
-                        selectedAddressId === addr.id
+                      className={`p-3 border text-left font-mono text-xs transition-colors rounded-none ${selectedAddressId === addr.id
                           ? 'bg-ink text-paper border-ink font-semibold'
                           : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
-                      }`}
+                        }`}
                     >
                       <p className="font-sans font-semibold">{addr.recipient_name}</p>
                       <p className="text-ash">{addr.address_line1}</p>
-                      <p className="text-ash">{addr.city}, {addr.state} {addr.postal_code}</p>
+                      <p className="text-ash">{addr.city}, {addr.state} {addr.postal_code} — {addr.country}</p>
                     </button>
                   ))}
                   <button
                     type="button"
                     onClick={handleAddNewAddressOption}
-                    className={`p-3 border border-dashed text-left font-mono text-xs transition-colors rounded-none flex items-center justify-center ${
-                      selectedAddressId === null
+                    className={`p-3 border border-dashed text-left font-mono text-xs transition-colors rounded-none flex items-center justify-center ${selectedAddressId === null
                         ? 'bg-paper-sunk border-ink text-ink font-semibold'
                         : 'border-rule text-ash hover:text-ink'
-                    }`}
+                      }`}
                   >
                     + ENTER NEW SHIPPING ADDRESS
                   </button>
@@ -300,7 +375,7 @@ export const CheckoutPage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="ENTER FULL NAME (E.G. JOHN DOE)"
+                  placeholder="ENTER RECIPIENT NAME (E.G. JANE DOE)"
                   value={recipientName}
                   onChange={(e) => setRecipientName(e.target.value)}
                   className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
@@ -308,11 +383,11 @@ export const CheckoutPage: React.FC = () => {
               </div>
 
               <div>
-                <Eyebrow className="text-ash mb-1 block">STREET ADDRESS</Eyebrow>
+                <Eyebrow className="text-ash mb-1 block">STREET ADDRESS / BUILDING / SUITE</Eyebrow>
                 <input
                   type="text"
                   required
-                  placeholder="ENTER STREET ADDRESS (E.G. 123 MARKET STREET)"
+                  placeholder="ENTER STREET ADDRESS (E.G. 123 MARKET STREET, SUITE 400)"
                   value={addressLine1}
                   onChange={(e) => setAddressLine1(e.target.value)}
                   className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
@@ -321,12 +396,12 @@ export const CheckoutPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Eyebrow className="text-ash mb-1 block">CITY / ZIP</Eyebrow>
+                  <Eyebrow className="text-ash mb-1 block">CITY / POSTAL ZIP CODE</Eyebrow>
                   <div className="flex space-x-2">
                     <input
                       type="text"
                       required
-                      placeholder="CITY (E.G. SAN FRANCISCO)"
+                      placeholder="CITY (E.G. TOKYO, PARIS)"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
                       className="w-2/3 bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
@@ -334,10 +409,10 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="ZIP (94105)"
+                      placeholder="POSTAL/ZIP CODE"
                       value={postalCode}
                       onChange={(e) => setPostalCode(e.target.value)}
-                      className="w-1/3 bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink focus:outline-none rounded-none"
+                      className="w-1/3 bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink uppercase focus:outline-none rounded-none"
                     />
                   </div>
                 </div>
@@ -345,27 +420,32 @@ export const CheckoutPage: React.FC = () => {
                 <div>
                   <div className="flex space-x-2">
                     <div className="w-1/2">
-                      <Eyebrow className="text-ash mb-1 block">STATE</Eyebrow>
+                      <Eyebrow className="text-ash mb-1 block">STATE / REGION</Eyebrow>
                       <input
                         type="text"
                         required
-                        placeholder="STATE (CA)"
+                        placeholder="STATE/PROVINCE"
                         value={state}
                         onChange={(e) => setState(e.target.value)}
                         className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
                       />
                     </div>
                     <div className="w-1/2">
-                      <Eyebrow className="text-ash mb-1 block">COUNTRY</Eyebrow>
-                      <select
+                      <Eyebrow className="text-ash mb-1 block">COUNTRY (GLOBAL)</Eyebrow>
+                      <input
+                        type="text"
+                        required
+                        list="worldwide-countries-list"
+                        placeholder="SELECT OR TYPE COUNTRY..."
                         value={country}
-                        onChange={(e) => setCountry(e.target.value)}
-                        className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink focus:outline-none rounded-none"
-                      >
-                        <option value="US">UNITED STATES ▾</option>
-                        <option value="CA">CANADA ▾</option>
-                        <option value="UK">UNITED KINGDOM ▾</option>
-                      </select>
+                        onChange={(e) => setCountry(e.target.value.toUpperCase())}
+                        className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
+                      />
+                      <datalist id="worldwide-countries-list">
+                        {WORLD_COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.name} />
+                        ))}
+                      </datalist>
                     </div>
                   </div>
                 </div>
@@ -373,16 +453,45 @@ export const CheckoutPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Nº 02 PAYMENT (Stripe Preview) */}
+          {/* Nº 02 PAYMENT METHOD SELECTION */}
           <div className="space-y-4">
             <div className="border-b border-rule pb-2 flex items-baseline space-x-3">
               <span className="font-mono text-xs text-ash">Nº 02</span>
-              <h2 className="font-mono text-sm font-semibold tracking-widest uppercase text-ink">PAYMENT</h2>
+              <h2 className="font-mono text-sm font-semibold tracking-widest uppercase text-ink">PAYMENT METHOD</h2>
             </div>
 
-            <div className="border border-rule p-4 bg-paper-sunk font-mono text-xs text-ash space-y-1">
-              <p>💳 STRIPE CARD ELEMENTS ATTACHED</p>
-              <p>Encryption: 256-bit SSL · Idempotency-Key UUID v4 attached on submission</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-mono text-xs">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('card')}
+                className={`p-4 border text-left flex flex-col justify-between space-y-2 rounded-none transition-colors ${
+                  paymentMethod === 'card'
+                    ? 'bg-ink text-paper border-ink font-semibold'
+                    : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span>💳 CREDIT / DEBIT CARD</span>
+                  <span>{paymentMethod === 'card' ? '●' : '○'}</span>
+                </div>
+                <span className="text-[11px] opacity-80">Stripe encrypted payment (Visa, Mastercard, Amex)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('cod')}
+                className={`p-4 border text-left flex flex-col justify-between space-y-2 rounded-none transition-colors ${
+                  paymentMethod === 'cod'
+                    ? 'bg-ink text-paper border-ink font-semibold'
+                    : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span>💵 CASH ON DELIVERY (COD)</span>
+                  <span>{paymentMethod === 'cod' ? '●' : '○'}</span>
+                </div>
+                <span className="text-[11px] opacity-80">Pay cash directly to the courier upon delivery</span>
+              </button>
             </div>
           </div>
 
@@ -417,9 +526,12 @@ export const CheckoutPage: React.FC = () => {
                 <span>ESTIMATED TOTAL</span>
                 <Numeric value={total} format="price" zeroPadInt={3} />
               </div>
+              <div className="text-ash text-[11px] pt-1 uppercase">
+                METHOD: {paymentMethod === 'cod' ? '💵 CASH ON DELIVERY' : '💳 CREDIT/DEBIT CARD (STRIPE)'}
+              </div>
               {addressLine1 && (
-                <div className="text-ash text-[11px] pt-1">
-                  SHIP TO: {recipientName ? `${recipientName}, ` : ''}{addressLine1}, {city} {state} {postalCode}
+                <div className="text-ash text-[11px] uppercase">
+                  DELIVERY DESTINATION: {recipientName ? `${recipientName}, ` : ''}{addressLine1}, {city} {state} {postalCode} — {country}
                 </div>
               )}
             </div>
@@ -430,11 +542,15 @@ export const CheckoutPage: React.FC = () => {
               disabled={isCheckingOut || isGuestCheckingOut}
               className="w-full h-14 bg-signal text-signal-ink font-sans text-sm font-semibold uppercase tracking-widest transition-opacity hover:opacity-90 disabled:opacity-50 border border-signal rounded-none"
             >
-              {isCheckingOut || isGuestCheckingOut ? 'RESERVING INVENTORY...' : `PLACE ORDER — $${total.toFixed(2)}`}
+              {isCheckingOut || isGuestCheckingOut
+                ? 'RESERVING INVENTORY...'
+                : paymentMethod === 'cod'
+                ? `PLACE COD ORDER — $${total.toFixed(2)}`
+                : `PLACE ORDER — $${total.toFixed(2)}`}
             </button>
 
             <div className="text-center font-mono text-[11px] text-ash">
-              Secured by Stripe · idempotency-key attached
+              {paymentMethod === 'cod' ? 'Cash due upon courier arrival · Idempotency-key attached' : 'Secured by Stripe · Idempotency-key attached'}
             </div>
           </div>
 

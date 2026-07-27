@@ -18,17 +18,35 @@ export const StripeCardForm: React.FC<StripeCardFormProps> = ({
   const [cardHolder, setCardHolder] = useState('');
   const [localProcessing, setLocalProcessing] = useState(false);
 
+  const handleAutoFill = () => {
+    setCardHolder('JANE DOE');
+    setCardNumber('4242 4242 4242 4242');
+    setExpiry('12/28');
+    setCvc('123');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLocalProcessing(true);
     setTimeout(() => {
       setLocalProcessing(false);
       onPaymentSuccess(`pi_${Math.random().toString(36).substring(2, 12)}`);
-    }, 1200);
+    }, 1000);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+    <form onSubmit={handleSubmit} className="space-y-4 pt-2 font-mono text-xs">
+      <div className="flex justify-between items-center bg-paper-sunk p-2 border border-rule">
+        <span className="text-ash">DEMO STRIPE TESTING</span>
+        <button
+          type="button"
+          onClick={handleAutoFill}
+          className="text-ink underline hover:text-signal font-semibold"
+        >
+          [ ⚡ AUTO-FILL TEST CARD ]
+        </button>
+      </div>
+
       <div>
         <Eyebrow className="text-ash mb-1 block">CARDHOLDER NAME</Eyebrow>
         <input
@@ -80,6 +98,14 @@ export const StripeCardForm: React.FC<StripeCardFormProps> = ({
           />
         </div>
       </div>
+
+      <button
+        type="submit"
+        disabled={localProcessing || isProcessing}
+        className="w-full h-12 bg-ink text-paper font-sans text-xs font-semibold uppercase tracking-widest hover:bg-graphite transition-colors disabled:opacity-50 rounded-none mt-2"
+      >
+        {localProcessing ? 'PROCESSING PAYMENT...' : `AUTHORIZE PAYMENT — $${amount.toFixed(2)}`}
+      </button>
     </form>
   );
 };

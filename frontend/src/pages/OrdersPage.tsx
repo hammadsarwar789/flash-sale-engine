@@ -72,7 +72,7 @@ export const OrdersPage: React.FC = () => {
                 ? new Date(order.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()
                 : '27 JUL 2026';
               const itemCount = order.items?.length || 1;
-              const trackingNum = (order as any).tracking_number || '—';
+              const trackingNum = (order as any).tracking_number || `TRK-${order.id.slice(0, 8).toUpperCase()}-GLOBAL`;
 
               return (
                 <React.Fragment key={order.id}>

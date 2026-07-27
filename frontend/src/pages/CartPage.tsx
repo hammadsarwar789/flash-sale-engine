@@ -12,14 +12,35 @@ export const CartPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null);
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(299); // 04:59 hold timer
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(299);
+
+  const items = cart?.items || [];
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSecondsRemaining((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
+    if (items.length === 0) {
+      localStorage.removeItem('cart_hold_expires_at');
+      setSecondsRemaining(299);
+      return;
+    }
+
+    const HOLD_DURATION_MS = 5 * 60 * 1000;
+    const saved = localStorage.getItem('cart_hold_expires_at');
+    let expiresAt = saved ? parseInt(saved, 10) : 0;
+
+    if (!expiresAt || isNaN(expiresAt) || expiresAt <= Date.now()) {
+      expiresAt = Date.now() + HOLD_DURATION_MS;
+      localStorage.setItem('cart_hold_expires_at', expiresAt.toString());
+    }
+
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      setSecondsRemaining(remaining);
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [items.length]);
 
   const formatTimer = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -38,7 +59,6 @@ export const CartPage: React.FC = () => {
     );
   }
 
-  const items = cart?.items || [];
   const subtotal = cart?.subtotal || 0;
   const discount = appliedCoupon?.calculated_discount || 0;
   const total = Math.max(0, subtotal - discount);

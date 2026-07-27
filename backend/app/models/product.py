@@ -45,7 +45,8 @@ class Product(db.Model):
         return {
             "id": self.id,
             "category_id": self.category_id,
-            "category_name": self.category.name if self.category else None,
+            "category": self.category.name if self.category else (self.category_id or "GENERAL"),
+            "category_name": self.category.name if self.category else (self.category_id or "GENERAL"),
             "name": self.name,
             "sku": self.sku,
             "description": self.description,
