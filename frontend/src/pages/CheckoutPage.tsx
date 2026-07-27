@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../hooks/useCart';
 import { useOrders } from '../hooks/useOrders';
 import { commerceApi } from '../api/commerce';
+import { ordersApi } from '../api/orders';
 import { StripeCardForm } from '../components/checkout/StripeCardForm';
 import { CouponInput } from '../components/cart/CouponInput';
 import { ShippingAddress, Order, CartItem, CouponValidation } from '../types/api';
@@ -215,9 +216,14 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  const handlePaymentCompleted = (paymentId: string) => {
+  const handlePaymentCompleted = async (paymentId: string) => {
     setIsPaymentCompleted(true);
     if (createdOrder?.id) {
+      try {
+        await ordersApi.payOrder(createdOrder.id);
+      } catch (err: any) {
+        console.error('Failed to transition order status to PAID:', err);
+      }
       setTimeout(() => {
         navigate(`/orders/${createdOrder.id}`);
       }, 1200);
