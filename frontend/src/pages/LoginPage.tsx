@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Flame, Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
+import { Eyebrow } from '../components/ui/Eyebrow';
+import { Wordmark } from '../components/ui/Wordmark';
 
 export const LoginPage: React.FC = () => {
   const { login, isLoading } = useAuth();
@@ -11,8 +12,6 @@ export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const from = (location.state as any)?.from?.pathname || '/products';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,86 +26,91 @@ export const LoginPage: React.FC = () => {
         navigate('/products', { replace: true });
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Invalid email or password credentials');
+      setErrorMsg(err.message || 'Invalid authentication credentials.');
     }
   };
 
   return (
-    <div className="max-w-md mx-auto py-12 space-y-8">
-      {/* Brand Header */}
-      <div className="text-center space-y-2">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center mx-auto shadow-lg shadow-cyan-500/30">
-          <Flame className="w-7 h-7 text-slate-950 animate-pulse" />
+    <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[600px] border border-rule bg-paper">
+      
+      {/* Left Column: Dark Ink Editorial Quote */}
+      <div className="hidden lg:flex lg:col-span-6 bg-ink text-bone p-12 flex-col justify-between border-r border-rule">
+        <Wordmark size="lg" className="[&_span.text-ink]:text-bone" />
+        <div className="space-y-4 max-w-md">
+          <p className="font-serif text-[40px] leading-[1.1] text-bone font-normal">
+            "Speed is the only feature that matters when inventory is scarce."
+          </p>
+          <p className="font-mono text-xs text-ash">
+            — FLASH SALE ENGINE ARCHITECTURE SPEC v2
+          </p>
         </div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">Welcome Back</h1>
-        <p className="text-slate-400 text-sm">Sign in to your Flash Engine account to manage orders</p>
+        <div className="font-mono text-[11px] text-ash">
+          AUTHENTICATED SESSION COOKIE MODE · HTTPONLY SECURE
+        </div>
       </div>
 
-      {/* Form Card */}
-      <form onSubmit={handleSubmit} className="p-8 rounded-3xl glass-panel border border-slate-800 space-y-5">
-        
-        {errorMsg && (
-          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{errorMsg}</span>
+      {/* Right Column: Clean Form Container (Max 400px centered) */}
+      <div className="lg:col-span-6 p-8 sm:p-12 flex items-center justify-center">
+        <form onSubmit={handleSubmit} className="w-full max-w-[400px] space-y-6">
+          <div className="space-y-1">
+            <Eyebrow className="text-ash block">IDENTITY ACCESS</Eyebrow>
+            <h1 className="font-serif text-4xl text-ink font-normal">Log In.</h1>
           </div>
-        )}
 
-        <div>
-          <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-            Email Address
-          </label>
-          <div className="relative">
-            <input
-              type="email"
-              required
-              placeholder="user@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
-            />
-            <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+          {errorMsg && (
+            <div className="p-3 border border-loss bg-paper text-loss font-mono text-xs">
+              {errorMsg}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <Eyebrow className="text-ash mb-1 block">EMAIL ADDRESS</Eyebrow>
+              <input
+                type="email"
+                required
+                placeholder="USER@EXAMPLE.COM"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink placeholder-ash uppercase focus:outline-none rounded-none"
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <Eyebrow className="text-ash">PASSWORD</Eyebrow>
+                <Link to="/forgot-password" className="font-mono text-[11px] text-ash hover:text-ink underline">
+                  FORGOT?
+                </Link>
+              </div>
+              <input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink placeholder-ash focus:outline-none rounded-none"
+              />
+            </div>
           </div>
-        </div>
 
-        <div>
-          <div className="flex justify-between items-center mb-1.5">
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-              Password
-            </label>
-            <Link to="/forgot-password" className="text-xs text-cyan-400 hover:underline">
-              Forgot?
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full h-12 bg-ink text-paper font-sans text-xs font-semibold uppercase tracking-widest hover:bg-graphite transition-colors disabled:opacity-50 rounded-none"
+          >
+            {isLoading ? 'AUTHENTICATING...' : 'AUTHENTICATE →'}
+          </button>
+
+          <div className="text-center font-mono text-xs text-ash pt-2">
+            NO ACCOUNT RECORD?{' '}
+            <Link to="/register" className="text-ink underline hover:text-signal">
+              REGISTER HERE
             </Link>
           </div>
-          <div className="relative">
-            <input
-              type="password"
-              required
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
-            />
-            <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-          </div>
-        </div>
+        </form>
+      </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black py-3.5 rounded-xl shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
-        >
-          <LogIn className="w-4 h-4" />
-          <span>{isLoading ? 'Signing In...' : 'Sign In'}</span>
-        </button>
-
-        <div className="text-center pt-2 text-xs text-slate-400">
-          Don't have an account yet?{' '}
-          <Link to="/register" className="font-bold text-cyan-400 hover:underline">
-            Create Account
-          </Link>
-        </div>
-      </form>
     </div>
   );
 };

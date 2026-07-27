@@ -1,13 +1,15 @@
 import React from 'react';
-import { Plus, Minus, Trash2, Tag } from 'lucide-react';
 import { CartItem } from '../../types/api';
 import { useCart } from '../../hooks/useCart';
+import { Numeric } from '../ui/Numeric';
+import { Eyebrow } from '../ui/Eyebrow';
 
 interface CartItemRowProps {
   item: CartItem;
+  itemIndex: number;
 }
 
-export const CartItemRow: React.FC<CartItemRowProps> = ({ item }) => {
+export const CartItemRow: React.FC<CartItemRowProps> = ({ item, itemIndex }) => {
   const { updateCartItem, deleteCartItem, isUpdatingCartItem, isDeletingCartItem } = useCart();
 
   const handleQuantityChange = async (newQty: number) => {
@@ -25,75 +27,76 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({ item }) => {
 
   const unitPrice = item.unit_price || item.variant?.price || item.product?.price || 0;
   const subtotal = item.subtotal || unitPrice * item.quantity;
+  const issueNumber = `Nº ${String(itemIndex + 1).padStart(2, '0')}`;
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-2xl glass-card border border-slate-800/80 gap-4 transition-all hover:border-slate-700">
-      
-      {/* Product Image & Info */}
-      <div className="flex items-center space-x-4">
-        <img
-          src={productImg}
-          alt={item.product?.name || 'Cart item'}
-          className="w-16 h-16 object-cover rounded-xl bg-slate-900 border border-slate-800"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src =
-              'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80';
-          }}
-        />
-        <div>
-          <h4 className="font-bold text-sm text-slate-100 line-clamp-1">
-            {item.product?.name || `Product #${item.product_id}`}
-          </h4>
-          
-          {item.variant && (
-            <div className="flex items-center space-x-1.5 mt-1">
-              <span className="inline-flex items-center space-x-1 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-medium text-[11px] px-2 py-0.5 rounded-md">
-                <Tag className="w-3 h-3" />
-                <span>{item.variant.name}</span>
-              </span>
-            </div>
-          )}
-
-          <span className="text-xs text-slate-400 block mt-1">
-            ${Number(unitPrice).toFixed(2)} each
-          </span>
-        </div>
+    <div className="py-6 border-b border-rule space-y-4">
+      <div className="font-mono text-xs text-ash flex items-center justify-between">
+        <span>{issueNumber}</span>
+        <span>SKU: {item.variant?.sku || item.product?.sku || 'FL-ITEM'}</span>
       </div>
 
-      {/* Quantity & Subtotal */}
-      <div className="flex items-center justify-between w-full sm:w-auto sm:space-x-6">
-        {/* Quantity Controls */}
-        <div className="flex items-center space-x-2 bg-slate-900 border border-slate-800 rounded-xl p-1">
-          <button
-            onClick={() => handleQuantityChange(item.quantity - 1)}
-            disabled={isUpdatingCartItem || isDeletingCartItem}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40"
-          >
-            <Minus className="w-3.5 h-3.5" />
-          </button>
-          <span className="w-8 text-center text-sm font-bold text-white">{item.quantity}</span>
-          <button
-            onClick={() => handleQuantityChange(item.quantity + 1)}
-            disabled={isUpdatingCartItem}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        {/* Product Image & Title */}
+        <div className="flex items-center space-x-4">
+          <div className="w-16 h-16 bg-paper-sunk border border-rule overflow-hidden flex-shrink-0">
+            <img
+              src={productImg}
+              alt={item.product?.name || 'Cart item'}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src =
+                  'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80';
+              }}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <h4 className="font-sans text-base font-medium text-ink">
+              {item.product?.name || `Product #${item.product_id}`}
+            </h4>
+            
+            <div className="font-mono text-xs text-ash">
+              {[item.variant?.color, item.variant?.size].filter(Boolean).join(' · ') || 'STANDARD EDITION'}
+            </div>
+
+            <Numeric value={Number(unitPrice)} format="price" zeroPadInt={3} className="text-xs text-graphite block" />
+          </div>
         </div>
 
-        {/* Subtotal */}
-        <div className="text-right">
-          <span className="text-base font-extrabold text-white block tracking-tight">
-            ${Number(subtotal).toFixed(2)}
-          </span>
-          <button
-            onClick={() => deleteCartItem(item.id)}
-            disabled={isDeletingCartItem}
-            className="text-xs text-rose-400 hover:text-rose-300 font-medium transition-colors flex items-center space-x-1 ml-auto mt-0.5"
-          >
-            <Trash2 className="w-3 h-3" />
-            <span>Remove</span>
-          </button>
+        {/* Quantity Stepper & Line Total */}
+        <div className="flex items-center justify-between w-full sm:w-auto sm:space-x-8 font-mono text-xs">
+          {/* Stepper */}
+          <div className="flex items-center border border-rule bg-paper-sunk">
+            <Eyebrow className="px-2 text-ash border-r border-rule">QTY</Eyebrow>
+            <button
+              onClick={() => handleQuantityChange(item.quantity - 1)}
+              disabled={isUpdatingCartItem || isDeletingCartItem}
+              className="w-7 h-7 flex items-center justify-center text-ink hover:bg-paper border-r border-rule disabled:opacity-40"
+            >
+              −
+            </button>
+            <Numeric value={item.quantity} format="integer" zeroPadInt={2} className="w-8 text-center text-ink font-semibold" />
+            <button
+              onClick={() => handleQuantityChange(item.quantity + 1)}
+              disabled={isUpdatingCartItem}
+              className="w-7 h-7 flex items-center justify-center text-ink hover:bg-paper border-l border-rule disabled:opacity-40"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Subtotal & Delete Link */}
+          <div className="text-right space-y-1">
+            <Numeric value={Number(subtotal)} format="price" zeroPadInt={3} className="text-sm font-semibold text-ink block" />
+            <button
+              onClick={() => deleteCartItem(item.id)}
+              disabled={isDeletingCartItem}
+              className="text-ash hover:text-loss text-xs underline font-mono uppercase transition-colors"
+            >
+              [ REMOVE ]
+            </button>
+          </div>
         </div>
       </div>
     </div>

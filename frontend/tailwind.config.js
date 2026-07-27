@@ -7,28 +7,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          500: '#0284c7',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-        },
-        accent: {
-          500: '#f59e0b',
-          600: '#d97706',
-        },
-        dark: {
-          900: '#0b0f17',
-          800: '#111827',
-          700: '#1f2937',
-          600: '#374151',
-        }
+        bone: 'var(--bone)',
+        paper: 'var(--paper)',
+        'paper-sunk': 'var(--paper-sunk)',
+        ink: 'var(--ink)',
+        graphite: 'var(--graphite)',
+        ash: 'var(--ash)',
+        rule: 'var(--rule)',
+        signal: 'var(--signal)',
+        'signal-ink': 'var(--signal-ink)',
+        gain: 'var(--gain)',
+        warn: 'var(--warn)',
+        loss: 'var(--loss)',
+        marker: 'var(--marker)',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        serif: ['"Instrument Serif"', 'Georgia', 'serif'],
+        sans: ['"Inter Tight"', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
     },
   },

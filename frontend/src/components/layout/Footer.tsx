@@ -1,55 +1,84 @@
 import React from 'react';
-import { Flame, ShieldCheck, Zap, Truck, CreditCard } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Wordmark } from '../ui/Wordmark';
+import { Eyebrow } from '../ui/Eyebrow';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="bg-slate-950 border-t border-slate-800/80 text-slate-400 mt-20">
-      {/* Value Proposition Highlights */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 border-b border-slate-900">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="flex items-center space-x-3 p-4 rounded-2xl glass-card">
-            <Zap className="w-8 h-8 text-cyan-400 flex-shrink-0" />
-            <div>
-              <h4 className="text-white font-semibold text-sm">Ultra Flash Deals</h4>
-              <p className="text-xs text-slate-400">Lua-based real-time stock sync</p>
+    <footer className="bg-ink text-bone border-t border-rule mt-24">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-sm font-sans">
+          
+          {/* Column 1: Colophon */}
+          <div className="space-y-4">
+            <Wordmark size="md" className="[&_span.text-ink]:text-bone" />
+            <p className="text-ash text-xs leading-relaxed max-w-sm">
+              High-concurrency inventory reservation engine and live flash sale market. Built for low-latency order placement under extreme load.
+            </p>
+            <div className="font-mono text-[11px] text-ash space-x-2 pt-2">
+              <span>BUILD: 0x8F92A</span>
+              <span>·</span>
+              <span>REGION: US-EAST-1</span>
+              <span>·</span>
+              <span>LATENCY: 12ms</span>
             </div>
           </div>
-          <div className="flex items-center space-x-3 p-4 rounded-2xl glass-card">
-            <Truck className="w-8 h-8 text-cyan-400 flex-shrink-0" />
-            <div>
-              <h4 className="text-white font-semibold text-sm">Express Shipping</h4>
-              <p className="text-xs text-slate-400">Order tracking end-to-end</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3 p-4 rounded-2xl glass-card">
-            <ShieldCheck className="w-8 h-8 text-cyan-400 flex-shrink-0" />
-            <div>
-              <h4 className="text-white font-semibold text-sm">Idempotency Guard</h4>
-              <p className="text-xs text-slate-400">Zero double billing on orders</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3 p-4 rounded-2xl glass-card">
-            <CreditCard className="w-8 h-8 text-cyan-400 flex-shrink-0" />
-            <div>
-              <h4 className="text-white font-semibold text-sm">Stripe Payments</h4>
-              <p className="text-xs text-slate-400">Encrypted checkout processing</p>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Main Footer Links */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500 flex items-center justify-center">
-              <Flame className="w-5 h-5 text-slate-950" />
+          {/* Column 2: Navigation Columns */}
+          <div className="grid grid-cols-2 gap-8 text-xs font-mono">
+            <div>
+              <Eyebrow className="text-ash mb-3 block">Catalog</Eyebrow>
+              <ul className="space-y-2">
+                <li><Link to="/products" className="text-bone/80 hover:text-bone">ALL DROPS</Link></li>
+                <li><Link to="/products?category=Outerwear" className="text-bone/80 hover:text-bone">OUTERWEAR</Link></li>
+                <li><Link to="/products?category=Footwear" className="text-bone/80 hover:text-bone">FOOTWEAR</Link></li>
+                <li><Link to="/products?category=Tech" className="text-bone/80 hover:text-bone">HARDWARE</Link></li>
+              </ul>
             </div>
-            <span className="font-extrabold text-lg text-white">FLASH SALE ENGINE</span>
+            <div>
+              <Eyebrow className="text-ash mb-3 block">Account & System</Eyebrow>
+              <ul className="space-y-2">
+                <li><Link to="/orders" className="text-bone/80 hover:text-bone">MY ORDERS</Link></li>
+                <li><Link to="/cart" className="text-bone/80 hover:text-bone">ACTIVE CART</Link></li>
+                <li><Link to="/wishlist" className="text-bone/80 hover:text-bone">SAVED ITEMS</Link></li>
+                <li><Link to="/admin" className="text-signal hover:underline font-semibold">ADMIN RAIL</Link></li>
+              </ul>
+            </div>
           </div>
-          <p className="text-xs text-slate-500">
-            &copy; {new Date().getFullYear()} Flash Sale E-Commerce Inc. All rights reserved. High-Scale REST API Engine.
-          </p>
+
+          {/* Column 3: System Status Metrics */}
+          <div className="space-y-4">
+            <Eyebrow className="text-ash block">Telemetry Status</Eyebrow>
+            <div className="space-y-2.5 font-mono text-xs">
+              <div className="flex items-center justify-between border-b border-rule/40 pb-2">
+                <div className="flex items-center space-x-2">
+                  <span className="w-1.5 h-1.5 bg-gain inline-block" />
+                  <span className="text-bone">REST API GATEWAY</span>
+                </div>
+                <span className="text-ash">99.982%</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-rule/40 pb-2">
+                <div className="flex items-center space-x-2">
+                  <span className="w-1.5 h-1.5 bg-gain inline-block" />
+                  <span className="text-bone">STRIPE PAYMENTS</span>
+                </div>
+                <span className="text-ash">100.000%</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-rule/40 pb-2">
+                <div className="flex items-center space-x-2">
+                  <span className="w-1.5 h-1.5 bg-gain inline-block" />
+                  <span className="text-bone">REDIS LUA LOCKS</span>
+                </div>
+                <span className="text-ash">99.994%</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div className="mt-12 pt-8 border-t border-rule/60 flex flex-col sm:flex-row justify-between items-center text-[11px] font-mono text-ash">
+          <span>© 2026 FLASH SALE ENGINE. ALL RIGHTS RESERVED.</span>
+          <span className="mt-2 sm:mt-0">NO GLASS. NO BLUR. FLAT PAPER SURFACES ONLY.</span>
         </div>
       </div>
     </footer>

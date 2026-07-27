@@ -1,21 +1,12 @@
 import React, { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useOrderDetail, useOrders } from '../hooks/useOrders';
-import {
-  ArrowLeft,
-  Package,
-  Truck,
-  CheckCircle2,
-  Clock,
-  Ban,
-  AlertCircle,
-  MapPin,
-  CreditCard,
-} from 'lucide-react';
+import { Eyebrow } from '../components/ui/Eyebrow';
+import { Numeric } from '../components/ui/Numeric';
+import { StatusDot } from '../components/ui/StatusDot';
 
 export const OrderDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { data: order, isLoading, isError, refetch } = useOrderDetail(id);
   const { cancelOrder, isCancellingOrder } = useOrders();
 
@@ -25,167 +16,163 @@ export const OrderDetailPage: React.FC = () => {
     if (!id) return;
     try {
       await cancelOrder(id);
-      setCancelNotice('Order cancelled and inventory successfully returned to pool.');
+      setCancelNotice('Order cancelled. Reserved inventory returned to floor pool.');
       refetch();
     } catch (err: any) {
-      setCancelNotice(err.message || 'Failed to cancel order.');
+      setCancelNotice(err.message || 'Failed to cancel order reservation.');
     }
   };
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto py-12 space-y-6 animate-pulse">
-        <div className="h-6 bg-slate-800 rounded w-1/4"></div>
-        <div className="h-44 bg-slate-900 rounded-3xl"></div>
-        <div className="h-64 bg-slate-900 rounded-3xl"></div>
+      <div className="space-y-6">
+        <div className="h-8 w-48 bg-paper-sunk border border-rule"></div>
+        <div className="h-44 bg-paper-sunk border border-rule"></div>
       </div>
     );
   }
 
   if (isError || !order) {
     return (
-      <div className="max-w-md mx-auto py-20 text-center space-y-4 glass-card rounded-3xl p-8 border border-rose-500/30">
-        <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
-        <h2 className="text-xl font-bold text-white">Order Not Found</h2>
-        <p className="text-slate-400 text-sm">Could not find order details for ID #{id}</p>
-        <Link to="/orders" className="inline-block bg-slate-800 text-cyan-400 font-bold px-6 py-2 rounded-xl">
-          Back to Orders
+      <div className="max-w-md mx-auto py-20 text-center space-y-4 border border-loss bg-paper">
+        <h2 className="font-serif text-3xl text-ink">Order Not Found</h2>
+        <p className="font-mono text-xs text-ash">Order Record #{id} could not be located on floor ledger.</p>
+        <Link to="/orders" className="inline-block bg-ink text-paper font-mono text-xs uppercase px-6 py-2">
+          ← Back to Order Ledger
         </Link>
       </div>
     );
   }
 
   const isPending = order.status === 'PENDING';
-  const isPaid = order.status === 'PAID';
-  const isShipped = order.status === 'SHIPPED';
-  const isDelivered = order.status === 'DELIVERED';
-  const isCancelled = order.status === 'CANCELLED';
+
+  const getStepState = (status: string, targetStep: string) => {
+    const steps = ['PENDING', 'PAID', 'SHIPPED', 'DELIVERED'];
+    const currentIdx = steps.indexOf(status.toUpperCase());
+    const targetIdx = steps.indexOf(targetStep);
+
+    if (currentIdx === -1) return 'future';
+    if (targetIdx <= currentIdx) return 'reached';
+    return 'future';
+  };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="space-y-8">
       
       {/* Top Header */}
-      <div className="flex items-center justify-between">
+      <div className="border-b border-rule pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <Link to="/orders" className="inline-flex items-center space-x-1 text-xs font-semibold text-slate-400 hover:text-cyan-400">
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Orders List</span>
+          <Link to="/orders" className="font-mono text-xs text-ash hover:text-ink block">
+            ← BACK TO ORDER LEDGER
           </Link>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">Order #{order.id}</h1>
-          <p className="text-xs text-slate-400">Placed on {order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}</p>
+          <h1 className="font-serif text-[42px] sm:text-[56px] text-ink font-normal leading-none mt-1">
+            Order #{order.id.slice(0, 12)}
+          </h1>
+          <div className="font-mono text-xs text-ash mt-1">
+            RECORDED ON {order.created_at ? new Date(order.created_at).toUTCString().toUpperCase() : 'N/A'}
+          </div>
         </div>
 
-        {/* Cancel Button (valid while PENDING) */}
+        {/* Cancel Button */}
         {isPending && (
           <button
             onClick={handleCancelOrder}
             disabled={isCancellingOrder}
-            className="flex items-center space-x-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-xl font-bold text-xs transition-colors disabled:opacity-50"
+            className="font-mono text-xs text-loss hover:underline uppercase"
           >
-            <Ban className="w-4 h-4" />
-            <span>{isCancellingOrder ? 'Cancelling...' : 'Cancel Order'}</span>
+            {isCancellingOrder ? '[ CANCELING... ]' : '[ CANCEL RESERVATION ]'}
           </button>
         )}
       </div>
 
       {cancelNotice && (
-        <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-bold flex items-center space-x-2">
-          <CheckCircle2 className="w-5 h-5" />
-          <span>{cancelNotice}</span>
+        <div className="p-3 border border-gain bg-paper text-gain font-mono text-xs">
+          {cancelNotice}
         </div>
       )}
 
-      {/* Fulfillment Status Timeline */}
-      <div className="p-6 rounded-3xl glass-card border border-slate-800 space-y-4">
-        <h3 className="font-extrabold text-sm text-slate-200 uppercase tracking-wider">Fulfillment Lifecycle</h3>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-          <div className={`p-4 rounded-2xl border ${isPending || isPaid || isShipped || isDelivered ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
-            <Clock className="w-6 h-6 mb-2" />
-            <p className="font-bold text-xs">1. Reserved</p>
-            <span className="text-[10px] block opacity-80">Stock Allocated</span>
-          </div>
-          <div className={`p-4 rounded-2xl border ${isPaid || isShipped || isDelivered ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
-            <CreditCard className="w-6 h-6 mb-2" />
-            <p className="font-bold text-xs">2. Payment</p>
-            <span className="text-[10px] block opacity-80">{isPaid ? 'PAID' : 'Pending'}</span>
-          </div>
-          <div className={`p-4 rounded-2xl border ${isShipped || isDelivered ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
-            <Truck className="w-6 h-6 mb-2" />
-            <p className="font-bold text-xs">3. Shipping</p>
-            <span className="text-[10px] block opacity-80">{isShipped ? 'En Route' : 'Processing'}</span>
-          </div>
-          <div className={`p-4 rounded-2xl border ${isDelivered ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400' : isCancelled ? 'bg-rose-500/10 border-rose-500/40 text-rose-400' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
-            {isCancelled ? <Ban className="w-6 h-6 mb-2" /> : <CheckCircle2 className="w-6 h-6 mb-2" />}
-            <p className="font-bold text-xs">{isCancelled ? 'Cancelled' : '4. Delivered'}</p>
-            <span className="text-[10px] block opacity-80">{isCancelled ? 'Inventory Released' : 'Completed'}</span>
-          </div>
+      {/* Fulfillment Stepper Component */}
+      <div className="border border-rule p-6 bg-paper space-y-4">
+        <Eyebrow className="text-ash block">FULFILLMENT TIMELINE</Eyebrow>
+
+        <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+          {['PENDING', 'PAID', 'SHIPPED', 'DELIVERED'].map((step, idx, arr) => {
+            const state = getStepState(order.status, step);
+            const isReached = state === 'reached';
+
+            return (
+              <React.Fragment key={step}>
+                <div
+                  className={`px-3 py-1.5 border border-rule ${
+                    isReached ? 'bg-ink text-paper font-semibold' : 'bg-paper text-ash'
+                  }`}
+                >
+                  [ {step} ]
+                </div>
+                {idx < arr.length - 1 && (
+                  <span className="text-rule">───</span>
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
       </div>
 
-      {/* Main Details Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Line Items & Shipping Meta Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* Line Items column */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="p-6 rounded-3xl glass-card border border-slate-800 space-y-4">
-            <h3 className="font-bold text-base text-white border-b border-slate-800 pb-3">Line Items</h3>
-            
-            <div className="space-y-4">
-              {order.items?.map((item: any) => (
-                <div key={item.id} className="flex justify-between items-center p-3 rounded-2xl bg-slate-900/60 border border-slate-800">
-                  <div className="space-y-1">
-                    <p className="font-bold text-sm text-white">{item.product_name || `Product #${item.product_id}`}</p>
-                    <p className="text-xs text-slate-400">Qty: {item.quantity} × ${Number(item.unit_price || 0).toFixed(2)}</p>
-                  </div>
-                  <span className="font-extrabold text-sm text-cyan-400">${Number(item.subtotal || 0).toFixed(2)}</span>
+        <div className="lg:col-span-8 border border-rule p-6 bg-paper space-y-4">
+          <Eyebrow className="text-ash block border-b border-rule pb-3">RESERVED LINE ITEMS</Eyebrow>
+          
+          <div className="divide-y divide-rule font-mono text-xs">
+            {order.items?.map((item: any) => (
+              <div key={item.id} className="py-3 flex justify-between items-center">
+                <div className="space-y-1">
+                  <p className="font-sans font-medium text-sm text-ink">{item.product_name || `Product #${item.product_id}`}</p>
+                  <p className="text-ash">QTY <Numeric value={item.quantity} format="integer" zeroPadInt={2} /> × <Numeric value={Number(item.unit_price || 0)} format="price" zeroPadInt={3} /></p>
                 </div>
-              ))}
-            </div>
+                <Numeric value={Number(item.subtotal || 0)} format="price" zeroPadInt={3} className="font-semibold text-ink" />
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Shipping & Payment Summary */}
-        <div className="space-y-6">
-          <div className="p-6 rounded-3xl glass-card border border-slate-800 space-y-4">
-            <h3 className="font-bold text-base text-white border-b border-slate-800 pb-3 flex items-center space-x-2">
-              <MapPin className="w-4 h-4 text-cyan-400" />
-              <span>Shipping Details</span>
-            </h3>
-            
+        <div className="lg:col-span-4 space-y-6">
+          <div className="border border-rule p-6 bg-paper space-y-3 font-mono text-xs">
+            <Eyebrow className="text-ash block border-b border-rule pb-2">SHIPPING DESTINATION</Eyebrow>
             {order.shipping_address ? (
-              <div className="text-xs text-slate-300 space-y-1">
-                <p className="font-bold text-white text-sm">{order.shipping_address.recipient_name}</p>
+              <div className="space-y-1 text-graphite">
+                <p className="font-semibold text-ink">{order.shipping_address.recipient_name}</p>
                 <p>{order.shipping_address.address_line1}</p>
-                {order.shipping_address.address_line2 && <p>{order.shipping_address.address_line2}</p>}
                 <p>{order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.postal_code}</p>
-                <p className="text-slate-400 font-mono pt-1">{order.shipping_address.phone}</p>
+                <p className="text-ash">{order.shipping_address.country}</p>
               </div>
             ) : (
-              <p className="text-xs text-slate-400">Standard Express Postal Delivery</p>
+              <p className="text-ash">STANDARD EXPRESS SHIPPING</p>
             )}
           </div>
 
-          <div className="p-6 rounded-3xl glass-card border border-slate-800 space-y-3">
-            <h3 className="font-bold text-base text-white border-b border-slate-800 pb-3">Financial Total</h3>
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between text-slate-300">
-                <span>Subtotal</span>
-                <span className="font-semibold text-white">${Number((order.total_amount || 0) - (order.tax_amount || 0)).toFixed(2)}</span>
+          <div className="border border-rule p-6 bg-paper space-y-3 font-mono text-xs">
+            <Eyebrow className="text-ash block border-b border-rule pb-2">RECEIPT SUMMARY</Eyebrow>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-ash">SUBTOTAL</span>
+                <Numeric value={Number((order.total_amount || 0) - (order.tax_amount || 0))} format="price" zeroPadInt={3} />
               </div>
-              <div className="flex justify-between text-slate-300">
-                <span>Taxes</span>
-                <span className="font-semibold text-white">${Number(order.tax_amount || 0).toFixed(2)}</span>
+              <div className="flex justify-between">
+                <span className="text-ash">TAX</span>
+                <Numeric value={Number(order.tax_amount || 0)} format="price" zeroPadInt={3} />
               </div>
-              <div className="flex justify-between text-sm font-black text-white pt-2 border-t border-slate-800">
-                <span>Total Amount</span>
-                <span className="text-cyan-400">${Number(order.total_amount || 0).toFixed(2)}</span>
+              <div className="flex justify-between pt-2 border-t border-rule font-semibold text-ink text-sm">
+                <span>TOTAL</span>
+                <Numeric value={Number(order.total_amount || 0)} format="price" zeroPadInt={3} />
               </div>
             </div>
           </div>
         </div>
 
       </div>
+
     </div>
   );
 };

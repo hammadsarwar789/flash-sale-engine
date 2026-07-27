@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useProducts, useCategories } from '../hooks/useCatalog';
 import { ProductCard } from '../components/product/ProductCard';
-import { Search, SlidersHorizontal, ArrowUpDown, Flame, PackageX } from 'lucide-react';
+import { Eyebrow } from '../components/ui/Eyebrow';
 
 export const ProductsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,7 +17,6 @@ export const ProductsPage: React.FC = () => {
   const [sortBy, setSortBy] = useState(initialSort);
   const [page, setPage] = useState(initialPage);
 
-  // Sync state with URL params when URL changes
   useEffect(() => {
     setSearch(searchParams.get('search') || '');
     setCategoryId(searchParams.get('category_id') || '');
@@ -48,130 +47,136 @@ export const ProductsPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Banner */}
-      <div className="relative rounded-3xl overflow-hidden glass-panel p-8 sm:p-12 border border-cyan-500/20 shadow-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-cyan-950/40">
-        <div className="max-w-2xl space-y-4">
-          <div className="inline-flex items-center space-x-2 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
-            <Flame className="w-4 h-4 animate-pulse" />
-            <span>High-Speed Flash Sale Engine</span>
-          </div>
-          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
-            Discover Exclusive Deals & Premium Products
+      {/* Editorial Header Section */}
+      <div className="border-b border-rule pb-8 space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs font-mono text-ash border-b border-rule/50 pb-3">
+          <span>ISSUE Nº 042 — WEEK OF JUL 27</span>
+          <span className="mt-1 sm:mt-0">ALL PRICES IN USD</span>
+        </div>
+
+        <div className="space-y-2">
+          <h1 className="font-serif text-[48px] sm:text-[88px] leading-[0.95] text-ink font-normal tracking-tight">
+            The Flash<br />Sale Floor.
           </h1>
-          <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-            Real-time inventory pool synchronized via Redis Lua scripts. Lock in your orders with instant stock reservation!
-          </p>
+          <div className="font-mono text-xs text-ash pt-2">
+            <span>1,204 items</span>
+            <span className="mx-2">·</span>
+            <span>42 live drops</span>
+            <span className="mx-2">·</span>
+            <span>next drop 00:14:22</span>
+          </div>
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="flex flex-col lg:flex-row items-center justify-between gap-4 p-4 rounded-2xl glass-card border border-slate-800">
-        
-        {/* Search Bar */}
-        <div className="relative w-full lg:w-96">
-          <input
-            type="text"
-            placeholder="Search products, SKUs..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              updateFilters({ search: e.target.value, page: '1' });
+      {/* Filter & Sort Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-rule pb-4">
+        {/* Category Pills */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Eyebrow className="text-ash mr-2">CATEGORY</Eyebrow>
+          <button
+            onClick={() => {
+              setCategoryId('');
+              updateFilters({ category_id: '', page: '1' });
             }}
-            className="w-full bg-slate-900 border border-slate-800 text-slate-100 placeholder-slate-400 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500 transition-all"
-          />
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            className={`px-3 py-1 text-xs font-mono border transition-colors rounded-none ${
+              !categoryId ? 'bg-ink text-paper border-ink font-semibold' : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
+            }`}
+          >
+            ● ALL
+          </button>
+
+          {categories.map((c) => {
+            const isSelected = categoryId === c.id;
+            return (
+              <button
+                key={c.id}
+                onClick={() => {
+                  setCategoryId(c.id);
+                  updateFilters({ category_id: c.id, page: '1' });
+                }}
+                className={`px-3 py-1 text-xs font-mono border transition-colors rounded-none ${
+                  isSelected ? 'bg-ink text-paper border-ink font-semibold' : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
+                }`}
+              >
+                {c.name.toUpperCase()}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Category Pills & Sort Select */}
-        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
-          
-          {/* Categories dropdown / filter */}
-          <div className="flex items-center space-x-2">
-            <SlidersHorizontal className="w-4 h-4 text-cyan-400" />
-            <select
-              value={categoryId}
-              onChange={(e) => {
-                setCategoryId(e.target.value);
-                updateFilters({ category_id: e.target.value, page: '1' });
-              }}
-              className="bg-slate-900 border border-slate-800 text-slate-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-cyan-500"
-            >
-              <option value="">All Categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Sort selector */}
-          <div className="flex items-center space-x-2">
-            <ArrowUpDown className="w-4 h-4 text-cyan-400" />
-            <select
-              value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value);
-                updateFilters({ sort_by: e.target.value });
-              }}
-              className="bg-slate-900 border border-slate-800 text-slate-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-cyan-500"
-            >
-              <option value="created_at">Newest Arrivals</option>
-              <option value="price_asc">Price: Low to High</option>
-              <option value="price_desc">Price: High to Low</option>
-            </select>
-          </div>
+        {/* Sort Select Dropdown */}
+        <div className="flex items-center space-x-2 font-mono text-xs">
+          <Eyebrow className="text-ash">SORT</Eyebrow>
+          <select
+            value={sortBy}
+            onChange={(e) => {
+              setSortBy(e.target.value);
+              updateFilters({ sort_by: e.target.value });
+            }}
+            className="bg-paper-sunk border border-rule text-ink text-xs font-mono px-3 py-1 rounded-none focus:outline-none focus:border-ink"
+          >
+            <option value="created_at">▾ NEWEST</option>
+            <option value="price_asc">▾ PRICE: LOW TO HIGH</option>
+            <option value="price_desc">▾ PRICE: HIGH TO LOW</option>
+          </select>
         </div>
       </div>
 
-      {/* Catalog Grid State */}
+      {/* Product Catalog Grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div key={i} className="h-80 rounded-2xl glass-card animate-pulse p-4 space-y-4">
-              <div className="bg-slate-900 h-44 rounded-xl"></div>
-              <div className="h-4 bg-slate-800 rounded w-3/4"></div>
-              <div className="h-4 bg-slate-800 rounded w-1/2"></div>
+            <div key={i} className="h-96 border border-rule bg-paper-sunk p-4 space-y-4 rounded-none">
+              <div className="bg-paper border border-rule h-52"></div>
+              <div className="h-4 bg-ash/30 w-3/4"></div>
+              <div className="h-4 bg-ash/30 w-1/2"></div>
             </div>
           ))}
         </div>
       ) : isError ? (
-        <div className="p-8 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-center space-y-2">
-          <p className="text-rose-400 font-bold text-base">Failed to load catalog products</p>
-          <p className="text-slate-400 text-xs">{(error as any)?.message || 'Make sure backend API is running on localhost:5000'}</p>
+        <div className="p-8 border border-loss bg-paper text-center space-y-2 rounded-none">
+          <p className="text-loss font-mono text-sm font-semibold">FAILED TO LOAD CATALOG FLOOR</p>
+          <p className="text-ash text-xs font-mono">{(error as any)?.message || 'Verify Flask backend server is running on localhost:5000'}</p>
         </div>
       ) : products.length === 0 ? (
-        <div className="py-20 text-center space-y-3 rounded-3xl glass-card border border-slate-800">
-          <PackageX className="w-12 h-12 text-slate-600 mx-auto" />
-          <h3 className="text-lg font-bold text-slate-200">No products found</h3>
-          <p className="text-slate-400 text-sm">Try tweaking your search term or category filters.</p>
+        <div className="py-20 text-center space-y-3 border border-rule bg-paper rounded-none">
+          <h3 className="font-serif text-2xl text-ink">No items on floor</h3>
+          <p className="text-ash text-xs font-mono">Try adjusting search parameters or category filter.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+          {products.map((product, idx) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              issueNumber={`Nº ${String((page - 1) * 12 + idx + 1).padStart(3, '0')}`}
+            />
           ))}
         </div>
       )}
 
-      {/* Pagination Controls */}
+      {/* Monospace Pagination */}
       {!isLoading && products.length > 0 && (
-        <div className="flex items-center justify-between pt-6 border-t border-slate-800">
-          <button
-            onClick={() => updateFilters({ page: Math.max(1, page - 1).toString() })}
-            disabled={page <= 1}
-            className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm font-semibold text-slate-300 hover:text-white disabled:opacity-40"
-          >
-            Previous
-          </button>
-          <span className="text-xs font-semibold text-slate-400">Page {page}</span>
-          <button
-            onClick={() => updateFilters({ page: (page + 1).toString() })}
-            disabled={products.length < 12}
-            className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm font-semibold text-slate-300 hover:text-white disabled:opacity-40"
-          >
-            Next Page
-          </button>
+        <div className="flex items-center justify-center pt-8 border-t border-rule font-mono text-xs">
+          <div className="flex items-center space-x-6">
+            <button
+              onClick={() => updateFilters({ page: Math.max(1, page - 1).toString() })}
+              disabled={page <= 1}
+              className="hover:text-signal disabled:text-ash disabled:no-underline underline"
+            >
+              ← PREVIOUS
+            </button>
+            <span className="text-ink">
+              {String((page - 1) * 12 + 1).padStart(3, '0')}–{String((page - 1) * 12 + products.length).padStart(3, '0')} OF 1,204
+            </span>
+            <button
+              onClick={() => updateFilters({ page: (page + 1).toString() })}
+              disabled={products.length < 12}
+              className="hover:text-signal disabled:text-ash disabled:no-underline underline"
+            >
+              NEXT →
+            </button>
+          </div>
         </div>
       )}
     </div>

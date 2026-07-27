@@ -1,23 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { CartItemRow } from '../components/cart/CartItemRow';
 import { CouponInput } from '../components/cart/CouponInput';
-import { ShoppingBag, ArrowRight, Trash2, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { CouponValidation, CartItem } from '../types/api';
+import { Numeric } from '../components/ui/Numeric';
+import { Eyebrow } from '../components/ui/Eyebrow';
 
 export const CartPage: React.FC = () => {
-  const { cart, isLoading, clearCart, isClearingCart } = useCart();
+  const { cart, isLoading, clearCart } = useCart();
   const navigate = useNavigate();
 
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null);
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(299); // 04:59 hold timer
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondsRemaining((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTimer = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  const isTimerLow = secondsRemaining <= 60;
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto py-12 space-y-6 animate-pulse">
-        <div className="h-8 bg-slate-800 rounded w-1/4"></div>
-        <div className="h-40 bg-slate-900 rounded-2xl"></div>
-        <div className="h-40 bg-slate-900 rounded-2xl"></div>
+      <div className="space-y-6">
+        <div className="h-14 w-48 bg-paper-sunk border border-rule"></div>
+        <div className="h-64 bg-paper-sunk border border-rule"></div>
       </div>
     );
   }
@@ -25,120 +41,97 @@ export const CartPage: React.FC = () => {
   const items = cart?.items || [];
   const subtotal = cart?.subtotal || 0;
   const discount = appliedCoupon?.calculated_discount || 0;
-  const estimatedTax = Math.round(subtotal * 0.08 * 100) / 100;
-  const total = Math.max(0, subtotal - discount + estimatedTax);
+  const total = Math.max(0, subtotal - discount);
 
   if (items.length === 0) {
     return (
-      <div className="max-w-md mx-auto py-20 text-center space-y-6 glass-card rounded-3xl p-8 border border-slate-800">
-        <div className="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-slate-500">
-          <ShoppingBag className="w-8 h-8" />
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-white">Your Cart is Empty</h2>
-          <p className="text-slate-400 text-sm">Looks like you haven't added any items to your shopping cart yet.</p>
-        </div>
-        <Link
-          to="/products"
-          className="inline-flex items-center space-x-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-6 py-3 rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:scale-105"
-        >
-          <span>Explore Flash Catalog</span>
-          <ArrowRight className="w-4 h-4" />
+      <div className="py-20 text-center space-y-4 border border-rule bg-paper">
+        <h1 className="font-serif text-[48px] text-ink">Cart is empty.</h1>
+        <p className="font-mono text-xs text-ash">No reserved inventory holds active.</p>
+        <Link to="/products" className="inline-block bg-ink text-paper font-mono text-xs uppercase px-6 py-2">
+          ← Return to Floor
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <Link to="/products" className="inline-flex items-center space-x-1 text-xs font-semibold text-slate-400 hover:text-cyan-400">
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Continue Shopping</span>
-          </Link>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">Shopping Cart ({cart?.item_count || 0} items)</h1>
+    <div className="space-y-8">
+      {/* Editorial Cart Header */}
+      <div className="border-b border-rule pb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-[56px] leading-none text-ink font-normal">Cart.</h1>
+          <div className="font-mono text-xs text-ash mt-2 flex items-center space-x-2">
+            <span>{String(cart?.item_count || 0).padStart(2, '0')} items reserved</span>
+            <span>·</span>
+            <span>hold expires</span>
+            <span className={`font-semibold ${isTimerLow ? 'text-signal animate-pulse' : 'text-ink'}`}>
+              {formatTimer(secondsRemaining)}
+            </span>
+          </div>
         </div>
 
         <button
           onClick={() => clearCart()}
-          disabled={isClearingCart}
-          className="flex items-center space-x-1.5 text-xs text-rose-400 hover:text-rose-300 font-semibold bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl transition-colors disabled:opacity-50"
+          className="font-mono text-xs text-ash hover:text-loss underline uppercase"
         >
-          <Trash2 className="w-4 h-4" />
-          <span>Clear Cart</span>
+          [ CLEAR ALL RESERVATIONS ]
         </button>
       </div>
 
-      {/* Cart Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Cart Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         
-        {/* Line items column */}
-        <div className="lg:col-span-2 space-y-4">
-          {items.map((item: CartItem) => (
-            <CartItemRow key={item.id} item={item} />
+        {/* Left Column: Line Items */}
+        <div className="lg:col-span-8 space-y-0 border-t border-rule">
+          {items.map((item: CartItem, idx: number) => (
+            <CartItemRow key={item.id} item={item} itemIndex={idx} />
           ))}
         </div>
 
-        {/* Order Summary & Checkout Column */}
-        <div className="space-y-6">
-          <CouponInput
-            cartSubtotal={subtotal}
-            appliedCoupon={appliedCoupon}
-            onCouponApplied={(coupon) => setAppliedCoupon(coupon.valid ? coupon : null)}
-          />
+        {/* Right Column: Sticky Summary Panel (320px layout) */}
+        <div className="lg:col-span-4 sticky top-28 space-y-6 border border-rule p-6 bg-paper">
+          <Eyebrow className="text-ash block border-b border-rule pb-3">SUMMARY</Eyebrow>
 
-          <div className="p-6 rounded-2xl glass-card border border-slate-800 space-y-4">
-            <h3 className="font-extrabold text-base text-white border-b border-slate-800 pb-3">
-              Order Summary
-            </h3>
-
-            <div className="space-y-2.5 text-sm">
-              <div className="flex justify-between text-slate-300">
-                <span>Subtotal</span>
-                <span className="font-semibold text-white">${subtotal.toFixed(2)}</span>
-              </div>
-
-              {discount > 0 && (
-                <div className="flex justify-between text-emerald-400 font-semibold">
-                  <span>Promo Discount ({appliedCoupon?.code})</span>
-                  <span>-${discount.toFixed(2)}</span>
-                </div>
-              )}
-
-              <div className="flex justify-between text-slate-300">
-                <span>Estimated Tax (8%)</span>
-                <span className="font-semibold text-white">${estimatedTax.toFixed(2)}</span>
-              </div>
-
-              <div className="flex justify-between text-slate-300">
-                <span>Shipping</span>
-                <span className="text-emerald-400 font-bold uppercase text-xs">FREE</span>
-              </div>
-
-              <div className="border-t border-slate-800 pt-3 flex justify-between items-baseline">
-                <span className="text-base font-bold text-white">Estimated Total</span>
-                <span className="text-2xl font-black text-cyan-400 tracking-tight">
-                  ${total.toFixed(2)}
-                </span>
-              </div>
+          <div className="space-y-3 font-mono text-xs">
+            <div className="flex justify-between text-ink">
+              <Eyebrow className="text-ash">SUBTOTAL</Eyebrow>
+              <Numeric value={subtotal} format="price" zeroPadInt={3} />
             </div>
 
-            <button
-              onClick={() => navigate('/checkout', { state: { couponCode: appliedCoupon?.code } })}
-              className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black py-4 rounded-xl shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] active:scale-95"
-            >
-              <span>Proceed to Checkout</span>
-              <ArrowRight className="w-5 h-5" />
-            </button>
+            <div className="flex justify-between text-ink">
+              <Eyebrow className="text-ash">SHIPPING</Eyebrow>
+              <span className="text-gain font-semibold">FREE</span>
+            </div>
 
-            <div className="flex items-center justify-center space-x-1.5 text-slate-500 text-xs text-center pt-2">
-              <ShieldCheck className="w-4 h-4 text-cyan-400" />
-              <span>Idempotent Stock Lock Reserved at Checkout</span>
+            {discount > 0 && (
+              <div className="flex justify-between text-gain font-semibold border-t border-rule/30 pt-2">
+                <span>COUPON ({appliedCoupon?.code})</span>
+                <Numeric value={-discount} format="price" zeroPadInt={2} />
+              </div>
+            )}
+
+            <div className="border-t border-rule pt-4 flex justify-between items-baseline">
+              <Eyebrow className="text-ink text-sm">TOTAL</Eyebrow>
+              <Numeric value={total} format="price" zeroPadInt={3} className="text-2xl text-ink font-medium" />
             </div>
           </div>
+
+          <div className="pt-2 border-t border-rule">
+            <CouponInput
+              cartSubtotal={subtotal}
+              appliedCoupon={appliedCoupon}
+              onCouponApplied={(coupon) => setAppliedCoupon(coupon.valid ? coupon : null)}
+            />
+          </div>
+
+          {/* Checkout Signal CTA */}
+          <button
+            onClick={() => navigate('/checkout', { state: { couponCode: appliedCoupon?.code } })}
+            className="w-full h-14 bg-signal text-signal-ink font-sans text-sm font-semibold uppercase tracking-widest hover:opacity-90 transition-opacity border border-signal rounded-none"
+          >
+            CHECKOUT →
+          </button>
         </div>
 
       </div>

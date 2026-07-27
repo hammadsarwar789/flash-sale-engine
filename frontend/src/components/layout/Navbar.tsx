@@ -1,183 +1,164 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingBag, Heart, Search, Flame, LogOut, Package, LogIn, Menu, X, ShieldAlert } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Search } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
+import { Wordmark } from '../ui/Wordmark';
+import { Numeric } from '../ui/Numeric';
+import { CommandPalette } from '../common/CommandPalette';
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const { cart } = useCart();
   const { wishlistItems } = useWishlist();
-  const navigate = useNavigate();
   const location = useLocation();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
   const cartItemCount = cart?.item_count || 0;
+  const cartSubtotal = cart?.subtotal || 0;
   const wishlistCount = wishlistItems?.length || 0;
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-    } else {
-      navigate('/products');
-    }
-  };
+  const isActive = (path: string) => location.pathname === path || (path === '/products' && location.pathname === '/');
 
-  const isActive = (path: string) => location.pathname === path;
+  // Compute initials for avatar
+  const userInitials = user?.email
+    ? user.email.slice(0, 2).toUpperCase()
+    : 'JD';
 
   return (
-    <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
+    <>
+      <header className="h-[72px] bg-paper border-b border-rule sticky top-0 z-40 flex items-center px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1440px] w-full mx-auto flex items-center justify-between gap-6">
           
-          {/* Brand Logo */}
-          <Link to="/products" className="flex items-center space-x-2 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition-transform duration-200">
-              <Flame className="w-6 h-6 text-white animate-pulse" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-xl bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent tracking-tight">
-                FLASH<span className="text-cyan-400">SALE</span>
-              </span>
-              <span className="text-[10px] text-cyan-400/80 tracking-widest font-semibold uppercase -mt-1">
-                ENGINE V1
-              </span>
-            </div>
-          </Link>
+          {/* Brand Wordmark */}
+          <div className="flex items-center space-x-8">
+            <Wordmark size="md" />
 
-          {/* Search Bar */}
-          <form onSubmit={handleSearchSubmit} className="hidden md:flex flex-1 max-w-md mx-4 relative">
-            <input
-              type="text"
-              placeholder="Search flash deals, products, SKUs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-900/90 text-sm text-slate-100 placeholder-slate-400 rounded-full pl-10 pr-4 py-2 border border-slate-800 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
-            />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-          </form>
-
-          {/* Desktop Nav Actions */}
-          <div className="hidden md:flex items-center space-x-5">
-            <Link
-              to="/products"
-              className={`text-sm font-medium transition-colors ${
-                isActive('/products') ? 'text-cyan-400' : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              Catalog
-            </Link>
-
-            {isAuthenticated && (
+            {/* Desktop Navigation Links */}
+            <nav className="hidden md:flex items-center space-x-6 text-sm font-sans">
               <Link
-                to="/orders"
-                className={`text-sm font-medium transition-colors flex items-center space-x-1 ${
-                  isActive('/orders') ? 'text-cyan-400' : 'text-slate-300 hover:text-white'
+                to="/products"
+                className={`relative py-5 transition-colors font-medium ${
+                  isActive('/products') ? 'text-ink' : 'text-graphite hover:text-ink'
                 }`}
               >
-                <Package className="w-4 h-4" />
-                <span>My Orders</span>
+                Catalog
+                {isActive('/products') && (
+                  <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-signal" />
+                )}
               </Link>
-            )}
 
-            {/* Admin Portal Link */}
-            <Link
-              to="/admin"
-              className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all flex items-center space-x-1 ${
-                isActive('/admin')
-                  ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400'
-                  : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-400'
-              }`}
-            >
-              <ShieldAlert className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Admin Portal</span>
-            </Link>
-
-            {/* Wishlist Button */}
-            <Link
-              to="/wishlist"
-              className="relative p-2 text-slate-300 hover:text-rose-400 transition-colors"
-              title="Wishlist"
-            >
-              <Heart className="w-5 h-5" />
-              {wishlistCount > 0 && (
-                <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-rose-500 rounded-full animate-scale-in">
-                  {wishlistCount}
-                </span>
+              {isAuthenticated && (
+                <Link
+                  to="/orders"
+                  className={`relative py-5 transition-colors font-medium ${
+                    isActive('/orders') ? 'text-ink' : 'text-graphite hover:text-ink'
+                  }`}
+                >
+                  Orders
+                  {isActive('/orders') && (
+                    <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-signal" />
+                  )}
+                </Link>
               )}
-            </Link>
 
-            {/* Cart Button */}
+              <Link
+                to="/wishlist"
+                className={`relative py-5 transition-colors font-medium ${
+                  isActive('/wishlist') ? 'text-ink' : 'text-graphite hover:text-ink'
+                }`}
+              >
+                Wishlist {wishlistCount > 0 && <span className="font-mono text-xs text-ash">({wishlistCount})</span>}
+                {isActive('/wishlist') && (
+                  <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-signal" />
+                )}
+              </Link>
+
+              {/* Admin Link if role === 'admin' */}
+              {user?.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  className={`relative py-5 transition-colors font-mono text-xs uppercase tracking-wider ${
+                    isActive('/admin') ? 'text-signal font-semibold' : 'text-ash hover:text-ink'
+                  }`}
+                >
+                  [ ADMIN RAIL ]
+                  {isActive('/admin') && (
+                    <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-signal" />
+                  )}
+                </Link>
+              )}
+            </nav>
+          </div>
+
+          {/* Right Action Bar */}
+          <div className="flex items-center space-x-4">
+            
+            {/* Search Keyboard Chip */}
+            <button
+              onClick={() => setIsPaletteOpen(true)}
+              className="hidden sm:flex items-center space-x-2 px-3 py-1.5 bg-paper-sunk border border-rule text-xs font-mono text-ash hover:text-ink transition-colors rounded-none"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Search</span>
+              <kbd className="border border-rule px-1 py-0.2 bg-paper text-[10px]">⌘K</kbd>
+            </button>
+
+            {/* Cart Button with Monospace Item Count & Subtotal */}
             <Link
               to="/cart"
-              className="relative flex items-center space-x-2 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-slate-100 px-3.5 py-2 rounded-xl border border-slate-700/60 shadow-md transition-all group"
+              className="flex items-center space-x-2 px-3 py-1.5 bg-paper border border-rule hover:border-ink text-xs font-mono transition-colors rounded-none"
             >
-              <ShoppingBag className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-semibold">Cart</span>
-              {cartItemCount > 0 && (
-                <span className="bg-cyan-500 text-slate-950 font-extrabold text-xs px-2 py-0.5 rounded-full ml-1">
-                  {cartItemCount}
-                </span>
-              )}
+              <span className="text-ink font-semibold">CART</span>
+              <span className="text-ash">·</span>
+              <Numeric value={cartItemCount} format="integer" className="text-ink" />
+              <span className="text-ash">·</span>
+              <Numeric value={cartSubtotal} format="price" className="text-ink" />
             </Link>
 
-            {/* User Dropdown / Auth CTA */}
+            {/* User Square Avatar Dropdown */}
             {isAuthenticated ? (
               <div className="relative">
                 <button
                   onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-                  className="flex items-center space-x-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-xl text-sm font-medium text-slate-200 transition-colors"
+                  className="w-8 h-8 bg-ink text-bone font-serif text-sm flex items-center justify-center border border-rule rounded-none hover:bg-graphite transition-colors"
+                  aria-label="User Account Menu"
                 >
-                  <div className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs">
-                    {user?.full_name ? user.full_name[0].toUpperCase() : user?.email[0].toUpperCase()}
-                  </div>
-                  <span className="max-w-[100px] truncate">{user?.full_name || user?.email}</span>
+                  {userInitials}
                 </button>
 
                 {isUserDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-2 z-50 animate-fadeIn">
-                    <div className="px-4 py-2 border-b border-slate-800">
-                      <p className="text-xs text-slate-400">Signed in as</p>
-                      <p className="text-sm font-semibold text-white truncate">{user?.email}</p>
+                  <div className="absolute right-0 mt-2 w-48 bg-paper border border-rule shadow-none z-50 p-2 text-xs font-mono">
+                    <div className="px-2 py-1.5 border-b border-rule text-ash truncate">
+                      {user?.email}
                     </div>
                     <Link
                       to="/orders"
                       onClick={() => setIsUserDropdownOpen(false)}
-                      className="flex items-center space-x-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
+                      className="block px-2 py-1.5 text-ink hover:bg-paper-sunk"
                     >
-                      <Package className="w-4 h-4 text-cyan-400" />
-                      <span>Order History</span>
+                      MY ORDERS
                     </Link>
-                    <Link
-                      to="/wishlist"
-                      onClick={() => setIsUserDropdownOpen(false)}
-                      className="flex items-center space-x-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
-                    >
-                      <Heart className="w-4 h-4 text-rose-400" />
-                      <span>Saved Items</span>
-                    </Link>
-                    <Link
-                      to="/admin"
-                      onClick={() => setIsUserDropdownOpen(false)}
-                      className="flex items-center space-x-2 px-4 py-2 text-sm text-cyan-400 hover:bg-slate-800"
-                    >
-                      <ShieldAlert className="w-4 h-4" />
-                      <span>Admin Control</span>
-                    </Link>
+                    {user?.role === 'admin' && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setIsUserDropdownOpen(false)}
+                        className="block px-2 py-1.5 text-signal hover:bg-paper-sunk font-semibold"
+                      >
+                        ADMIN CONTROL CENTER
+                      </Link>
+                    )}
                     <button
                       onClick={() => {
                         setIsUserDropdownOpen(false);
                         logout();
                       }}
-                      className="w-full text-left flex items-center space-x-2 px-4 py-2 text-sm text-rose-400 hover:bg-slate-800"
+                      className="w-full text-left px-2 py-1.5 text-loss hover:bg-paper-sunk border-t border-rule mt-1"
                     >
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
+                      LOGOUT
                     </button>
                   </div>
                 )}
@@ -185,104 +166,17 @@ export const Navbar: React.FC = () => {
             ) : (
               <Link
                 to="/login"
-                className="flex items-center space-x-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-cyan-500/20 transition-all hover:scale-105"
+                className="px-3 py-1.5 bg-ink text-paper text-xs font-sans font-medium uppercase tracking-wider hover:bg-graphite transition-colors rounded-none"
               >
-                <LogIn className="w-4 h-4" />
-                <span>Sign In</span>
-              </Link>
-            )}
-          </div>
-
-          {/* Mobile Menu Toggle */}
-          <div className="flex md:hidden items-center space-x-3">
-            <Link to="/cart" className="relative p-2 text-slate-200">
-              <ShoppingBag className="w-6 h-6 text-cyan-400" />
-              {cartItemCount > 0 && (
-                <span className="absolute top-0 right-0 bg-cyan-500 text-slate-950 font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
-                  {cartItemCount}
-                </span>
-              )}
-            </Link>
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 text-slate-300 hover:text-white"
-            >
-              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-
-        </div>
-      </div>
-
-      {/* Mobile Drawer Menu */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden bg-slate-900 border-b border-slate-800 px-4 pt-3 pb-6 space-y-3">
-          <form onSubmit={handleSearchSubmit} className="relative">
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-800 text-sm text-slate-100 placeholder-slate-400 rounded-lg pl-9 pr-3 py-2 border border-slate-700"
-            />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-          </form>
-
-          <div className="flex flex-col space-y-2 pt-2">
-            <Link
-              to="/products"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-lg text-slate-200 hover:bg-slate-800"
-            >
-              Catalog
-            </Link>
-            <Link
-              to="/admin"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-lg text-cyan-400 hover:bg-slate-800 flex items-center space-x-2"
-            >
-              <ShieldAlert className="w-4 h-4" />
-              <span>Admin Portal</span>
-            </Link>
-            <Link
-              to="/wishlist"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-lg text-slate-200 hover:bg-slate-800 flex justify-between"
-            >
-              <span>Wishlist</span>
-              {wishlistCount > 0 && <span className="text-xs bg-rose-500 px-2 py-0.5 rounded-full text-white">{wishlistCount}</span>}
-            </Link>
-            {isAuthenticated ? (
-              <>
-                <Link
-                  to="/orders"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="px-3 py-2 rounded-lg text-slate-200 hover:bg-slate-800"
-                >
-                  My Orders
-                </Link>
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    logout();
-                  }}
-                  className="text-left px-3 py-2 rounded-lg text-rose-400 hover:bg-slate-800"
-                >
-                  Logout ({user?.email})
-                </button>
-              </>
-            ) : (
-              <Link
-                to="/login"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="px-3 py-2 rounded-lg bg-cyan-500 text-slate-950 font-bold text-center"
-              >
-                Sign In
+                Log In
               </Link>
             )}
           </div>
         </div>
-      )}
-    </header>
+      </header>
+
+      {/* Command Palette Modal */}
+      <CommandPalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} />
+    </>
   );
 };
