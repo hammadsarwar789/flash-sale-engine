@@ -22,14 +22,14 @@ export const CheckoutPage: React.FC = () => {
   const [isGuestMode, setIsGuestMode] = useState(!isAuthenticated);
   const [guestEmail, setGuestEmail] = useState('');
   
-  // Shipping Address state
+  // Shipping Address state (defaults to empty so user enters their address)
   const [shippingAddresses, setShippingAddresses] = useState<ShippingAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [recipientName, setRecipientName] = useState(user?.full_name || '');
-  const [addressLine1, setAddressLine1] = useState('123 Tech Way');
-  const [city, setCity] = useState('San Francisco');
-  const [state, setState] = useState('CA');
-  const [postalCode, setPostalCode] = useState('94105');
+  const [addressLine1, setAddressLine1] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [postalCode, setPostalCode] = useState('');
   const [country, setCountry] = useState('US');
 
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null);
@@ -61,16 +61,47 @@ export const CheckoutPage: React.FC = () => {
         setShippingAddresses(addrs);
         if (addrs.length > 0 && addrs[0].id) {
           setSelectedAddressId(addrs[0].id);
+          // Populate fields with first saved address
+          const first = addrs[0];
+          setRecipientName(first.recipient_name || user?.full_name || '');
+          setAddressLine1(first.address_line1 || '');
+          setCity(first.city || '');
+          setState(first.state || '');
+          setPostalCode(first.postal_code || '');
+          setCountry(first.country || 'US');
         }
       }).catch((e) => console.warn('Could not load shipping addresses', e));
     }
   }, [isAuthenticated]);
+
+  const selectSavedAddress = (addr: ShippingAddress) => {
+    setSelectedAddressId(addr.id || null);
+    setRecipientName(addr.recipient_name || '');
+    setAddressLine1(addr.address_line1 || '');
+    setCity(addr.city || '');
+    setState(addr.state || '');
+    setPostalCode(addr.postal_code || '');
+    setCountry(addr.country || 'US');
+  };
+
+  const handleAddNewAddressOption = () => {
+    setSelectedAddressId(null);
+    setAddressLine1('');
+    setCity('');
+    setState('');
+    setPostalCode('');
+  };
 
   const items = cart?.items || [];
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setCheckoutError(null);
+
+    if (!addressLine1.trim() || !city.trim() || !state.trim() || !postalCode.trim()) {
+      setCheckoutError('Please complete all required shipping address fields.');
+      return;
+    }
 
     const idempotencyKey = crypto.randomUUID();
     const couponCode = appliedCoupon?.code;
@@ -94,15 +125,15 @@ export const CheckoutPage: React.FC = () => {
         });
         setCreatedOrder(res.order);
       } else {
-        if (!selectedAddressId && addressLine1) {
+        if (!selectedAddressId && addressLine1.trim()) {
           await commerceApi.createShippingAddress({
-            recipient_name: recipientName || user?.full_name || 'Customer',
-            address_line1: addressLine1,
-            city: city || 'City',
-            state: state || 'State',
-            postal_code: postalCode || '12345',
+            recipient_name: recipientName.trim() || user?.full_name || 'Customer',
+            address_line1: addressLine1.trim(),
+            city: city.trim(),
+            state: state.trim(),
+            postal_code: postalCode.trim(),
             country: country || 'US',
-          });
+          }).catch((err) => console.warn('Could not save address to user profile:', err));
         }
         const res = await checkout({ idempotencyKey, couponCode });
         setCreatedOrder(res.order);
@@ -226,6 +257,42 @@ export const CheckoutPage: React.FC = () => {
               </div>
             )}
 
+            {/* Saved Addresses Selector Cards */}
+            {shippingAddresses.length > 0 && !isGuestMode && (
+              <div className="space-y-2 pt-2">
+                <Eyebrow className="text-ash block">SELECT SAVED ADDRESS</Eyebrow>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {shippingAddresses.map((addr) => (
+                    <button
+                      key={addr.id}
+                      type="button"
+                      onClick={() => selectSavedAddress(addr)}
+                      className={`p-3 border text-left font-mono text-xs transition-colors rounded-none ${
+                        selectedAddressId === addr.id
+                          ? 'bg-ink text-paper border-ink font-semibold'
+                          : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
+                      }`}
+                    >
+                      <p className="font-sans font-semibold">{addr.recipient_name}</p>
+                      <p className="text-ash">{addr.address_line1}</p>
+                      <p className="text-ash">{addr.city}, {addr.state} {addr.postal_code}</p>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={handleAddNewAddressOption}
+                    className={`p-3 border border-dashed text-left font-mono text-xs transition-colors rounded-none flex items-center justify-center ${
+                      selectedAddressId === null
+                        ? 'bg-paper-sunk border-ink text-ink font-semibold'
+                        : 'border-rule text-ash hover:text-ink'
+                    }`}
+                  >
+                    + ENTER NEW SHIPPING ADDRESS
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Address Input Fields */}
             <div className="space-y-4 pt-2">
               <div>
@@ -233,7 +300,7 @@ export const CheckoutPage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="JOHN DOE"
+                  placeholder="ENTER FULL NAME (E.G. JOHN DOE)"
                   value={recipientName}
                   onChange={(e) => setRecipientName(e.target.value)}
                   className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
@@ -245,7 +312,7 @@ export const CheckoutPage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="123 TECH WAY"
+                  placeholder="ENTER STREET ADDRESS (E.G. 123 MARKET STREET)"
                   value={addressLine1}
                   onChange={(e) => setAddressLine1(e.target.value)}
                   className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
@@ -259,7 +326,7 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="SAN FRANCISCO"
+                      placeholder="CITY (E.G. SAN FRANCISCO)"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
                       className="w-2/3 bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
@@ -267,7 +334,7 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="94105"
+                      placeholder="ZIP (94105)"
                       value={postalCode}
                       onChange={(e) => setPostalCode(e.target.value)}
                       className="w-1/3 bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink focus:outline-none rounded-none"
@@ -276,16 +343,31 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <Eyebrow className="text-ash mb-1 block">COUNTRY</Eyebrow>
-                  <select
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink focus:outline-none rounded-none"
-                  >
-                    <option value="US">UNITED STATES ▾</option>
-                    <option value="CA">CANADA ▾</option>
-                    <option value="UK">UNITED KINGDOM ▾</option>
-                  </select>
+                  <div className="flex space-x-2">
+                    <div className="w-1/2">
+                      <Eyebrow className="text-ash mb-1 block">STATE</Eyebrow>
+                      <input
+                        type="text"
+                        required
+                        placeholder="STATE (CA)"
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
+                      />
+                    </div>
+                    <div className="w-1/2">
+                      <Eyebrow className="text-ash mb-1 block">COUNTRY</Eyebrow>
+                      <select
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink focus:outline-none rounded-none"
+                      >
+                        <option value="US">UNITED STATES ▾</option>
+                        <option value="CA">CANADA ▾</option>
+                        <option value="UK">UNITED KINGDOM ▾</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -335,6 +417,11 @@ export const CheckoutPage: React.FC = () => {
                 <span>ESTIMATED TOTAL</span>
                 <Numeric value={total} format="price" zeroPadInt={3} />
               </div>
+              {addressLine1 && (
+                <div className="text-ash text-[11px] pt-1">
+                  SHIP TO: {recipientName ? `${recipientName}, ` : ''}{addressLine1}, {city} {state} {postalCode}
+                </div>
+              )}
             </div>
 
             {/* Single Signal Red CTA Button */}
