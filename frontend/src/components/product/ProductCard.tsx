@@ -12,7 +12,7 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }) => {
   const stock = product.available_stock ?? product.total_stock ?? 0;
   const isLive = stock > 0 && stock <= 15;
-  const issueLabel = issueNumber || `Nº ${String(product.id).padStart(3, '0')}`;
+  const issueLabel = issueNumber || (product.sku ? `SKU: ${product.sku.toUpperCase()}` : `Nº ${String(product.id).slice(0, 8).toUpperCase()}`);
 
   const defaultImg =
     product.images && product.images.length > 0
