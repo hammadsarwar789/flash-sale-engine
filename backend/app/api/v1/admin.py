@@ -85,8 +85,9 @@ def update_admin_order(order_id):
         new_status = str(data["status"]).upper()
         if new_status == "REFUNDED" or new_status == OrderStatus.REFUNDED:
             from app.services.payment_service import PaymentService
+            from app.services.order_service import OrderService
             success, msg, refund_detail = PaymentService.issue_refund(order_id)
-            order.status = OrderStatus.REFUNDED
+            OrderService.refund_order(order_id)
         else:
             order.status = data["status"]
             if new_status == "SHIPPED" or new_status == OrderStatus.SHIPPED:

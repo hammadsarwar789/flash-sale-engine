@@ -480,3 +480,62 @@ class OrderService:
             logger.error(f"Failed to process payment for order {order_id}: {e}")
             return False, str(e)
 
+    @classmethod
+    def refund_order(cls, order_id: str) -> Tuple[bool, str]:
+        """
+        Refund order: Updates order status to REFUNDED,
+        and restores both available_stock and total_stock in PostgreSQL and Redis.
+        """
+        order = db.session.query(Order).filter_by(id=order_id).first()
+        if not order:
+            return False, "Order not found"
+
+        if order.status == OrderStatus.REFUNDED:
+            return False, "Order is already refunded"
+
+        try:
+            previous_status = order.status
+            order.status = OrderStatus.REFUNDED
+            release_items = []
+
+            # Restore stock for unfulfilled / pre-shipped orders
+            if previous_status in [OrderStatus.PENDING, OrderStatus.PAID]:
+                if order.items:
+                    for item in order.items:
+                        if item.variant_id:
+                            from app.models.product_variant import ProductVariant
+                            variant = db.session.query(ProductVariant).filter_by(id=item.variant_id).first()
+                            if variant:
+                                variant.available_stock += item.quantity
+                                if previous_status == OrderStatus.PAID:
+                                    variant.total_stock += item.quantity
+                            release_items.append((item.product_id, item.variant_id, item.quantity))
+                        else:
+                            product = db.session.query(Product).filter_by(id=item.product_id).first()
+                            if product:
+                                product.available_stock += item.quantity
+                                if previous_status == OrderStatus.PAID:
+                                    product.total_stock += item.quantity
+                            release_items.append((item.product_id, None, item.quantity))
+                elif order.product_id and order.quantity:
+                    product = db.session.query(Product).filter_by(id=order.product_id).first()
+                    if product:
+                        product.available_stock += order.quantity
+                        if previous_status == OrderStatus.PAID:
+                            product.total_stock += order.quantity
+                    release_items.append((order.product_id, None, order.quantity))
+
+            db.session.commit()
+
+            # Restore Redis stock pool
+            if release_items:
+                InventoryService.release_multi_stock(release_items)
+
+            logger.info(f"Order {order_id} refunded and stock restored for {len(release_items)} items.")
+            return True, "Order refunded and inventory restored to stock pool"
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Failed to refund order {order_id}: {e}")
+            return False, str(e)
+
