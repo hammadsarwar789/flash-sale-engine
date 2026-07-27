@@ -16,22 +16,24 @@ export interface PaymentIntentResponse {
 }
 
 export const ordersApi = {
-  async checkout(idempotencyKey: string): Promise<CheckoutResponse> {
+  async checkout(idempotencyKey: string, couponCode?: string): Promise<CheckoutResponse> {
     return apiFetch<CheckoutResponse>('/orders/checkout', {
       method: 'POST',
       idempotencyKey,
+      body: JSON.stringify({ coupon_code: couponCode }),
     });
   },
 
   async guestCheckout(
     guestEmail: string,
     items: Array<{ product_id: string; variant_id?: string; quantity: number }>,
-    idempotencyKey: string
+    idempotencyKey: string,
+    couponCode?: string
   ): Promise<CheckoutResponse> {
     return apiFetch<CheckoutResponse>('/orders/guest-checkout', {
       method: 'POST',
       idempotencyKey,
-      body: JSON.stringify({ email: guestEmail, items }),
+      body: JSON.stringify({ email: guestEmail, items, coupon_code: couponCode }),
     });
   },
 

@@ -13,7 +13,8 @@ export function useOrders() {
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: (idempotencyKey: string) => ordersApi.checkout(idempotencyKey),
+    mutationFn: ({ idempotencyKey, couponCode }: { idempotencyKey: string; couponCode?: string }) =>
+      ordersApi.checkout(idempotencyKey, couponCode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
@@ -25,11 +26,13 @@ export function useOrders() {
       email,
       items,
       idempotencyKey,
+      couponCode,
     }: {
       email: string;
       items: Array<{ product_id: string; variant_id?: string; quantity: number }>;
       idempotencyKey: string;
-    }) => ordersApi.guestCheckout(email, items, idempotencyKey),
+      couponCode?: string;
+    }) => ordersApi.guestCheckout(email, items, idempotencyKey, couponCode),
   });
 
   const cancelOrderMutation = useMutation({

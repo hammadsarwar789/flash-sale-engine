@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../hooks/useCart';
 import { useOrders } from '../hooks/useOrders';
 import { commerceApi } from '../api/commerce';
 import { StripeCardForm } from '../components/checkout/StripeCardForm';
-import { ShippingAddress, Order, CartItem } from '../types/api';
+import { CouponInput } from '../components/cart/CouponInput';
+import { ShippingAddress, Order, CartItem, CouponValidation } from '../types/api';
 import { Eyebrow } from '../components/ui/Eyebrow';
 import { Numeric } from '../components/ui/Numeric';
 
@@ -14,6 +15,9 @@ export const CheckoutPage: React.FC = () => {
   const { cart } = useCart();
   const { checkout, guestCheckout, isCheckingOut, isGuestCheckingOut } = useOrders();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const initialCouponCode = (location.state as any)?.couponCode || '';
 
   const [isGuestMode, setIsGuestMode] = useState(!isAuthenticated);
   const [guestEmail, setGuestEmail] = useState('');
@@ -28,10 +32,29 @@ export const CheckoutPage: React.FC = () => {
   const [postalCode, setPostalCode] = useState('94105');
   const [country, setCountry] = useState('US');
 
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [isPaymentCompleted, setIsPaymentCompleted] = useState(false);
 
+  const subtotal = cart?.subtotal || 0;
+  const discount = appliedCoupon?.calculated_discount || 0;
+  const total = Math.max(0, subtotal - discount);
+
+  // Auto-validate coupon passed from Cart page location.state
+  useEffect(() => {
+    if (initialCouponCode && subtotal > 0 && !appliedCoupon) {
+      commerceApi.validateCoupon(initialCouponCode, subtotal)
+        .then((res) => {
+          if (res.valid) {
+            setAppliedCoupon(res);
+          }
+        })
+        .catch((e) => console.warn('Could not validate initial coupon code', e));
+    }
+  }, [initialCouponCode, subtotal]);
+
+  // Load saved shipping addresses if authenticated
   useEffect(() => {
     if (isAuthenticated) {
       commerceApi.listShippingAddresses().then((addrs) => {
@@ -44,14 +67,13 @@ export const CheckoutPage: React.FC = () => {
   }, [isAuthenticated]);
 
   const items = cart?.items || [];
-  const subtotal = cart?.subtotal || 0;
-  const total = subtotal;
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setCheckoutError(null);
 
     const idempotencyKey = crypto.randomUUID();
+    const couponCode = appliedCoupon?.code;
 
     try {
       if (isGuestMode) {
@@ -68,6 +90,7 @@ export const CheckoutPage: React.FC = () => {
           email: guestEmail,
           items: formattedItems,
           idempotencyKey,
+          couponCode,
         });
         setCreatedOrder(res.order);
       } else {
@@ -81,7 +104,7 @@ export const CheckoutPage: React.FC = () => {
             country: country || 'US',
           });
         }
-        const res = await checkout(idempotencyKey);
+        const res = await checkout({ idempotencyKey, couponCode });
         setCreatedOrder(res.order);
       }
     } catch (err: any) {
@@ -288,8 +311,30 @@ export const CheckoutPage: React.FC = () => {
               <h2 className="font-mono text-sm font-semibold tracking-widest uppercase text-ink">REVIEW & SUBMIT</h2>
             </div>
 
+            {/* Coupon Code Input / Applied Summary */}
+            <div className="border border-rule p-4 bg-paper">
+              <CouponInput
+                cartSubtotal={subtotal}
+                appliedCoupon={appliedCoupon}
+                onCouponApplied={(coupon) => setAppliedCoupon(coupon.valid ? coupon : null)}
+              />
+            </div>
+
             <div className="font-mono text-xs text-graphite border border-rule p-4 bg-paper space-y-2">
-              <p>{items.length} items reserved · <Numeric value={total} format="price" zeroPadInt={3} /> total · ship to {addressLine1}, {city}</p>
+              <div className="flex justify-between">
+                <span>SUBTOTAL ({items.length} items)</span>
+                <Numeric value={subtotal} format="price" zeroPadInt={3} />
+              </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-gain font-semibold">
+                  <span>PROMO DISCOUNT ({appliedCoupon?.code})</span>
+                  <Numeric value={-discount} format="price" zeroPadInt={2} />
+                </div>
+              )}
+              <div className="flex justify-between font-semibold text-ink border-t border-rule/50 pt-2 text-sm">
+                <span>ESTIMATED TOTAL</span>
+                <Numeric value={total} format="price" zeroPadInt={3} />
+              </div>
             </div>
 
             {/* Single Signal Red CTA Button */}

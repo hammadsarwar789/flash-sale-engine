@@ -104,6 +104,7 @@ class OrderService:
         cls,
         user_id: str,
         idempotency_key: str,
+        coupon_code: Optional[str] = None,
         expiry_minutes: int = 10,
     ) -> Tuple[bool, str, Optional[Order], Optional[OutboxEvent]]:
         """
@@ -151,9 +152,19 @@ class OrderService:
                 "subtotal": line_subtotal,
             })
 
-        tax = round(subtotal * TAX_RATE, 2)
+        discount = 0.00
+        if coupon_code:
+            from app.models.coupon import Coupon
+            coupon = db.session.query(Coupon).filter_by(code=coupon_code.upper(), is_active=True).first()
+            if coupon and subtotal >= float(coupon.min_order_amount):
+                if coupon.discount_type == "percentage":
+                    discount = round(subtotal * (float(coupon.discount_value) / 100.0), 2)
+                else:
+                    discount = float(coupon.discount_value)
+
+        tax = round(max(0.0, subtotal - discount) * TAX_RATE, 2)
         shipping_fee = 0.00
-        total_amount = round(subtotal + tax + shipping_fee, 2)
+        total_amount = max(0.00, round(subtotal - discount + tax + shipping_fee, 2))
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
 
         # Atomic multi-item Redis reservation
@@ -233,6 +244,7 @@ class OrderService:
         guest_email: str,
         items_data: List[dict],
         idempotency_key: str,
+        coupon_code: Optional[str] = None,
         expiry_minutes: int = 10,
     ) -> Tuple[bool, str, Optional[Order], Optional[OutboxEvent]]:
         """
@@ -292,9 +304,19 @@ class OrderService:
                 "subtotal": line_subtotal,
             })
 
-        tax = round(subtotal * TAX_RATE, 2)
+        discount = 0.00
+        if coupon_code:
+            from app.models.coupon import Coupon
+            coupon = db.session.query(Coupon).filter_by(code=coupon_code.upper(), is_active=True).first()
+            if coupon and subtotal >= float(coupon.min_order_amount):
+                if coupon.discount_type == "percentage":
+                    discount = round(subtotal * (float(coupon.discount_value) / 100.0), 2)
+                else:
+                    discount = float(coupon.discount_value)
+
+        tax = round(max(0.0, subtotal - discount) * TAX_RATE, 2)
         shipping_fee = 0.00
-        total_amount = round(subtotal + tax + shipping_fee, 2)
+        total_amount = max(0.00, round(subtotal - discount + tax + shipping_fee, 2))
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
 
         success, msg = InventoryService.reserve_multi_stock(reservation_items)

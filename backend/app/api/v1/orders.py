@@ -75,10 +75,13 @@ def checkout_cart():
     """
     user_id = g.current_user_id
     idempotency_key = request.headers.get("Idempotency-Key")
+    data = request.get_json(silent=True) or {}
+    coupon_code = data.get("coupon_code")
 
     success, msg, order, outbox_event = OrderService.create_checkout_order(
         user_id=user_id,
         idempotency_key=idempotency_key,
+        coupon_code=coupon_code,
     )
 
     if not success:
@@ -117,6 +120,7 @@ def guest_checkout():
     data = request.get_json() or {}
     guest_email = data.get("email")
     items = data.get("items", [])
+    coupon_code = data.get("coupon_code")
     idempotency_key = request.headers.get("Idempotency-Key")
 
     if not guest_email or not items:
@@ -136,6 +140,7 @@ def guest_checkout():
         guest_email=guest_email,
         items_data=items,
         idempotency_key=idempotency_key,
+        coupon_code=coupon_code,
     )
 
     if not success:
