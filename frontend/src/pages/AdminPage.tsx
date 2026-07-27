@@ -49,6 +49,14 @@ export const AdminPage: React.FC = () => {
   // Order Detail Drawer/Modal state
   const [detailModalOrder, setDetailModalOrder] = useState<Order | null>(null);
 
+  // Edit Product / Stock Update Modal state
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [editProdName, setEditProdName] = useState('');
+  const [editProdPrice, setEditProdPrice] = useState<number>(0);
+  const [editProdStock, setEditProdStock] = useState<number>(0);
+  const [editProdCatId, setEditProdCatId] = useState('');
+  const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
+
   const loadAdminData = async () => {
     setIsLoading(true);
     setErrorMsg(null);
@@ -104,6 +112,38 @@ export const AdminPage: React.FC = () => {
       setErrorMsg(err.message || 'Failed to create product.');
     } finally {
       setIsCreatingProduct(false);
+    }
+  };
+
+  const handleOpenEditProduct = (p: Product) => {
+    setEditProduct(p);
+    setEditProdName(p.name);
+    setEditProdPrice(Number(p.price) || 0);
+    setEditProdStock(p.total_stock || p.available_stock || 0);
+    setEditProdCatId(typeof p.category === 'object' ? (p.category as any)?.id || '' : p.category_id || '');
+  };
+
+  const handleSaveEditProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editProduct) return;
+    setIsUpdatingProduct(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      await adminApi.updateProduct(editProduct.id, {
+        name: editProdName,
+        price: editProdPrice,
+        total_stock: editProdStock,
+        available_stock: editProdStock,
+        category_id: editProdCatId || undefined,
+      });
+      setSuccessMsg(`Product '${editProdName}' stock updated to ${editProdStock} units (Redis cache synced).`);
+      setEditProduct(null);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to update product stock.');
+    } finally {
+      setIsUpdatingProduct(false);
     }
   };
 
@@ -324,7 +364,7 @@ export const AdminPage: React.FC = () => {
             {/* Create Product Form */}
             <form onSubmit={handleCreateProduct} className="border border-rule p-4 bg-paper-sunk space-y-3 font-mono text-xs">
               <Eyebrow className="text-ink block">ISSUE NEW PRODUCT RECORD</Eyebrow>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
                 <input
                   type="text"
                   required
@@ -358,12 +398,30 @@ export const AdminPage: React.FC = () => {
                   onChange={(e) => setProdStock(parseInt(e.target.value, 10))}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
+                <select
+                  value={prodCatId}
+                  onChange={(e) => setProdCatId(e.target.value)}
+                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                >
+                  <option value="">SELECT CATEGORY (OPTIONAL)</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
+                  ))}
+                </select>
               </div>
-              <div className="flex justify-end">
+
+              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+                <input
+                  type="text"
+                  placeholder="OPTIONAL DESCRIPTION / PRODUCT DETAILS"
+                  value={prodDesc}
+                  onChange={(e) => setProdDesc(e.target.value)}
+                  className="w-full sm:flex-1 bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                />
                 <button
                   type="submit"
                   disabled={isCreatingProduct}
-                  className="bg-ink text-paper px-4 py-1.5 hover:bg-graphite uppercase"
+                  className="w-full sm:w-auto bg-ink text-paper px-6 py-1.5 hover:bg-graphite uppercase whitespace-nowrap"
                 >
                   {isCreatingProduct ? 'ISSUING...' : '+ CREATE PRODUCT'}
                 </button>
@@ -377,6 +435,7 @@ export const AdminPage: React.FC = () => {
                   <tr className="bg-paper-sunk border-b border-rule text-ash">
                     <th className="py-2.5 px-3">TITLE</th>
                     <th className="py-2.5 px-3">SKU</th>
+                    <th className="py-2.5 px-3">CATEGORY</th>
                     <th className="py-2.5 px-3">PRICE</th>
                     <th className="py-2.5 px-3">REDIS STOCK</th>
                     <th className="py-2.5 px-3">DB STOCK</th>
@@ -388,13 +447,24 @@ export const AdminPage: React.FC = () => {
                     <tr key={p.id} className="hover:bg-paper-sunk/40">
                       <td className="py-2.5 px-3 font-sans font-medium text-ink">{p.name}</td>
                       <td className="py-2.5 px-3 text-ash">{p.sku}</td>
+                      <td className="py-2.5 px-3">
+                        <span className="bg-paper-sunk px-2 py-0.5 border border-rule text-ink font-semibold">
+                          {typeof p.category === 'object' ? p.category?.name?.toUpperCase() : (categories.find(c => c.id === (p.category_id || p.category))?.name?.toUpperCase() || 'GENERAL')}
+                        </span>
+                      </td>
                       <td className="py-2.5 px-3 text-ink"><Numeric value={Number(p.price)} format="price" zeroPadInt={3} /></td>
                       <td className="py-2.5 px-3 text-gain font-semibold">{p.available_stock ?? p.total_stock} UNITS</td>
                       <td className="py-2.5 px-3 text-ash">{p.total_stock} UNITS</td>
                       <td className="py-2.5 px-3 text-right space-x-2">
                         <button
+                          onClick={() => handleOpenEditProduct(p)}
+                          className="underline text-signal hover:text-ink font-semibold"
+                        >
+                          [ EDIT STOCK ]
+                        </button>
+                        <button
                           onClick={() => handleSyncStock(p.id)}
-                          className="underline text-ink hover:text-signal"
+                          className="underline text-ash hover:text-ink"
                         >
                           [ SYNC REDIS ]
                         </button>
@@ -642,6 +712,88 @@ export const AdminPage: React.FC = () => {
       </main>
     </div>
 
+
+      {/* 📦 EDIT PRODUCT & STOCK MODAL */}
+      {editProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-ink/60" onClick={() => setEditProduct(null)} />
+          <div className="relative w-full max-w-md bg-paper border border-rule p-6 space-y-4 font-mono text-xs z-10">
+            <div className="border-b border-rule pb-3 flex justify-between items-center">
+              <h3 className="font-serif text-2xl text-ink">Update Product & Stock</h3>
+              <button onClick={() => setEditProduct(null)} className="text-ash hover:text-ink font-mono text-xs">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveEditProduct} className="space-y-4">
+              <div className="space-y-1">
+                <Eyebrow className="text-ash block">PRODUCT NAME</Eyebrow>
+                <input
+                  type="text"
+                  required
+                  value={editProdName}
+                  onChange={(e) => setEditProdName(e.target.value)}
+                  className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Eyebrow className="text-ash block">PRICE ($)</Eyebrow>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={editProdPrice}
+                    onChange={(e) => setEditProdPrice(parseFloat(e.target.value))}
+                    className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Eyebrow className="text-ash block">INVENTORY STOCK (UNITS)</Eyebrow>
+                  <input
+                    type="number"
+                    required
+                    value={editProdStock}
+                    onChange={(e) => setEditProdStock(parseInt(e.target.value, 10))}
+                    className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink font-semibold focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Eyebrow className="text-ash block">ASSIGN CATEGORY</Eyebrow>
+                <select
+                  value={editProdCatId}
+                  onChange={(e) => setEditProdCatId(e.target.value)}
+                  className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
+                >
+                  <option value="">NO CATEGORY / GENERAL</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pt-2 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setEditProduct(null)}
+                  className="px-4 py-2 border border-rule bg-paper text-ink hover:bg-paper-sunk"
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingProduct}
+                  className="px-4 py-2 bg-ink text-paper font-semibold hover:bg-graphite disabled:opacity-50"
+                >
+                  {isUpdatingProduct ? 'SAVING...' : 'UPDATE & SYNC STOCK →'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* 🚢 SHIP MODAL */}
       {shippingModalOrder && (
