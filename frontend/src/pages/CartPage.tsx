@@ -19,7 +19,7 @@ export const CartPage: React.FC = () => {
   useEffect(() => {
     if (items.length === 0) {
       localStorage.removeItem('cart_hold_expires_at');
-      setSecondsRemaining(299);
+      setSecondsRemaining(300);
       return;
     }
 
@@ -27,20 +27,35 @@ export const CartPage: React.FC = () => {
     const saved = localStorage.getItem('cart_hold_expires_at');
     let expiresAt = saved ? parseInt(saved, 10) : 0;
 
-    if (!expiresAt || isNaN(expiresAt) || expiresAt <= Date.now()) {
+    // If no expiration timestamp exists, create new 5-minute hold
+    if (!expiresAt || isNaN(expiresAt)) {
       expiresAt = Date.now() + HOLD_DURATION_MS;
       localStorage.setItem('cart_hold_expires_at', expiresAt.toString());
+    } 
+    // If hold timestamp has expired, clear cart & release inventory
+    else if (expiresAt <= Date.now()) {
+      localStorage.removeItem('cart_hold_expires_at');
+      clearCart();
+      setSecondsRemaining(0);
+      return;
     }
 
     const updateTimer = () => {
-      const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
-      setSecondsRemaining(remaining);
+      const now = Date.now();
+      if (expiresAt <= now) {
+        localStorage.removeItem('cart_hold_expires_at');
+        clearCart();
+        setSecondsRemaining(0);
+      } else {
+        const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+        setSecondsRemaining(remaining);
+      }
     };
 
     updateTimer();
     const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
-  }, [items.length]);
+  }, [items.length, clearCart]);
 
   const formatTimer = (secs: number) => {
     const m = Math.floor(secs / 60);
