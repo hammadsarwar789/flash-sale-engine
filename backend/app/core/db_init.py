@@ -34,6 +34,7 @@ def sync_database_schema():
                 conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(128);"))
                 conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS carrier VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_intent_id VARCHAR(255);"))
 
                 # 4. Update 'cart_items' & 'order_items' for variant_id
                 conn.execute(text("ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))

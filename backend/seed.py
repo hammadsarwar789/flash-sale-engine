@@ -142,6 +142,27 @@ def seed_database():
                 except Exception as e:
                     logger.warning(f"Skipped Redis stock warmup for product {prod.id}: {e}")
 
+        # 5. Create Sample Coupons
+        from app.models.coupon import Coupon
+        sample_coupons = [
+            {"code": "FLASH20", "discount_type": "percentage", "discount_value": 20.0, "min_order_amount": 0.0},
+            {"code": "WELCOME10", "discount_type": "percentage", "discount_value": 10.0, "min_order_amount": 0.0},
+            {"code": "SUMMER30", "discount_type": "fixed", "discount_value": 30.0, "min_order_amount": 50.0},
+        ]
+        for c_data in sample_coupons:
+            c = db.session.query(Coupon).filter_by(code=c_data["code"]).first()
+            if not c:
+                c = Coupon(
+                    code=c_data["code"],
+                    discount_type=c_data["discount_type"],
+                    discount_value=c_data["discount_value"],
+                    min_order_amount=c_data["min_order_amount"],
+                    is_active=True,
+                )
+                db.session.add(c)
+                logger.info(f"Created Coupon: '{c.code}' ({c.discount_value} {c.discount_type})")
+
+        db.session.commit()
         logger.info("Database seeding successfully completed!")
 
 

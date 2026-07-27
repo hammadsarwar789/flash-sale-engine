@@ -14,7 +14,6 @@ commerce_bp = Blueprint("commerce", "commerce", url_prefix="/api/v1", descriptio
 # --- Coupon Endpoints ---
 
 @commerce_bp.route("/coupons/validate", methods=["POST"])
-@jwt_required
 def validate_coupon():
     """Validate a promo code for discount applicability."""
     data = request.get_json() or {}
