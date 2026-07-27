@@ -34,6 +34,7 @@ export const AdminPage: React.FC = () => {
   const [couponCode, setCouponCode] = useState('');
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState<number>(15);
+  const [couponMinOrder, setCouponMinOrder] = useState<number>(0);
   const [couponValidDays, setCouponValidDays] = useState<number>(7);
   const [isCreatingCoupon, setIsCreatingCoupon] = useState(false);
 
@@ -224,10 +225,12 @@ export const AdminPage: React.FC = () => {
         code: couponCode.toUpperCase(),
         discount_type: discountType,
         discount_value: discountValue,
+        min_order_amount: couponMinOrder,
         valid_days: couponValidDays > 0 ? couponValidDays : undefined,
       });
-      setSuccessMsg(`Promo code '${couponCode}' issued (${couponValidDays > 0 ? `Valid for ${couponValidDays} days` : 'Perpetual'}).`);
+      setSuccessMsg(`Promo code '${couponCode}' issued (Min order: $${couponMinOrder.toFixed(2)}).`);
       setCouponCode('');
+      setCouponMinOrder(0);
       loadAdminData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to create promo coupon.');
@@ -650,7 +653,7 @@ export const AdminPage: React.FC = () => {
 
             <form onSubmit={handleCreateCoupon} className="border border-rule p-4 bg-paper-sunk space-y-3 font-mono text-xs">
               <Eyebrow className="text-ink block">ISSUE NEW PROMOTIONAL CODE</Eyebrow>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
                 <input
                   type="text"
                   required
@@ -673,6 +676,14 @@ export const AdminPage: React.FC = () => {
                   placeholder="VALUE (E.G. 15 OR 30)"
                   value={discountValue}
                   onChange={(e) => setDiscountValue(Number(e.target.value))}
+                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="MIN ORDER ($)"
+                  value={couponMinOrder || ''}
+                  onChange={(e) => setCouponMinOrder(parseFloat(e.target.value) || 0)}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
                 <input
