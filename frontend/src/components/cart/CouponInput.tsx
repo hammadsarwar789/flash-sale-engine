@@ -19,8 +19,9 @@ export const CouponInput: React.FC<CouponInputProps> = ({
   const [isValidating, setIsValidating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleApply = async (e: React.FormEvent) => {
+  const handleApply = async (e: React.SyntheticEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!code.trim()) return;
 
     setIsValidating(true);
@@ -51,7 +52,11 @@ export const CouponInput: React.FC<CouponInputProps> = ({
         </div>
         <button
           type="button"
-          onClick={() => onCouponApplied({ valid: false })}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onCouponApplied({ valid: false });
+          }}
           className="text-ash hover:text-loss underline"
         >
           [ REMOVE ]
@@ -64,7 +69,11 @@ export const CouponInput: React.FC<CouponInputProps> = ({
     return (
       <button
         type="button"
-        onClick={() => setIsExpanded(true)}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsExpanded(true);
+        }}
         className="font-mono text-xs text-ink hover:text-signal underline block"
       >
         [ + APPLY COUPON CODE ]
@@ -74,22 +83,30 @@ export const CouponInput: React.FC<CouponInputProps> = ({
 
   return (
     <div className="space-y-2">
-      <form onSubmit={handleApply} className="flex space-x-2">
+      <div className="flex space-x-2">
         <input
           type="text"
-          placeholder="ENTER PROMO CODE (E.G. SUMMER30)"
+          placeholder="ENTER PROMO CODE (E.G. FLASH20)"
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.stopPropagation();
+              handleApply(e);
+            }
+          }}
           className="flex-grow bg-paper-sunk border border-rule px-3 py-2 text-xs font-mono text-ink placeholder-ash uppercase focus:outline-none focus:border-ink rounded-none"
         />
         <button
-          type="submit"
+          type="button"
+          onClick={handleApply}
           disabled={isValidating || !code.trim()}
           className="bg-ink text-paper text-xs font-mono px-4 py-2 hover:bg-graphite disabled:opacity-40 rounded-none"
         >
           {isValidating ? 'CHECKING...' : 'APPLY'}
         </button>
-      </form>
+      </div>
 
       {errorMsg && (
         <div className="font-mono text-xs text-loss">
