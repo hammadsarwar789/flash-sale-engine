@@ -7,7 +7,7 @@ from app.core.extensions import redis_client
 logger = logging.getLogger(__name__)
 
 
-def rate_limit(limit: int = 100, period: int = 60):
+def rate_limit(limit: int = 10, period: int = 60):
     """
     Redis Sliding Window Rate Limiter decorator.
     Restricts client request rate to `limit` requests per `period` seconds.

@@ -1,7 +1,9 @@
+import logging
 from flask import current_app, jsonify
 from flask_smorest import Blueprint
-from app.core.extensions import db
+from app.core.extensions import db, redis_client
 from app.models.user import User
+from app.api.decorators.rate_limit import rate_limit
 from app.schemas.auth_schema import (
     UserRegisterSchema,
     UserLoginSchema,
@@ -10,10 +12,12 @@ from app.schemas.auth_schema import (
 )
 from app.core.security import hash_password, verify_password, create_access_token
 
+logger = logging.getLogger(__name__)
 auth_bp = Blueprint("auth", "auth", url_prefix="/api/v1/auth", description="Authentication operations")
 
 
 @auth_bp.route("/register", methods=["POST"])
+@rate_limit(limit=5, period=60)
 @auth_bp.arguments(UserRegisterSchema)
 @auth_bp.response(201, UserResponseSchema)
 def register(user_data):
@@ -45,23 +49,87 @@ def register(user_data):
 
 
 @auth_bp.route("/login", methods=["POST"])
+@rate_limit(limit=5, period=60)
 @auth_bp.arguments(UserLoginSchema)
 @auth_bp.response(200, TokenResponseSchema)
 def login(login_data):
     """Authenticate user credentials and issue JWT access token."""
-    user = db.session.query(User).filter_by(email=login_data["email"]).first()
+    email = login_data["email"].lower().strip()
+    failed_key = f"failed_login:{email}"
+    lockout_key = f"lockout:{email}"
+
+    # 1. Check if account is currently locked out
+    try:
+        ttl = redis_client.ttl(lockout_key)
+        if ttl > 0:
+            return (
+                jsonify(
+                    {
+                        "type": "https://api.flashsale.com/errors/account-locked",
+                        "title": "Too Many Failed Attempts",
+                        "status": 429,
+                        "detail": f"Account locked due to 5 consecutive failed login attempts. Try again in {ttl} seconds.",
+                    }
+                ),
+                429,
+                {"Retry-After": str(ttl)},
+            )
+    except Exception as e:
+        logger.warning(f"Redis lockout check failed: {e}")
+
+    user = db.session.query(User).filter_by(email=email).first()
     if not user or not verify_password(login_data["password"], user.password_hash):
-        return (
-            jsonify(
-                {
-                    "type": "https://api.flashsale.com/errors/invalid-credentials",
-                    "title": "Unauthorized",
-                    "status": 401,
-                    "detail": "Invalid email or password credentials.",
-                }
-            ),
-            401,
-        )
+        try:
+            failed_count = redis_client.incr(failed_key)
+            redis_client.expire(failed_key, 300)  # Keep failed counter for 5 minutes
+
+            if failed_count >= 5:
+                redis_client.setex(lockout_key, 900, "locked")  # 15-minute lockout
+                redis_client.delete(failed_key)
+                return (
+                    jsonify(
+                        {
+                            "type": "https://api.flashsale.com/errors/account-locked",
+                            "title": "Account Locked",
+                            "status": 429,
+                            "detail": "Account locked due to 5 consecutive failed login attempts. Please try again in 15 minutes.",
+                        }
+                    ),
+                    429,
+                    {"Retry-After": "900"},
+                )
+
+            attempts_left = 5 - failed_count
+            return (
+                jsonify(
+                    {
+                        "type": "https://api.flashsale.com/errors/invalid-credentials",
+                        "title": "Unauthorized",
+                        "status": 401,
+                        "detail": f"Invalid email or password credentials. ({attempts_left} attempt{'s' if attempts_left != 1 else ''} remaining before account lock).",
+                    }
+                ),
+                401,
+            )
+        except Exception:
+            return (
+                jsonify(
+                    {
+                        "type": "https://api.flashsale.com/errors/invalid-credentials",
+                        "title": "Unauthorized",
+                        "status": 401,
+                        "detail": "Invalid email or password credentials.",
+                    }
+                ),
+                401,
+            )
+
+    # 2. Reset lockout tracking on successful login
+    try:
+        redis_client.delete(failed_key)
+        redis_client.delete(lockout_key)
+    except Exception:
+        pass
 
     if not user.is_active:
         return (
