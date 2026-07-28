@@ -14,7 +14,7 @@ migrate: Migrate = Migrate()
 smorest_api: Api = Api()
 
 # Global Redis client placeholder
-redis_client: redis.Redis = redis.Redis()
+redis_client: redis.Redis = redis.Redis(decode_responses=True, protocol=2)
 
 
 def init_redis(app) -> redis.Redis:
