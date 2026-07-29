@@ -100,7 +100,11 @@ export const AdminPage: React.FC = () => {
         adminApi.getOutboxEvents().catch(() => []),
         adminApi.listTaskLogs().catch(() => []),
         adminApi.listCoupons().catch(() => []),
-        adminApi.getApprovals(approvalStatusFilter).catch(() => []),
+        adminApi.getApprovals(approvalStatusFilter).catch((err) => {
+          console.warn('getApprovals failed:', err);
+          setErrorMsg(`Approvals telemetry warning: ${err.message || 'Failed to fetch pending requests'}. Ensure you are authenticated as Super Admin.`);
+          return [];
+        }),
         adminApi.getApprovalAuditLogs().catch(() => []),
         adminApi.getRoles().catch(() => []),
         adminApi.getPermissions().catch(() => []),
@@ -330,6 +334,26 @@ export const AdminPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Top Session Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border border-rule bg-paper font-mono text-xs">
+        <div>
+          <span className="text-ash uppercase">ACTIVE OPERATOR SESSION: </span>
+          <span className="text-ink font-semibold">{user?.email || 'GUEST'}</span>
+          <span className="ml-2 px-2 py-0.5 border border-rule bg-paper-sunk text-signal font-bold uppercase">
+            ROLE: {role}
+          </span>
+        </div>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => loadAdminData()}
+            disabled={isLoading}
+            className="px-4 py-1.5 bg-ink text-bone hover:bg-graphite transition-colors uppercase font-mono text-xs"
+          >
+            {isLoading ? 'SYNCING DATA...' : '↻ SYNC TELEMETRY'}
+          </button>
+        </div>
+      </div>
+
       <div className="flex flex-col md:flex-row min-h-[720px] border border-rule bg-paper">
       
       {/* 240px Left Rail */}
