@@ -19,14 +19,17 @@ def list_pending_approvals():
     if status_filter != "ALL":
         query = query.filter(RegistrationRequest.status == status_filter)
 
-    # If not enterprise admin, restrict requests to STAFF_ONBOARDING within assigned outlets
+    # If not enterprise admin, restrict requests to STAFF_ONBOARDING
     if not g.is_enterprise_admin:
         assigned_outlets = g.assigned_outlets or []
-        if not assigned_outlets:
-            return jsonify([]), 200
+        if assigned_outlets:
+            outlet_condition = (RegistrationRequest.target_outlet_id.in_(assigned_outlets)) | (RegistrationRequest.target_outlet_id.is_(None))
+        else:
+            outlet_condition = (RegistrationRequest.target_outlet_id.is_(None))
+            
         query = query.filter(
             RegistrationRequest.request_type == "STAFF_ONBOARDING",
-            RegistrationRequest.target_outlet_id.in_(assigned_outlets)
+            outlet_condition
         )
 
     requests_list = query.all()

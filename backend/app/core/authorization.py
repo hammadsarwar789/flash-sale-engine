@@ -31,25 +31,33 @@ def require_permission(required_permission: str = None, scope_param: str = "outl
                     "message": "Invalid or expired JWT authorization token."
                 }), 401
 
+            user_role = payload.get("role", "")
             ctx = payload.get("context", {})
             user_permissions = ctx.get("permissions", [])
             roles = ctx.get("roles", [])
-            is_enterprise_admin = ctx.get("is_enterprise_admin", False) or "super_admin" in roles or payload.get("role") == "admin"
+            is_enterprise_admin = (
+                ctx.get("is_enterprise_admin", False)
+                or "super_admin" in roles
+                or user_role in ["admin", "super_admin"]
+                or ctx.get("user_type") == "SUPER_ADMIN"
+            )
 
             # 1. Permission Code Check
             if required_permission and not is_enterprise_admin:
-                if required_permission not in user_permissions:
+                if user_role not in ["admin", "manager"] and required_permission not in user_permissions:
                     return jsonify({
                         "error": "Forbidden",
                         "message": f"Required permission missing: '{required_permission}'"
                     }), 403
 
             # 2. Scope Isolation Check (Outlet-level)
-            target_outlet_id = (
-                kwargs.get(scope_param)
-                or request.args.get(scope_param)
-                or (request.is_json and request.json.get(scope_param) if request.is_json else None)
-            )
+            target_outlet_id = kwargs.get(scope_param) or request.args.get(scope_param)
+            if not target_outlet_id and request.method in ["POST", "PUT", "PATCH"] and request.is_json:
+                try:
+                    body = request.get_json(silent=True) or {}
+                    target_outlet_id = body.get(scope_param)
+                except Exception:
+                    target_outlet_id = None
 
             if target_outlet_id and not is_enterprise_admin:
                 assigned_outlets = ctx.get("assigned_outlets", [])

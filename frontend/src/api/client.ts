@@ -7,8 +7,8 @@ export class ApiClientError extends Error {
   data: ApiError;
 
   constructor(status: number, data: ApiError | any) {
-    let msg = data.detail || data.message || data.title;
-    if (!msg && data.errors?.json) {
+    let msg = typeof data === 'string' ? data : (data?.message || data?.detail || data?.error || data?.title);
+    if (!msg && data?.errors?.json) {
       const errKeys = Object.keys(data.errors.json);
       if (errKeys.length > 0) {
         const firstKey = errKeys[0];
@@ -17,7 +17,10 @@ export class ApiClientError extends Error {
         msg = `Invalid ${firstKey}: ${errStr}`;
       }
     }
-    msg = msg || 'An API error occurred';
+    if (!msg && data?.errors) {
+      msg = typeof data.errors === 'string' ? data.errors : JSON.stringify(data.errors);
+    }
+    msg = msg || `HTTP ${status} Error`;
     super(msg);
     this.name = 'ApiClientError';
     this.status = status;

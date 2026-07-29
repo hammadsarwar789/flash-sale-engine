@@ -11,7 +11,28 @@ import { StatusDot } from '../components/ui/StatusDot';
 export const AdminPage: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const role = user?.role || 'admin';
+  const role = user?.role;
+
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto py-20 p-8 border border-rule bg-paper space-y-4 font-mono text-xs text-center">
+        <Eyebrow className="text-signal block font-mono">AUTHENTICATION REQUIRED</Eyebrow>
+        <h2 className="font-serif text-3xl text-ink">Admin Control Floor</h2>
+        <p className="text-ash">You are currently unauthenticated. Please log in with Super Admin credentials to access operational telemetry and approval pipelines.</p>
+        <div className="p-3 bg-paper-sunk border border-rule font-semibold text-ink inline-block text-left w-full space-y-1">
+          <p><span className="text-ash">EMAIL:</span> admin@flashsale.com</p>
+          <p><span className="text-ash">PASSWORD:</span> Password123</p>
+        </div>
+        <button
+          onClick={() => navigate('/login')}
+          className="w-full bg-ink text-bone py-3 font-semibold uppercase hover:bg-graphite transition-colors cursor-pointer"
+        >
+          GO TO LOGIN PAGE →
+        </button>
+      </div>
+    );
+  }
+
   const initialTab = role === 'stock_operator' ? 'outlets' : (role === 'manager' ? 'products' : 'overview');
   const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'coupons' | 'categories' | 'users' | 'approvals' | 'roles' | 'outlets'>(initialTab);
   const [stats, setStats] = useState<SystemStats | null>(null);
@@ -1077,20 +1098,34 @@ export const AdminPage: React.FC = () => {
                         </td>
                         <td className="py-2.5 px-3 font-semibold text-signal">{req.request_type}</td>
                         <td className="py-2.5 px-3 text-ash">{req.target_outlet_id || 'HQ ENTERPRISE'}</td>
-                        <td className="py-2.5 px-3 font-semibold text-loss">{req.status}</td>
+                        <td className="py-2.5 px-3 font-semibold">
+                          <span className={req.status === 'APPROVED' ? 'text-gain' : (req.status === 'REJECTED' ? 'text-loss' : 'text-signal')}>
+                            {req.status}
+                          </span>
+                        </td>
                         <td className="py-2.5 px-3 text-right space-x-2">
-                          <button
-                            onClick={() => handleApprovalAction(req.id, 'APPROVE')}
-                            className="px-3 py-1 bg-gain text-paper font-semibold hover:bg-gain/90"
-                          >
-                            APPROVE ✓
-                          </button>
-                          <button
-                            onClick={() => handleApprovalAction(req.id, 'REJECT')}
-                            className="px-3 py-1 bg-loss text-paper font-semibold hover:bg-loss/90"
-                          >
-                            REJECT ✕
-                          </button>
+                          {req.status === 'PENDING' ? (
+                            <>
+                              <button
+                                onClick={() => handleApprovalAction(req.id, 'APPROVE')}
+                                className="px-3 py-1 bg-gain text-paper font-semibold hover:bg-gain/90 cursor-pointer"
+                              >
+                                APPROVE ✓
+                              </button>
+                              <button
+                                onClick={() => handleApprovalAction(req.id, 'REJECT')}
+                                className="px-3 py-1 bg-loss text-paper font-semibold hover:bg-loss/90 cursor-pointer"
+                              >
+                                REJECT ✕
+                              </button>
+                            </>
+                          ) : (
+                            <span className={`px-2.5 py-1 border font-semibold text-[11px] ${
+                              req.status === 'APPROVED' ? 'border-gain/40 bg-gain/10 text-gain' : 'border-loss/40 bg-loss/10 text-loss'
+                            }`}>
+                              {req.status === 'APPROVED' ? 'PROCESSED ✓' : 'REJECTED ✕'}
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))
