@@ -20,6 +20,10 @@ export const authApi = {
     return res;
   },
 
+  async getMe(): Promise<User> {
+    return apiFetch<User>('/auth/me');
+  },
+
   async logout(): Promise<{ message: string }> {
     try {
       const res = await apiFetch<{ message: string }>('/auth/logout', {
@@ -49,6 +53,27 @@ export const authApi = {
     return apiFetch<{ message: string; user?: User }>('/auth/verify-email', {
       method: 'POST',
       body: JSON.stringify({ user_id }),
+    });
+  },
+
+  async submitRegistrationRequest(data: {
+    applicant_email: string;
+    applicant_name: string;
+    request_type: 'STAFF_ONBOARDING' | 'MANAGER_ONBOARDING' | 'VENDOR_REGISTRATION';
+    target_outlet_id?: string;
+    password?: string;
+    payload?: any;
+  }): Promise<any> {
+    return apiFetch<any>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: data.applicant_email,
+        full_name: data.applicant_name,
+        password: data.password,
+        request_type: data.request_type,
+        target_outlet_id: data.target_outlet_id,
+        company_name: data.payload?.company_name,
+      }),
     });
   },
 };

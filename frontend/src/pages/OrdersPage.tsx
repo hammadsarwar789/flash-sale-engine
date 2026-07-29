@@ -105,6 +105,24 @@ export const OrdersPage: React.FC = () => {
                   {isExpanded && (
                     <tr className="bg-paper-sunk border-b border-rule">
                       <td colSpan={6} className="p-6 space-y-6">
+                        <div className="space-y-1">
+                          <Eyebrow className="text-ash block">ORDERED PRODUCTS</Eyebrow>
+                          <div className="space-y-1.5 font-sans text-sm font-medium text-ink">
+                            {order.items && order.items.length > 0 ? (
+                              order.items.map((item, idx) => (
+                                <div key={idx} className="flex justify-between items-center bg-paper p-2.5 border border-rule">
+                                  <span>{item.product_name || `Product #${item.product_id}`}</span>
+                                  <span className="font-mono text-xs text-ash">QTY: {item.quantity} × ${Number(item.unit_price || 0).toFixed(2)}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="bg-paper p-2.5 border border-rule font-sans text-sm">
+                                {order.product_name || 'Flash Sale Product'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
                         <div className="space-y-2">
                           <Eyebrow className="text-ash block">FULFILLMENT LIFECYCLE TIMELINE</Eyebrow>
 

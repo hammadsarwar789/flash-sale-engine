@@ -1,4 +1,8 @@
 from app.models.user import User
+from app.models.tenant import Tenant, Outlet
+from app.models.rbac import Permission, Role, RolePermission, UserRole, UserOutletScope
+from app.models.approval import RegistrationRequest, ApprovalAuditLog
+from app.models.outlet_inventory import OutletInventory
 from app.models.product import Product
 from app.models.category import Category
 from app.models.product_variant import ProductVariant
@@ -14,6 +18,16 @@ from app.models.task_log import TaskLog
 
 __all__ = [
     "User",
+    "Tenant",
+    "Outlet",
+    "Permission",
+    "Role",
+    "RolePermission",
+    "UserRole",
+    "UserOutletScope",
+    "RegistrationRequest",
+    "ApprovalAuditLog",
+    "OutletInventory",
     "Product",
     "Category",
     "ProductVariant",

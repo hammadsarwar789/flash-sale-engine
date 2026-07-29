@@ -6,8 +6,18 @@ export class ApiClientError extends Error {
   status: number;
   data: ApiError;
 
-  constructor(status: number, data: ApiError) {
-    const msg = data.detail || data.message || data.title || 'An API error occurred';
+  constructor(status: number, data: ApiError | any) {
+    let msg = data.detail || data.message || data.title;
+    if (!msg && data.errors?.json) {
+      const errKeys = Object.keys(data.errors.json);
+      if (errKeys.length > 0) {
+        const firstKey = errKeys[0];
+        const val = data.errors.json[firstKey];
+        const errStr = Array.isArray(val) ? val.join(' ') : String(val);
+        msg = `Invalid ${firstKey}: ${errStr}`;
+      }
+    }
+    msg = msg || 'An API error occurred';
     super(msg);
     this.name = 'ApiClientError';
     this.status = status;

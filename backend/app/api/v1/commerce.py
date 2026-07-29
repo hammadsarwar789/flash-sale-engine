@@ -95,6 +95,44 @@ def create_coupon():
 
 # --- Product Review Endpoints ---
 
+def user_has_delivered_order(user_id: str, product_id: str) -> bool:
+    """Check if the user has a DELIVERED order for the given product."""
+    from app.models.order import Order, OrderStatus
+    from app.models.order_item import OrderItem
+
+    # Check direct single-product orders
+    direct_order = db.session.query(Order).filter(
+        Order.user_id == user_id,
+        Order.product_id == product_id,
+        Order.status == OrderStatus.DELIVERED
+    ).first()
+    if direct_order:
+        return True
+
+    # Check multi-item order items
+    multi_order_item = db.session.query(OrderItem).join(Order).filter(
+        Order.user_id == user_id,
+        Order.status == OrderStatus.DELIVERED,
+        OrderItem.product_id == product_id
+    ).first()
+    return multi_order_item is not None
+
+
+@commerce_bp.route("/products/<string:product_id>/review-eligibility", methods=["GET"])
+@jwt_required
+def check_review_eligibility(product_id: str):
+    """Check if authenticated user is eligible to review product (must have delivered order)."""
+    user_id = g.current_user_id
+    eligible = user_has_delivered_order(user_id, product_id)
+    if eligible:
+        return jsonify({"eligible": True, "message": "Eligible to write product review"}), 200
+    else:
+        return jsonify({
+            "eligible": False,
+            "message": "Only customers who have received delivery of this product can submit a review."
+        }), 200
+
+
 @commerce_bp.route("/products/<string:product_id>/reviews", methods=["GET"])
 def get_product_reviews(product_id):
     """List customer reviews for a product."""
@@ -107,6 +145,14 @@ def get_product_reviews(product_id):
 def add_product_review(product_id):
     """Submit a product review and rating (1-5 stars)."""
     user_id = g.current_user_id
+    
+    # Enforce delivered order verification
+    if not user_has_delivered_order(user_id, product_id):
+        return jsonify({
+            "error": "Forbidden",
+            "message": "You can only review products that have been delivered to you."
+        }), 403
+
     data = request.get_json() or {}
     rating = int(data.get("rating", 5))
 

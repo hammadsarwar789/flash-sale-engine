@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { adminApi, SystemStats, OutboxEventItem, TaskLogItem } from '../api/admin';
 import { productsApi } from '../api/products';
 import { Product, Category, Order, User, Coupon } from '../types/api';
+import { useAuth } from '../context/AuthContext';
 import { Eyebrow } from '../components/ui/Eyebrow';
 import { Numeric } from '../components/ui/Numeric';
 import { StatusDot } from '../components/ui/StatusDot';
 
 export const AdminPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'coupons' | 'categories' | 'users'>('overview');
+  const { user } = useAuth();
+  const role = user?.role || 'admin';
+  const initialTab = role === 'stock_operator' ? 'outlets' : (role === 'manager' ? 'products' : 'overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'coupons' | 'categories' | 'users' | 'approvals' | 'roles' | 'outlets'>(initialTab);
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -15,6 +19,27 @@ export const AdminPage: React.FC = () => {
   const [usersList, setUsersList] = useState<User[]>([]);
   const [outboxEvents, setOutboxEvents] = useState<OutboxEventItem[]>([]);
   const [taskLogs, setTaskLogs] = useState<TaskLogItem[]>([]);
+
+  // Phase 6 Multi-Tenant & Approval states
+  const [approvalsList, setApprovalsList] = useState<any[]>([]);
+  const [approvalStatusFilter, setApprovalStatusFilter] = useState<'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL'>('PENDING');
+  const [auditLogsList, setAuditLogsList] = useState<any[]>([]);
+  const [rolesList, setRolesList] = useState<any[]>([]);
+  const [permissionsList, setPermissionsList] = useState<any[]>([]);
+  const [outletInventories, setOutletInventories] = useState<any[]>([]);
+  const [selectedOutletId, setSelectedOutletId] = useState<string>('out_fsd_01');
+
+  // Role creation state
+  const [newRoleName, setNewRoleName] = useState('');
+  const [newRoleDesc, setNewRoleDesc] = useState('');
+  const [selectedPerms, setSelectedPerms] = useState<string[]>([]);
+
+  // Transfer stock state
+  const [transferSourceOutlet, setTransferSourceOutlet] = useState('out_fsd_01');
+  const [transferTargetOutlet, setTransferTargetOutlet] = useState('out_lhr_01');
+  const [transferSku, setTransferSku] = useState('SKU-1001');
+  const [transferQty, setTransferQty] = useState<number>(5);
+
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -66,7 +91,7 @@ export const AdminPage: React.FC = () => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const [statsData, prodsData, catsData, ordersData, usersData, outboxData, logsData, couponsData] = await Promise.all([
+      const [statsData, prodsData, catsData, ordersData, usersData, outboxData, logsData, couponsData, approvalsData, auditLogsData, rolesData, permsData, outletInvData] = await Promise.all([
         adminApi.getStats().catch(() => null),
         productsApi.getProducts({ per_page: 100 }).catch(() => ({ items: [] as Product[] })),
         productsApi.getCategories().catch(() => []),
@@ -75,6 +100,11 @@ export const AdminPage: React.FC = () => {
         adminApi.getOutboxEvents().catch(() => []),
         adminApi.listTaskLogs().catch(() => []),
         adminApi.listCoupons().catch(() => []),
+        adminApi.getApprovals(approvalStatusFilter).catch(() => []),
+        adminApi.getApprovalAuditLogs().catch(() => []),
+        adminApi.getRoles().catch(() => []),
+        adminApi.getPermissions().catch(() => []),
+        adminApi.getOutletInventory(selectedOutletId).catch(() => []),
       ]);
 
       if (statsData) setStats(statsData);
@@ -85,6 +115,11 @@ export const AdminPage: React.FC = () => {
       setOutboxEvents(outboxData);
       setTaskLogs(logsData);
       setCoupons(couponsData || []);
+      setApprovalsList(approvalsData || []);
+      setAuditLogsList(auditLogsData || []);
+      setRolesList(rolesData || []);
+      setPermissionsList(permsData || []);
+      setOutletInventories(outletInvData || []);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to load admin telemetry data.');
     } finally {
@@ -94,7 +129,7 @@ export const AdminPage: React.FC = () => {
 
   useEffect(() => {
     loadAdminData();
-  }, [orderStatusFilter]);
+  }, [orderStatusFilter, approvalStatusFilter]);
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -248,6 +283,51 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleApprovalAction = async (requestId: string, action: 'APPROVE' | 'REJECT') => {
+    try {
+      await adminApi.processApprovalAction(requestId, { action, comments: `Processed via Admin Control Rail` });
+      setSuccessMsg(`Registration Request '${requestId}' set to ${action}.`);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || `Failed to process approval action.`);
+    }
+  };
+
+  const handleCreateRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRoleName) return;
+    try {
+      await adminApi.createRole({
+        name: newRoleName.trim(),
+        description: newRoleDesc.trim(),
+        permissions: selectedPerms,
+      });
+      setSuccessMsg(`Dynamic Role '${newRoleName}' created successfully.`);
+      setNewRoleName('');
+      setNewRoleDesc('');
+      setSelectedPerms([]);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || `Failed to create role.`);
+    }
+  };
+
+  const handleTransferStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await adminApi.transferStock({
+        source_outlet_id: transferSourceOutlet,
+        target_outlet_id: transferTargetOutlet,
+        product_sku: transferSku,
+        quantity: Number(transferQty),
+      });
+      setSuccessMsg(res.message || `Transferred ${transferQty} units of ${transferSku}`);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || `Failed to transfer stock.`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row min-h-[720px] border border-rule bg-paper">
@@ -260,46 +340,93 @@ export const AdminPage: React.FC = () => {
         </div>
 
         <nav className="space-y-1 font-mono text-xs">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`w-full text-left px-3 py-2 border transition-colors ${
-              activeTab === 'overview' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
-            }`}
-          >
-            01. TELEMETRY
-          </button>
-          <button
-            onClick={() => setActiveTab('products')}
-            className={`w-full text-left px-3 py-2 border transition-colors ${
-              activeTab === 'products' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
-            }`}
-          >
-            02. PRODUCTS ({products.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`w-full text-left px-3 py-2 border transition-colors ${
-              activeTab === 'orders' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
-            }`}
-          >
-            03. ORDERS ({orders.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('coupons')}
-            className={`w-full text-left px-3 py-2 border transition-colors ${
-              activeTab === 'coupons' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
-            }`}
-          >
-            04. PROMO COUPONS
-          </button>
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`w-full text-left px-3 py-2 border transition-colors ${
-              activeTab === 'users' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
-            }`}
-          >
-            05. USER DIRECTORY ({usersList.length})
-          </button>
+          {role === 'admin' && (
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`w-full text-left px-3 py-2 border transition-colors ${
+                activeTab === 'overview' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+              }`}
+            >
+              01. TELEMETRY
+            </button>
+          )}
+
+          {(role === 'admin' || role === 'manager') && (
+            <button
+              onClick={() => setActiveTab('products')}
+              className={`w-full text-left px-3 py-2 border transition-colors ${
+                activeTab === 'products' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+              }`}
+            >
+              02. PRODUCTS ({products.length})
+            </button>
+          )}
+
+          {(role === 'admin' || role === 'manager') && (
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`w-full text-left px-3 py-2 border transition-colors ${
+                activeTab === 'orders' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+              }`}
+            >
+              03. ORDERS ({orders.length})
+            </button>
+          )}
+
+          {role === 'admin' && (
+            <button
+              onClick={() => setActiveTab('coupons')}
+              className={`w-full text-left px-3 py-2 border transition-colors ${
+                activeTab === 'coupons' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+              }`}
+            >
+              04. PROMO COUPONS
+            </button>
+          )}
+
+          {(role === 'admin' || role === 'manager') && (
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`w-full text-left px-3 py-2 border transition-colors ${
+                activeTab === 'users' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+              }`}
+            >
+              05. USER DIRECTORY ({usersList.length})
+            </button>
+          )}
+
+          {(role === 'admin' || role === 'manager') && (
+            <button
+              onClick={() => setActiveTab('approvals')}
+              className={`w-full text-left px-3 py-2 border transition-colors ${
+                activeTab === 'approvals' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+              }`}
+            >
+              06. APPROVALS ({approvalsList.length})
+            </button>
+          )}
+
+          {role === 'admin' && (
+            <button
+              onClick={() => setActiveTab('roles')}
+              className={`w-full text-left px-3 py-2 border transition-colors ${
+                activeTab === 'roles' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+              }`}
+            >
+              07. ROLES & RBAC
+            </button>
+          )}
+
+          {(role === 'admin' || role === 'manager' || role === 'stock_operator') && (
+            <button
+              onClick={() => setActiveTab('outlets')}
+              className={`w-full text-left px-3 py-2 border transition-colors ${
+                activeTab === 'outlets' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+              }`}
+            >
+              08. OUTLET STOCKS
+            </button>
+          )}
         </nav>
 
         <div className="pt-8 border-t border-rule/40 font-mono text-[11px] text-ash space-y-1">
@@ -480,6 +607,7 @@ export const AdminPage: React.FC = () => {
                     <th className="py-2.5 px-3">TITLE</th>
                     <th className="py-2.5 px-3">SKU</th>
                     <th className="py-2.5 px-3">CATEGORY</th>
+                    <th className="py-2.5 px-3">VENDOR</th>
                     <th className="py-2.5 px-3">PRICE</th>
                     <th className="py-2.5 px-3">DISCOUNT</th>
                     <th className="py-2.5 px-3">REDIS STOCK</th>
@@ -495,6 +623,11 @@ export const AdminPage: React.FC = () => {
                       <td className="py-2.5 px-3">
                         <span className="bg-paper-sunk px-2 py-0.5 border border-rule text-ink font-semibold">
                           {typeof p.category === 'object' ? p.category?.name?.toUpperCase() : (categories.find(c => c.id === (p.category_id || p.category))?.name?.toUpperCase() || 'GENERAL')}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-ash">
+                        <span className="bg-paper-sunk px-2 py-0.5 border border-rule text-ink font-semibold">
+                          {p.vendor_name || 'Central Outlet'}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-ink"><Numeric value={Number(p.price)} format="price" zeroPadInt={3} /></td>
@@ -568,6 +701,7 @@ export const AdminPage: React.FC = () => {
                   <tr className="bg-paper-sunk border-b border-rule text-ash">
                     <th className="py-2.5 px-3">ORDER ID</th>
                     <th className="py-2.5 px-3">CUSTOMER EMAIL</th>
+                    <th className="py-2.5 px-3">PRODUCT ITEMS</th>
                     <th className="py-2.5 px-3">AMOUNT</th>
                     <th className="py-2.5 px-3">STATUS</th>
                     <th className="py-2.5 px-3">CARRIER / TRACKING #</th>
@@ -581,11 +715,12 @@ export const AdminPage: React.FC = () => {
                       const q = orderSearchQuery.toLowerCase();
                       const email = ((o as any).user_email || '').toLowerCase();
                       const name = ((o as any).user_full_name || '').toLowerCase();
+                      const prodName = (o.product_name || '').toLowerCase();
                       const tracking = ((o as any).tracking_number || '').toLowerCase();
                       const carrier = ((o as any).carrier || '').toLowerCase();
                       const id = o.id.toLowerCase();
                       const status = o.status.toLowerCase();
-                      return email.includes(q) || name.includes(q) || tracking.includes(q) || carrier.includes(q) || id.includes(q) || status.includes(q);
+                      return email.includes(q) || name.includes(q) || prodName.includes(q) || tracking.includes(q) || carrier.includes(q) || id.includes(q) || status.includes(q);
                     })
                     .map((o) => (
                       <tr key={o.id} className="hover:bg-paper-sunk/40">
@@ -600,6 +735,19 @@ export const AdminPage: React.FC = () => {
                         <td className="py-2.5 px-3 text-graphite">
                           <div className="font-semibold text-ink">{(o as any).user_email || 'guest@flashsale.com'}</div>
                           <div className="text-[11px] text-ash">{(o as any).user_full_name || 'Guest Customer'}</div>
+                        </td>
+                        <td className="py-2.5 px-3 text-ink">
+                          {o.items && o.items.length > 0 ? (
+                            <div className="space-y-0.5">
+                              {o.items.map((item, i) => (
+                                <div key={i} className="font-sans font-medium text-xs">
+                                  {item.product_name || `Product #${item.product_id?.slice(0, 8)}`} {item.quantity > 1 ? `(x${item.quantity})` : ''}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="font-sans font-medium text-xs">{o.product_name || 'Flash Sale Order'}</span>
+                          )}
                         </td>
                         <td className="py-2.5 px-3 text-ink font-semibold">
                           <Numeric value={Number(o.total_amount || 0)} format="price" zeroPadInt={3} />
@@ -829,6 +977,319 @@ export const AdminPage: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: PENDING REGISTRATION APPROVALS */}
+        {activeTab === 'approvals' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center border-b border-rule pb-4">
+              <div>
+                <h2 className="font-serif text-3xl text-ink">Registration Approval Pipeline</h2>
+                <p className="font-mono text-xs text-ash">Review and process hierarchical staff, manager, and vendor onboarding requests.</p>
+              </div>
+              <div className="flex items-center space-x-2 font-mono text-xs">
+                {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => setApprovalStatusFilter(filter)}
+                    className={`px-3 py-1 border transition-colors ${
+                      approvalStatusFilter === filter
+                        ? 'bg-ink text-bone border-ink font-semibold'
+                        : 'bg-paper text-ash border-rule hover:text-ink'
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="border border-rule bg-paper overflow-x-auto font-mono text-xs">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-paper-sunk border-b border-rule text-ash">
+                    <th className="py-2.5 px-3">REQUEST ID</th>
+                    <th className="py-2.5 px-3">APPLICANT</th>
+                    <th className="py-2.5 px-3">TYPE</th>
+                    <th className="py-2.5 px-3">TARGET OUTLET</th>
+                    <th className="py-2.5 px-3">STATUS</th>
+                    <th className="py-2.5 px-3 text-right">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rule/40">
+                  {approvalsList.length > 0 ? (
+                    approvalsList.map((req) => (
+                      <tr key={req.id} className="hover:bg-paper-sunk/40">
+                        <td className="py-2.5 px-3 text-ink font-semibold">{req.id}</td>
+                        <td className="py-2.5 px-3">
+                          <p className="text-ink font-semibold">{req.applicant_name}</p>
+                          <p className="text-ash text-[11px]">{req.applicant_email}</p>
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold text-signal">{req.request_type}</td>
+                        <td className="py-2.5 px-3 text-ash">{req.target_outlet_id || 'HQ ENTERPRISE'}</td>
+                        <td className="py-2.5 px-3 font-semibold text-loss">{req.status}</td>
+                        <td className="py-2.5 px-3 text-right space-x-2">
+                          <button
+                            onClick={() => handleApprovalAction(req.id, 'APPROVE')}
+                            className="px-3 py-1 bg-gain text-paper font-semibold hover:bg-gain/90"
+                          >
+                            APPROVE ✓
+                          </button>
+                          <button
+                            onClick={() => handleApprovalAction(req.id, 'REJECT')}
+                            className="px-3 py-1 bg-loss text-paper font-semibold hover:bg-loss/90"
+                          >
+                            REJECT ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-ash">NO PENDING REGISTRATION REQUESTS IN QUEUE.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Immutable Approval Audit Logs Section */}
+            <div className="space-y-3 pt-6 border-t border-rule">
+              <Eyebrow className="text-ash block font-mono">IMMUTABLE APPROVAL AUDIT LOGS ({auditLogsList.length})</Eyebrow>
+              <div className="border border-rule bg-paper overflow-x-auto font-mono text-xs max-h-60">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-paper-sunk border-b border-rule text-ash">
+                      <th className="py-2.5 px-3">LOG ID</th>
+                      <th className="py-2.5 px-3">REQUEST ID</th>
+                      <th className="py-2.5 px-3">APPROVER (ACTOR ID)</th>
+                      <th className="py-2.5 px-3">DECISION</th>
+                      <th className="py-2.5 px-3">COMMENTS</th>
+                      <th className="py-2.5 px-3 text-right">TIMESTAMP</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-rule/40">
+                    {auditLogsList.length > 0 ? (
+                      auditLogsList.map((log) => (
+                        <tr key={log.id} className="hover:bg-paper-sunk/40">
+                          <td className="py-2 px-3 text-ink font-semibold">{log.id}</td>
+                          <td className="py-2 px-3 text-ash">{log.request_id}</td>
+                          <td className="py-2 px-3 text-ink">{log.actor_id}</td>
+                          <td className="py-2 px-3">
+                            <span className={log.action === 'APPROVED' ? 'text-gain font-semibold' : 'text-loss font-semibold'}>
+                              {log.action}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-graphite">{log.comments || 'N/A'}</td>
+                          <td className="py-2 px-3 text-right text-ash">{new Date(log.created_at).toLocaleString()}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="py-4 text-center text-ash">NO AUDIT LOGS RECORDED YET.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 7: DYNAMIC ROLES & RBAC */}
+        {activeTab === 'roles' && (
+          <div className="space-y-8">
+            <div className="flex justify-between items-center border-b border-rule pb-4">
+              <h2 className="font-serif text-3xl text-ink">Dynamic Role-Based Access Control</h2>
+              <Eyebrow className="text-signal block font-mono">DYNAMIC PERMISSION MATRIX</Eyebrow>
+            </div>
+
+            {/* Create Custom Role Form */}
+            <form onSubmit={handleCreateRole} className="p-4 border border-rule bg-paper-sunk space-y-4 font-mono text-xs">
+              <h3 className="font-serif text-xl text-ink">Create Dynamic Custom Role</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  required
+                  placeholder="ROLE NAME (E.G. STORE MANAGER, STOCK AUDITOR)"
+                  value={newRoleName}
+                  onChange={(e) => setNewRoleName(e.target.value)}
+                  className="bg-paper border border-rule px-3 py-2 text-ink focus:outline-none"
+                />
+                <input
+                  type="text"
+                  placeholder="ROLE DESCRIPTION"
+                  value={newRoleDesc}
+                  onChange={(e) => setNewRoleDesc(e.target.value)}
+                  className="bg-paper border border-rule px-3 py-2 text-ink focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <Eyebrow className="text-ash block mb-2">SELECT PERMISSION CODES</Eyebrow>
+                <div className="grid grid-cols-3 gap-2 border border-rule bg-paper p-3 max-h-40 overflow-y-auto">
+                  {permissionsList.map((p) => (
+                    <label key={p.id} className="flex items-center space-x-2 text-[11px] text-ink cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedPerms.includes(p.code)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedPerms([...selectedPerms, p.code]);
+                          else setSelectedPerms(selectedPerms.filter((code) => code !== p.code));
+                        }}
+                      />
+                      <span>{p.code}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <button type="submit" className="px-4 py-2 bg-ink text-paper font-semibold hover:bg-graphite">
+                CREATE ROLE & BIND PERMISSIONS →
+              </button>
+            </form>
+
+            {/* Existing Roles List */}
+            <div className="border border-rule bg-paper overflow-x-auto font-mono text-xs">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-paper-sunk border-b border-rule text-ash">
+                    <th className="py-2.5 px-3">ROLE ID</th>
+                    <th className="py-2.5 px-3">ROLE NAME</th>
+                    <th className="py-2.5 px-3">ASSIGNED PERMISSIONS</th>
+                    <th className="py-2.5 px-3 text-right">TYPE</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rule/40">
+                  {rolesList.map((r) => (
+                    <tr key={r.id} className="hover:bg-paper-sunk/40">
+                      <td className="py-2.5 px-3 text-ink font-semibold">{r.id}</td>
+                      <td className="py-2.5 px-3 text-ink font-semibold">{r.name}</td>
+                      <td className="py-2.5 px-3 text-ash">
+                        {r.permissions && r.permissions.length > 0 ? r.permissions.join(', ') : 'NONE'}
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-signal font-semibold">
+                        {r.is_system_role ? 'SYSTEM' : 'CUSTOM'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 8: MULTI-OUTLET INVENTORY & STOCK TRANSFER */}
+        {activeTab === 'outlets' && (
+          <div className="space-y-8">
+            <div className="flex justify-between items-center border-b border-rule pb-4">
+              <h2 className="font-serif text-3xl text-ink">Multi-Outlet Inventory Operations</h2>
+              <Eyebrow className="text-signal block font-mono">STORE ISOLATED STOCK LEDGER</Eyebrow>
+            </div>
+
+            {/* Inter-Outlet Stock Transfer Form */}
+            <form onSubmit={handleTransferStock} className="p-4 border border-rule bg-paper-sunk space-y-4 font-mono text-xs">
+              <h3 className="font-serif text-xl text-ink">Atomic Inter-Outlet Stock Transfer</h3>
+              <div className="grid grid-cols-4 gap-3">
+                <div>
+                  <Eyebrow className="text-ash block mb-1">SOURCE OUTLET</Eyebrow>
+                  <select
+                    value={transferSourceOutlet}
+                    onChange={(e) => setTransferSourceOutlet(e.target.value)}
+                    className="w-full bg-paper border border-rule px-3 py-2 text-ink uppercase focus:outline-none"
+                  >
+                    <option value="out_fsd_01">FLASH ENGINE FSD (FSD-01)</option>
+                    <option value="out_lhr_01">FLASH ENGINE LHR (LHR-01)</option>
+                  </select>
+                </div>
+                <div>
+                  <Eyebrow className="text-ash block mb-1">TARGET OUTLET</Eyebrow>
+                  <select
+                    value={transferTargetOutlet}
+                    onChange={(e) => setTransferTargetOutlet(e.target.value)}
+                    className="w-full bg-paper border border-rule px-3 py-2 text-ink uppercase focus:outline-none"
+                  >
+                    <option value="out_fsd_01">FLASH ENGINE FSD (FSD-01)</option>
+                    <option value="out_lhr_01">FLASH ENGINE LHR (LHR-01)</option>
+                  </select>
+                </div>
+                <div>
+                  <Eyebrow className="text-ash block mb-1">PRODUCT SKU</Eyebrow>
+                  <input
+                    type="text"
+                    required
+                    value={transferSku}
+                    onChange={(e) => setTransferSku(e.target.value.toUpperCase())}
+                    className="w-full bg-paper border border-rule px-3 py-2 text-ink uppercase focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <Eyebrow className="text-ash block mb-1">TRANSFER QTY</Eyebrow>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={transferQty}
+                    onChange={(e) => setTransferQty(parseInt(e.target.value, 10) || 1)}
+                    className="w-full bg-paper border border-rule px-3 py-2 text-ink focus:outline-none"
+                  />
+                </div>
+              </div>
+              <button type="submit" className="px-4 py-2 bg-ink text-paper font-semibold hover:bg-graphite">
+                EXECUTE ATOMIC STOCK TRANSFER →
+              </button>
+            </form>
+
+            {/* Store Inventory Table */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <Eyebrow className="text-ash block">STORE INVENTORY POOL ({selectedOutletId})</Eyebrow>
+                <select
+                  value={selectedOutletId}
+                  onChange={(e) => setSelectedOutletId(e.target.value)}
+                  className="bg-paper-sunk border border-rule px-3 py-1 text-ink font-mono text-xs uppercase"
+                >
+                  <option value="out_fsd_01">FLASH ENGINE FSD (FSD-01)</option>
+                  <option value="out_lhr_01">FLASH ENGINE LHR (LHR-01)</option>
+                </select>
+              </div>
+
+              <div className="border border-rule bg-paper overflow-x-auto font-mono text-xs">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-paper-sunk border-b border-rule text-ash">
+                      <th className="py-2.5 px-3">INVENTORY ID</th>
+                      <th className="py-2.5 px-3">PRODUCT SKU</th>
+                      <th className="py-2.5 px-3">PRODUCT NAME</th>
+                      <th className="py-2.5 px-3">AVAILABLE QTY</th>
+                      <th className="py-2.5 px-3">HELD QTY</th>
+                      <th className="py-2.5 px-3 text-right">REORDER LEVEL</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-rule/40">
+                    {outletInventories.length > 0 ? (
+                      outletInventories.map((inv) => (
+                        <tr key={inv.id} className="hover:bg-paper-sunk/40">
+                          <td className="py-2.5 px-3 text-ink font-semibold">{inv.id}</td>
+                          <td className="py-2.5 px-3 font-semibold text-signal">{inv.product_sku}</td>
+                          <td className="py-2.5 px-3 font-sans font-medium text-ink">
+                            {products.find(p => p.sku === inv.product_sku)?.name || inv.product_name || inv.product_sku}
+                          </td>
+                          <td className="py-2.5 px-3 text-gain font-semibold">{inv.quantity_available} UNITS</td>
+                          <td className="py-2.5 px-3 text-loss font-semibold">{inv.quantity_held} HELD</td>
+                          <td className="py-2.5 px-3 text-right text-ash">{inv.reorder_level} UNITS</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-ash">NO INVENTORY RECORDS FOR OUTLET '{selectedOutletId}'.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

@@ -23,7 +23,7 @@ def jwt_required(fn):
             )
 
         token = auth_header.split(" ")[1]
-        secret_key = current_app.config["JWT_SECRET_KEY"]
+        secret_key = current_app.config.get("JWT_SECRET_KEY") or current_app.config["SECRET_KEY"]
         payload = decode_access_token(token, secret_key)
 
         if not payload:

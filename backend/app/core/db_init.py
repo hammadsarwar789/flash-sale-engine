@@ -16,11 +16,16 @@ def sync_database_schema():
 
         with db.engine.begin() as conn:
             if "postgres" in engine_name:
-                # 1. Update existing 'users' table
+                # 1. Update existing 'users' & 'registration_requests' tables
                 conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_email_verified BOOLEAN NOT NULL DEFAULT FALSE;"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS user_type VARCHAR(32) NOT NULL DEFAULT 'STAFF';"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE';"))
+                conn.execute(text("ALTER TABLE registration_requests ALTER COLUMN tenant_id DROP NOT NULL;"))
 
                 # 2. Update existing 'products' table
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS category_id VARCHAR(36);"))
+                conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS vendor_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT;"))
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;"))
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percentage DOUBLE PRECISION DEFAULT 0.0;"))
@@ -41,13 +46,76 @@ def sync_database_schema():
                 conn.execute(text("ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))
 
-        # Create any new tables (categories, product_variants, cart_items, order_items, shipping_addresses, coupons, reviews, wishlist_items)
+        # Create any new tables
         db.create_all()
+        ensure_default_outlets()
+        ensure_default_products_and_variants()
         logger.info("Database schema synchronized successfully.")
 
     except Exception as e:
         logger.warning(f"Database schema synchronization warning/fallback: {e}")
         try:
             db.create_all()
+            ensure_default_outlets()
+            ensure_default_products_and_variants()
         except Exception:
             pass
+
+
+def ensure_default_outlets():
+    """Ensure default enterprise tenant and two store branches (Flash Engine FSD & LHR) exist."""
+    try:
+        from app.models.tenant import Tenant, Outlet
+        tenant = db.session.query(Tenant).filter_by(id="ten_default").first()
+        if not tenant:
+            tenant = Tenant(id="ten_default", name="Central Enterprise Store", domain="central.flashsale.com")
+            db.session.add(tenant)
+            db.session.commit()
+
+        out_fsd = db.session.query(Outlet).filter_by(id="out_fsd_01").first()
+        if not out_fsd:
+            out_fsd = Outlet(id="out_fsd_01", tenant_id=tenant.id, code="FSD-01", name="Flash Engine FSD", is_hq=True)
+            db.session.add(out_fsd)
+
+        out_lhr = db.session.query(Outlet).filter_by(id="out_lhr_01").first()
+        if not out_lhr:
+            out_lhr = Outlet(id="out_lhr_01", tenant_id=tenant.id, code="LHR-01", name="Flash Engine LHR", is_hq=False)
+            db.session.add(out_lhr)
+
+        db.session.commit()
+    except Exception as e:
+        logger.warning(f"Default outlets initialization warning: {e}")
+
+
+def ensure_default_products_and_variants():
+    """Ensure sample products and variants (Color & Size) exist for realistic catalog display."""
+    try:
+        from app.models.product import Product
+        from app.models.product_variant import ProductVariant
+        
+        prod_count = db.session.query(Product).count()
+        if prod_count == 0:
+            p1 = Product(
+                id="prod_demo_01",
+                name="Cyberpunk Tactical Headphones",
+                sku="SKU-TACTICAL-01",
+                description="Studio-grade noise cancelling flash sale headphones with RBG telemetrics.",
+                total_stock=100,
+                available_stock=100,
+                price=199.99,
+                discount_percentage=15.0,
+                images=[
+                    "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80",
+                    "https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=800&q=80"
+                ]
+            )
+            db.session.add(p1)
+            db.session.flush()
+
+            v1 = ProductVariant(product_id=p1.id, sku="SKU-TACTICAL-01-BLK-M", name="Matte Black / Standard", color="Matte Black", size="M", price=199.99, total_stock=50, available_stock=50)
+            v2 = ProductVariant(product_id=p1.id, sku="SKU-TACTICAL-01-CYAN-L", name="Cyber Cyan / Large", color="Cyber Cyan", size="L", price=219.99, total_stock=30, available_stock=30)
+            v3 = ProductVariant(product_id=p1.id, sku="SKU-TACTICAL-01-RED-S", name="Signal Red / Small", color="Signal Red", size="S", price=189.99, total_stock=20, available_stock=20)
+            db.session.add_all([v1, v2, v3])
+            db.session.commit()
+    except Exception as e:
+        logger.warning(f"Default products seed warning: {e}")

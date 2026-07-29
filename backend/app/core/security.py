@@ -30,14 +30,16 @@ def create_access_token(
     role: str,
     secret_key: str,
     expires_minutes: int = 60,
+    context: Optional[Dict[str, Any]] = None,
 ) -> str:
-    """Generate JWT access token."""
+    """Generate JWT access token with scoped RBAC claims."""
     now = datetime.datetime.now(datetime.timezone.utc)
     payload = {
         "sub": user_id,
         "role": role,
         "iat": now,
         "exp": now + datetime.timedelta(minutes=expires_minutes),
+        "context": context or {},
     }
     return jwt.encode(payload, secret_key, algorithm="HS256")
 

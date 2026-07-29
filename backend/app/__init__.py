@@ -11,6 +11,9 @@ from app.api import (
     webhooks_bp,
     health_bp,
     admin_bp,
+    roles_bp,
+    approvals_bp,
+    outlet_inventory_bp,
 )
 
 
@@ -24,6 +27,7 @@ def create_app(config_name: str = None) -> Flask:
 
     app = Flask(__name__)
     app.config.from_object(config_by_name.get(config_name, config_by_name["default"]))
+    app.config["JWT_SECRET_KEY"] = app.config["SECRET_KEY"]
 
     # Sentry error tracking initialization
     sentry_dsn = os.getenv("SENTRY_DSN")
@@ -67,6 +71,9 @@ def create_app(config_name: str = None) -> Flask:
     smorest_api.register_blueprint(webhooks_bp)
     smorest_api.register_blueprint(health_bp)
     smorest_api.register_blueprint(admin_bp)
+    smorest_api.register_blueprint(roles_bp)
+    smorest_api.register_blueprint(approvals_bp)
+    smorest_api.register_blueprint(outlet_inventory_bp)
 
     # Root API Index route
     @app.route("/")

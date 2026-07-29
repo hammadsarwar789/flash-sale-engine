@@ -34,7 +34,7 @@ class BaseConfig:
     )
 
     # JWT Authentication
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "jwt-super-secret-key-change-me")
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "default-dev-secret-key-12345"))
     JWT_ACCESS_TOKEN_EXPIRES_MINUTES: int = int(
         os.getenv("JWT_ACCESS_TOKEN_EXPIRES_MINUTES", "60")
     )

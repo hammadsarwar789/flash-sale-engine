@@ -61,6 +61,7 @@ class Order(db.Model):
             "user_email": self.user.email if self.user else "guest@flashsale.com",
             "user_full_name": self.user.full_name if self.user else "Guest Customer",
             "product_id": self.product_id,
+            "product_name": self.product.name if self.product else "Multi-Item Order",
             "shipping_address_id": self.shipping_address_id,
             "shipping_address": self.shipping_address.to_dict() if self.shipping_address else None,
             "tracking_number": self.tracking_number,

@@ -23,6 +23,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [token, setTokenState] = useState<string | null>(getAuthToken());
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isInitializing, setIsInitializing] = useState<boolean>(!!getAuthToken());
+
+  useEffect(() => {
+    const initAuth = async () => {
+      const currentToken = getAuthToken();
+      if (currentToken) {
+        try {
+          const freshUser = await authApi.getMe();
+          setUser(freshUser);
+        } catch (err) {
+          console.warn('Session verification failed on mount:', err);
+          setAuthToken(null);
+          setUser(null);
+          setTokenState(null);
+          localStorage.removeItem('flash_user');
+        }
+      }
+      setIsInitializing(false);
+    };
+
+    initAuth();
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -36,6 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const res = await authApi.login(credentials);
+      setAuthToken(res.access_token);
       setUser(res.user);
       setTokenState(res.access_token);
       return res;
@@ -75,14 +98,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         token,
         isAuthenticated: !!token && !!user,
-        isLoading,
+        isLoading: isLoading || isInitializing,
         login,
         register,
         logout,
         setUser,
       }}
     >
-      {children}
+      {isInitializing ? (
+        <div className="min-h-screen bg-paper flex items-center justify-center font-mono text-xs text-ash tracking-widest uppercase">
+          VERIFYING AUTH TELEMETRY...
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 };

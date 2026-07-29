@@ -162,8 +162,16 @@ def seed_database():
                 db.session.add(c)
                 logger.info(f"Created Coupon: '{c.code}' ({c.discount_value} {c.discount_type})")
 
+        # 6. Seed Outlet Inventories for Flash Engine FSD and LHR
+        from app.models.outlet_inventory import OutletInventory
+        from app.services.multi_outlet_service import MultiOutletService
+        MultiOutletService.adjust_stock("out_fsd_01", "SKU-1001", 100)
+        MultiOutletService.adjust_stock("out_fsd_01", "IPHONE-15-PRO-MAX", 50)
+        MultiOutletService.adjust_stock("out_lhr_01", "SKU-1001", 75)
+        MultiOutletService.adjust_stock("out_lhr_01", "IPHONE-15-PRO-MAX", 30)
+
         db.session.commit()
-        logger.info("Database seeding successfully completed!")
+        logger.info("Database seeding & Multi-Outlet branch initialization completed!")
 
 
 if __name__ == "__main__":

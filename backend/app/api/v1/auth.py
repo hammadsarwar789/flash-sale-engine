@@ -3,7 +3,10 @@ from flask import current_app, jsonify
 from flask_smorest import Blueprint
 from app.core.extensions import db, redis_client
 from app.models.user import User
+from app.models.tenant import Tenant, Outlet
+from app.models.approval import RegistrationRequest
 from app.api.decorators.rate_limit import rate_limit
+from app.api.decorators.auth import jwt_required
 from app.schemas.auth_schema import (
     UserRegisterSchema,
     UserLoginSchema,
@@ -19,10 +22,24 @@ auth_bp = Blueprint("auth", "auth", url_prefix="/api/v1/auth", description="Auth
 @auth_bp.route("/register", methods=["POST"])
 @rate_limit(limit=5, period=60)
 @auth_bp.arguments(UserRegisterSchema)
-@auth_bp.response(201, UserResponseSchema)
 def register(user_data):
-    """Register a new user account."""
-    existing_user = db.session.query(User).filter_by(email=user_data["email"]).first()
+    """Register a new user account or submit hierarchical approval request."""
+    email = user_data["email"].lower().strip()
+    if not email or "@" not in email or "." not in email:
+        return (
+            jsonify(
+                {
+                    "title": "Bad Request",
+                    "status": 400,
+                    "detail": "Please provide a valid email address (e.g. user@example.com).",
+                }
+            ),
+            400,
+        )
+
+    request_type = user_data.get("request_type") or ("VENDOR_REGISTRATION" if user_data.get("role") == "vendor" else None)
+
+    existing_user = db.session.query(User).filter_by(email=email).first()
     if existing_user:
         return (
             jsonify(
@@ -30,17 +47,73 @@ def register(user_data):
                     "type": "https://api.flashsale.com/errors/user-exists",
                     "title": "Conflict",
                     "status": 409,
-                    "detail": f"User with email '{user_data['email']}' already exists.",
+                    "detail": f"User with email '{email}' already exists.",
                 }
             ),
             409,
         )
 
+    # 1. Handle Hierarchical Approval Requests (Staff / Manager / Vendor)
+    if request_type in ["STAFF_ONBOARDING", "MANAGER_ONBOARDING", "VENDOR_REGISTRATION"]:
+        tenant_id = user_data.get("tenant_id")
+        if not tenant_id:
+            first_tenant = db.session.query(Tenant).first()
+            if first_tenant:
+                tenant_id = first_tenant.id
+            else:
+                default_tenant = Tenant(id="ten_default", name="Central Enterprise Store")
+                db.session.add(default_tenant)
+                db.session.flush()
+                tenant_id = default_tenant.id
+        target_outlet_id = user_data.get("target_outlet_id")
+        if target_outlet_id:
+            outlet_exists = db.session.query(Outlet).filter_by(id=target_outlet_id).first()
+            if not outlet_exists:
+                target_outlet_id = None
+        
+        req = RegistrationRequest(
+            tenant_id=tenant_id,
+            applicant_email=email,
+            applicant_name=user_data.get("full_name", email.split("@")[0]),
+            request_type=request_type,
+            target_outlet_id=target_outlet_id,
+            payload={
+                "password": user_data["password"],
+                "full_name": user_data.get("full_name"),
+                "company_name": user_data.get("company_name"),
+            },
+            status="PENDING",
+        )
+        db.session.add(req)
+
+        # Pre-register user with PENDING_APPROVAL status
+        user = User(
+            email=email,
+            password_hash=hash_password(user_data["password"]),
+            full_name=user_data.get("full_name"),
+            tenant_id=tenant_id,
+            user_type="VENDOR" if request_type == "VENDOR_REGISTRATION" else "STAFF",
+            status="PENDING_APPROVAL",
+            is_active=False,
+        )
+        db.session.add(user)
+        db.session.commit()
+
+        return jsonify({
+            "message": f"Registration request for {email} submitted successfully. Pending administrative approval.",
+            "request_id": req.id,
+            "status": "PENDING_APPROVAL",
+            "user": user.to_dict()
+        }), 201
+
+    # 2. Standard Active User Registration (Retail Buyers)
     user = User(
-        email=user_data["email"],
+        email=email,
         password_hash=hash_password(user_data["password"]),
         full_name=user_data.get("full_name"),
         role="user",
+        status="ACTIVE",
+        is_active=True,
     )
     db.session.add(user)
     db.session.commit()
@@ -131,27 +204,44 @@ def login(login_data):
     except Exception:
         pass
 
-    if not user.is_active:
+    if not user.is_active or user.status != "ACTIVE":
         return (
             jsonify(
                 {
                     "type": "https://api.flashsale.com/errors/account-disabled",
                     "title": "Forbidden",
                     "status": 403,
-                    "detail": "Account has been deactivated.",
+                    "detail": f"Account is not active (Current Status: '{user.status}'). Contact administrator for approval.",
                 }
             ),
             403,
         )
 
-    secret_key = current_app.config["JWT_SECRET_KEY"]
-    expires_minutes = current_app.config["JWT_ACCESS_TOKEN_EXPIRES_MINUTES"]
+    # Build RBAC permissions context claims
+    permissions_list = []
+    for r in user.roles:
+        for p in r.permissions:
+            permissions_list.append(p.code)
+
+    context_claims = {
+        "tenant_id": user.tenant_id,
+        "user_type": getattr(user, "user_type", "STAFF"),
+        "status": user.status,
+        "is_enterprise_admin": user.role == "admin" or getattr(user, "user_type", "") == "SUPER_ADMIN",
+        "assigned_outlets": [o.id for o in user.outlet_scopes],
+        "roles": [r.name for r in user.roles],
+        "permissions": list(set(permissions_list)),
+    }
+
+    secret_key = current_app.config.get("JWT_SECRET_KEY") or current_app.config["SECRET_KEY"]
+    expires_minutes = current_app.config.get("JWT_ACCESS_TOKEN_EXPIRES_MINUTES", 60)
 
     token = create_access_token(
         user_id=user.id,
         role=user.role,
         secret_key=secret_key,
         expires_minutes=expires_minutes,
+        context=context_claims,
     )
 
     return {
@@ -160,6 +250,18 @@ def login(login_data):
         "expires_in": expires_minutes * 60,
         "user": user.to_dict(),
     }, 200
+
+
+@auth_bp.route("/me", methods=["GET"])
+@jwt_required
+def get_me():
+    """Retrieve currently authenticated user profile."""
+    from flask import g
+    user = db.session.query(User).filter_by(id=g.current_user_id).first()
+    if not user or not user.is_active:
+        return jsonify({"message": "User not found or inactive"}), 404
+    return jsonify(user.to_dict()), 200
+
 
 
 @auth_bp.route("/refresh", methods=["POST"])
@@ -173,7 +275,7 @@ def refresh():
         return jsonify({"message": "Missing Authorization header"}), 401
 
     token_str = auth_header.split(" ")[1]
-    secret_key = current_app.config["JWT_SECRET_KEY"]
+    secret_key = current_app.config.get("JWT_SECRET_KEY") or current_app.config["SECRET_KEY"]
 
     payload = decode_access_token(token_str, secret_key)
     if not payload:

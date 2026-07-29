@@ -1914,9 +1914,14 @@ export interface User {
   id: string;
   email: string;
   full_name?: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'manager' | 'stock_operator' | 'vendor';
+  tenant_id?: string;
+  user_type?: 'STAFF' | 'VENDOR' | 'SUPER_ADMIN';
+  status?: 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED';
   is_active: boolean;
   is_email_verified: boolean;
+  roles?: string[];
+  assigned_outlets?: string[];
   created_at?: string;
 }
 
@@ -1958,6 +1963,8 @@ export interface Product {
   available_stock: number;
   category_id?: string;
   category?: Category;
+  vendor_id?: string;
+  vendor_name?: string;
   images: string[];
   is_active: boolean;
   variants?: ProductVariant[];
@@ -2000,6 +2007,8 @@ export interface Order {
   id: string;
   user_id?: string;
   guest_email?: string;
+  product_id?: string;
+  product_name?: string;
   status: OrderStatus;
   total_amount: number;
   tax_amount: number;

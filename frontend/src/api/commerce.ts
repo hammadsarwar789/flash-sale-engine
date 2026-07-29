@@ -9,6 +9,10 @@ export const commerceApi = {
     });
   },
 
+  async checkReviewEligibility(productId: string): Promise<{ eligible: boolean; message: string }> {
+    return apiFetch<{ eligible: boolean; message: string }>(`/products/${productId}/review-eligibility`);
+  },
+
   async addReview(
     productId: string,
     data: { rating: number; title?: string; comment?: string }

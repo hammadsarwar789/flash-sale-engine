@@ -37,7 +37,8 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (user?.role !== 'admin') {
+  const allowedRoles = ['admin', 'manager', 'stock_operator'];
+  if (!user || !allowedRoles.includes(user.role)) {
     return <Navigate to="/products" replace />;
   }
 

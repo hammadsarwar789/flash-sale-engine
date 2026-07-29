@@ -157,4 +157,62 @@ export const adminApi = {
       method: 'POST',
     });
   },
+
+  // --- Registration Approvals ---
+  async getApprovals(status = 'PENDING'): Promise<any[]> {
+    return apiFetch<any[]>(`/admin/approvals?status=${status}`);
+  },
+
+  async getApprovalAuditLogs(): Promise<any[]> {
+    return apiFetch<any[]>('/admin/approvals/audit-logs');
+  },
+
+  async processApprovalAction(requestId: string, data: { action: 'APPROVE' | 'REJECT'; comments?: string }): Promise<any> {
+    return apiFetch<any>(`/admin/approvals/${requestId}/action`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // --- Dynamic RBAC & Roles ---
+  async getPermissions(): Promise<any[]> {
+    return apiFetch<any[]>('/admin/permissions');
+  },
+
+  async getRoles(): Promise<any[]> {
+    return apiFetch<any[]>('/admin/roles');
+  },
+
+  async createRole(data: { name: string; description?: string; permissions?: string[] }): Promise<any> {
+    return apiFetch<any>('/admin/roles', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async assignUserRoles(userId: string, data: { role_ids: string[]; outlet_ids: string[] }): Promise<any> {
+    return apiFetch<any>(`/admin/users/${userId}/roles`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // --- Multi-Outlet Inventory ---
+  async getOutletInventory(outletId: string): Promise<any[]> {
+    return apiFetch<any[]>(`/outlets/${outletId}/inventory`);
+  },
+
+  async adjustOutletStock(outletId: string, data: { product_sku: string; quantity_delta: number; reorder_level?: number }): Promise<any> {
+    return apiFetch<any>(`/outlets/${outletId}/inventory/adjust`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async transferStock(data: { source_outlet_id: string; target_outlet_id: string; product_sku: string; quantity: number }): Promise<any> {
+    return apiFetch<any>('/outlets/inventory/transfer', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };

@@ -1,22 +1,32 @@
-from marshmallow import Schema, fields, validate
+from marshmallow import Schema, fields, validate, INCLUDE
 
 
 class UserRegisterSchema(Schema):
     """Schema for user registration request."""
 
-    email = fields.Email(required=True, metadata={"description": "User email address"})
+    class Meta:
+        unknown = INCLUDE
+
+    email = fields.String(required=True, metadata={"description": "User email address"})
     password = fields.String(
         required=True,
-        validate=validate.Length(min=8, max=128),
-        metadata={"description": "Password (min 8 characters)"},
+        metadata={"description": "Password"},
     )
     full_name = fields.String(required=False, metadata={"description": "Full name"})
+    request_type = fields.String(required=False)
+    target_outlet_id = fields.String(required=False)
+    company_name = fields.String(required=False)
+    tenant_id = fields.String(required=False)
+    role = fields.String(required=False)
 
 
 class UserLoginSchema(Schema):
     """Schema for user login request."""
 
-    email = fields.Email(required=True, metadata={"description": "User email address"})
+    class Meta:
+        unknown = INCLUDE
+
+    email = fields.String(required=True, metadata={"description": "User email address"})
     password = fields.String(required=True, metadata={"description": "User password"})
 
 
