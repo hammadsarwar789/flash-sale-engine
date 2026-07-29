@@ -7,6 +7,7 @@ from app.models.user import User
 from app.models.outbox import OutboxEvent
 from app.models.task_log import TaskLog
 from app.api.decorators import admin_required
+from app.core.authorization import require_permission
 
 admin_bp = Blueprint("admin", "admin", url_prefix="/api/v1/admin", description="Admin Operations & Telemetry")
 
@@ -55,6 +56,37 @@ def list_users():
     """Retrieve user account listing (Admin)."""
     users = db.session.query(User).order_by(User.created_at.desc()).all()
     return jsonify([u.to_dict() for u in users]), 200
+
+
+@admin_bp.route("/users/<string:user_id>", methods=["DELETE"])
+@require_permission("outlet:staff:approve")
+def delete_user(user_id):
+    """Delete employee, manager, or vendor account based on hierarchical authority."""
+    target_user = db.session.query(User).filter_by(id=user_id).first()
+    if not target_user:
+        return jsonify({"message": f"User '{user_id}' not found"}), 404
+
+    # Prevent deleting self
+    if g.user_id == target_user.id:
+        return jsonify({"message": "Cannot delete your own active account."}), 400
+
+    actor_role = getattr(g, "user_role", "user")
+    target_role = getattr(target_user, "role", "user")
+
+    # Hierarchical Authority Check: non-enterprise admins cannot delete admins or managers
+    if not g.is_enterprise_admin and actor_role != "admin":
+        if target_role in ["admin", "manager"]:
+            return jsonify({
+                "error": "Forbidden",
+                "message": f"Higher-level authority required to delete a {target_role.upper()} account."
+            }), 403
+
+    db.session.delete(target_user)
+    db.session.commit()
+
+    return jsonify({
+        "message": f"Account '{target_user.email}' ({target_role.upper()}) deleted successfully."
+    }), 200
 
 
 @admin_bp.route("/orders", methods=["GET"])

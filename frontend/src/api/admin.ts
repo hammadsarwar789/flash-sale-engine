@@ -55,6 +55,12 @@ export const adminApi = {
     return apiFetch<User[]>('/admin/users');
   },
 
+  async deleteUser(userId: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>(`/admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+  },
+
   async listTaskLogs(): Promise<TaskLogItem[]> {
     return apiFetch<TaskLogItem[]>('/admin/task-logs');
   },

@@ -123,14 +123,10 @@ export const AdminPage: React.FC = () => {
         adminApi.getOutboxEvents().catch(() => []),
         adminApi.listTaskLogs().catch(() => []),
         adminApi.listCoupons().catch(() => []),
-        adminApi.getApprovals(approvalStatusFilter).catch((err) => {
-          console.warn('getApprovals failed:', err);
-          setErrorMsg(`Approvals telemetry warning: ${err.message || 'Failed to fetch pending requests'}. Ensure you are authenticated as Super Admin.`);
-          return [];
-        }),
-        adminApi.getApprovalAuditLogs().catch(() => []),
-        adminApi.getRoles().catch(() => []),
-        adminApi.getPermissions().catch(() => []),
+        (role === 'admin' || role === 'manager') ? adminApi.getApprovals(approvalStatusFilter).catch(() => []) : Promise.resolve([]),
+        (role === 'admin' || role === 'manager') ? adminApi.getApprovalAuditLogs().catch(() => []) : Promise.resolve([]),
+        role === 'admin' ? adminApi.getRoles().catch(() => []) : Promise.resolve([]),
+        role === 'admin' ? adminApi.getPermissions().catch(() => []) : Promise.resolve([]),
         adminApi.getOutletInventory(selectedOutletId).catch(() => []),
       ]);
 
@@ -320,6 +316,19 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleDeleteUser = async (targetUserId: string, targetEmail: string, targetRole: string) => {
+    if (!window.confirm(`Are you sure you want to delete account '${targetEmail}' (${targetRole.toUpperCase()})? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await adminApi.deleteUser(targetUserId);
+      setSuccessMsg(res.message || `Account '${targetEmail}' deleted successfully.`);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || `Failed to delete account '${targetEmail}'.`);
+    }
+  };
+
   const handleCreateRole = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRoleName) return;
@@ -486,28 +495,6 @@ export const AdminPage: React.FC = () => {
       <main className="flex-1 p-6 space-y-6 overflow-x-auto">
         
         {/* Messages */}
-        {role !== 'admin' && (
-          <div className="p-4 border border-loss bg-paper text-loss font-mono text-xs space-y-3">
-            <div className="font-bold flex items-center justify-between">
-              <span>🔒 SUPER ADMIN PRIVILEGES REQUIRED FOR APPROVALS</span>
-              <button
-                onClick={async () => {
-                  await logout();
-                  navigate('/login');
-                }}
-                className="px-3 py-1 bg-loss text-paper uppercase font-semibold hover:bg-loss/90 transition-colors cursor-pointer"
-              >
-                LOG OUT & LOGIN AS ADMIN →
-              </button>
-            </div>
-            <p>You are currently logged in as <span className="underline font-semibold">{user?.email}</span> (Role: <span className="uppercase font-bold">{role}</span>).</p>
-            <p>To view and approve pending registration requests, please log in as Super Admin:</p>
-            <div className="p-2.5 bg-paper-sunk border border-rule font-semibold text-ink inline-block">
-              Email: <span className="text-signal">admin@flashsale.com</span> · Password: <span className="text-signal">Password123</span>
-            </div>
-          </div>
-        )}
-
         {errorMsg && <div className="p-3 border border-loss bg-paper text-loss font-mono text-xs">{errorMsg}</div>}
         {successMsg && <div className="p-3 border border-gain bg-paper text-gain font-mono text-xs">{successMsg}</div>}
 
@@ -1026,22 +1013,44 @@ export const AdminPage: React.FC = () => {
                 <thead>
                   <tr className="bg-paper-sunk border-b border-rule text-ash">
                     <th className="py-2.5 px-3">USER ID</th>
-                    <th className="py-2.5 px-3">EMAIL ADDRESS</th>
+                    <th className="py-2.5 px-3">APPLICANT / EMAIL</th>
                     <th className="py-2.5 px-3">ROLE</th>
-                    <th className="py-2.5 px-3 text-right">ACTIVE</th>
+                    <th className="py-2.5 px-3">STATUS</th>
+                    <th className="py-2.5 px-3 text-right">HIERARCHICAL ACTION</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-rule/40">
                   {usersList.map((u) => (
                     <tr key={u.id} className="hover:bg-paper-sunk/40">
-                      <td className="py-2.5 px-3 text-ink">USR-{u.id.slice(0, 8)}</td>
-                      <td className="py-2.5 px-3 text-graphite">{u.email}</td>
+                      <td className="py-2.5 px-3 text-ink font-semibold">USR-{u.id.slice(0, 8)}</td>
                       <td className="py-2.5 px-3">
-                        <span className={u.role === 'admin' ? 'text-signal font-semibold' : 'text-ash'}>
-                          {u.role.toUpperCase()}
+                        <p className="text-ink font-semibold">{u.full_name || u.email.split('@')[0]}</p>
+                        <p className="text-ash text-[11px]">{u.email}</p>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className={`font-semibold ${
+                          u.role === 'admin' ? 'text-signal' : (u.role === 'manager' ? 'text-ink' : (u.role === 'vendor' ? 'text-ash' : 'text-ash/80'))
+                        }`}>
+                          {u.role ? u.role.toUpperCase() : 'USER'}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 text-right text-gain">YES</td>
+                      <td className="py-2.5 px-3 font-semibold">
+                        <span className={u.status === 'ACTIVE' || u.is_active ? 'text-gain' : 'text-loss'}>
+                          {u.status || (u.is_active ? 'ACTIVE' : 'INACTIVE')}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        {u.id !== user?.id ? (
+                          <button
+                            onClick={() => handleDeleteUser(u.id, u.email, u.role || 'user')}
+                            className="px-2.5 py-1 bg-loss text-paper font-semibold hover:bg-loss/90 transition-colors text-[11px] cursor-pointer"
+                          >
+                            DELETE ✕
+                          </button>
+                        ) : (
+                          <span className="text-ash text-[11px] font-mono font-semibold">SELF (YOU)</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1053,6 +1062,28 @@ export const AdminPage: React.FC = () => {
         {/* TAB 6: PENDING REGISTRATION APPROVALS */}
         {activeTab === 'approvals' && (
           <div className="space-y-6">
+            {role !== 'admin' && (
+              <div className="p-4 border border-loss bg-paper text-loss font-mono text-xs space-y-3">
+                <div className="font-bold flex items-center justify-between">
+                  <span>🔒 SUPER ADMIN PRIVILEGES REQUIRED FOR FULL APPROVAL CONTROL</span>
+                  <button
+                    onClick={async () => {
+                      await logout();
+                      navigate('/login');
+                    }}
+                    className="px-3 py-1 bg-loss text-paper uppercase font-semibold hover:bg-loss/90 transition-colors cursor-pointer"
+                  >
+                    LOG OUT & LOGIN AS ADMIN →
+                  </button>
+                </div>
+                <p>You are currently logged in as <span className="underline font-semibold">{user?.email}</span> (Role: <span className="uppercase font-bold">{role}</span>).</p>
+                <p>To view and approve pending registration requests, please log in as Super Admin:</p>
+                <div className="p-2.5 bg-paper-sunk border border-rule font-semibold text-ink inline-block">
+                  Email: <span className="text-signal">admin@flashsale.com</span> · Password: <span className="text-signal">Password123</span>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-between items-center border-b border-rule pb-4">
               <div>
                 <h2 className="font-serif text-3xl text-ink">Registration Approval Pipeline</h2>
