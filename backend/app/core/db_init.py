@@ -92,14 +92,18 @@ def ensure_default_outlets():
 def ensure_default_admin():
     """Ensure default enterprise admin account exists with active credentials."""
     try:
+        from flask import current_app
         from app.models.user import User
         from app.core.security import hash_password
 
-        admin = db.session.query(User).filter_by(email="admin@flashsale.com").first()
+        admin_email = current_app.config.get("ADMIN_INITIAL_EMAIL", "admin@flashsale.com")
+        admin_pass = current_app.config.get("ADMIN_INITIAL_PASSWORD", "Password123")
+
+        admin = db.session.query(User).filter_by(email=admin_email).first()
         if not admin:
             admin = User(
-                email="admin@flashsale.com",
-                password_hash=hash_password("Password123"),
+                email=admin_email,
+                password_hash=hash_password(admin_pass),
                 full_name="System Administrator",
                 role="admin",
                 user_type="SUPER_ADMIN",
@@ -110,12 +114,12 @@ def ensure_default_admin():
             db.session.add(admin)
             db.session.commit()
         else:
-            if admin.role != "admin" or admin.status != "ACTIVE" or not admin.is_active:
-                admin.role = "admin"
-                admin.user_type = "SUPER_ADMIN"
-                admin.status = "ACTIVE"
-                admin.is_active = True
-                db.session.commit()
+            admin.password_hash = hash_password(admin_pass)
+            admin.role = "admin"
+            admin.user_type = "SUPER_ADMIN"
+            admin.status = "ACTIVE"
+            admin.is_active = True
+            db.session.commit()
     except Exception as e:
         logger.warning(f"Default admin initialization warning: {e}")
 

@@ -39,6 +39,11 @@ class BaseConfig:
         os.getenv("JWT_ACCESS_TOKEN_EXPIRES_MINUTES", "60")
     )
 
+    # Initial Admin Seed Credentials
+    ADMIN_INITIAL_EMAIL: str = os.getenv("ADMIN_INITIAL_EMAIL", "admin@flashsale.com")
+    ADMIN_INITIAL_PASSWORD: str = os.getenv("ADMIN_INITIAL_PASSWORD", "Password123")
+    CORS_ALLOWED_ORIGINS: str = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+
     # OpenAPI / Flask-Smorest Documentation Settings
     API_TITLE: str = "Distributed Flash Sale API"
     API_VERSION: str = "v1"

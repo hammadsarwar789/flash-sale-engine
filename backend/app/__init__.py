@@ -40,13 +40,15 @@ def create_app(config_name: str = None) -> Flask:
             pass
 
     # CORS cross-origin configuration
+    origins_setting = app.config.get("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+    origins_list = [o.strip() for o in origins_setting.split(",") if o.strip()]
     try:
         from flask_cors import CORS
-        CORS(app, supports_credentials=True, origins=["http://localhost:5173", "http://127.0.0.1:5173", "*"])
+        CORS(app, supports_credentials=True, origins=origins_list)
     except Exception:
         @app.after_request
         def add_cors_headers(response):
-            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Origin"] = origins_list[0] if origins_list else "*"
             response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Idempotency-Key"
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
             return response
