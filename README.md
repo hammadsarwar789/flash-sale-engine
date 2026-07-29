@@ -1,4 +1,4 @@
-# ⚡ High-Scale Flash Sale Engine & E-Commerce Platform
+# ⚡ High-Scale Flash Sale Engine & Distributed Multi-Outlet E-Commerce Platform
 
 A production-grade, full-stack distributed e-commerce platform and high-concurrency inventory reservation engine. Designed around **Frontend Design Specification v2 ("Trading Floor Editorial")** using **React 18 + Vite + TypeScript** and backed by an event-driven **Flask + PostgreSQL + Redis + RabbitMQ + Celery** microservice architecture.
 
@@ -24,17 +24,23 @@ A production-grade, full-stack distributed e-commerce platform and high-concurre
 
 ---
 
+### 🏢 4. Hierarchical Approval Pipeline & Multi-Tenant Control (`/admin`)
+![Admin Control Rail & Approvals](frontend/public/screenshots/approvals.png)
+*Role-gated Admin Control Floor featuring multi-outlet RBAC, onboarding approval pipeline, user directory deletion controls, and stock ledger telemetry.*
+
+---
+
 ## 📁 Repository Structure
 
 ```text
 flash-sale-engine/
 ├── backend/                  # Python Flask REST API & Async Workers
 │   ├── app/                  # Application core, blueprints, models, schemas, services
-│   │   ├── api/v1/           # Auth, Products, Cart, Orders, Commerce, Admin, Webhooks
-│   │   ├── core/             # DB extensions, config, security, rate limiting
-│   │   ├── models/           # SQLAlchemy ORM models (Product, Order, User, Outbox, etc.)
+│   │   ├── api/v1/           # Auth, Products, Cart, Orders, Approvals, RBAC, Outlets, Webhooks
+│   │   ├── core/             # DB extensions, config, security, rate limiting, RBAC authorization
+│   │   ├── models/           # SQLAlchemy ORM models (Product, Order, User, Tenant, Outlet, Approval, RBAC)
 │   │   ├── schemas/          # Marshmallow validation schemas
-│   │   └── services/         # InventoryService, OrderService, PaymentService
+│   │   └── services/         # MultiOutletService, InventoryService, OrderService, PaymentService
 │   ├── tests/                # Automated pytest suite
 │   ├── wsgi.py               # WSGI server entry point
 │   ├── requirements.txt      # Python dependencies
@@ -43,8 +49,8 @@ flash-sale-engine/
 └── frontend/                 # React 18 + Vite + TypeScript SPA
     ├── public/screenshots/   # Visual interface documentation screenshots
     ├── src/
-    │   ├── api/              # Typed REST client wrappers (Auth, Products, Cart, Orders, Admin)
-    │   ├── components/       # UI components (Navbar, Footer, ProductCard, VariantPicker, StripeForm)
+    │   ├── api/              # Typed REST client wrappers (Auth, Products, Cart, Orders, Admin, Commerce)
+    │   ├── components/       # UI components (Navbar, Footer, ProductCard, VariantPicker, ReviewForm, StripeForm)
     │   ├── context/          # AuthContext session management & Bearer token handling
     │   ├── hooks/            # TanStack React Query state management hooks
     │   ├── pages/            # Public & protected views + Admin Portal sub-routes
@@ -57,19 +63,17 @@ flash-sale-engine/
 
 ## 🔥 Key System Capabilities
 
-### 🛒 1. "Trading Floor Editorial" Design System (`/frontend`)
-* **Editorial Aesthetic Tokens:** Built with Instrument Serif, Inter Tight, and JetBrains Mono. Flat paper surfaces (`--paper`, `--bone`, `--paper-sunk`), hairline borders (`1px solid var(--rule)`), and Signal Red (`#E5321B`) CTAs. Zero gradients, zero backdrop blurs, zero drop shadows.
-* **Tabular Monospace Numerics:** All prices, stock counts, order SKUs, and timers use `font-variant-numeric: tabular-nums` with zero-padded formatting (`$099.99`).
-* **Cart Reserve Timer:** Real-time 5-minute inventory hold timer with `localStorage` timestamp persistence preventing reset on page refreshes.
-* **Worldwide Shipping Entry:** Full ISO 3166-1 country autocomplete list supporting over 200 global countries and territories alongside free-form manual input.
-* **Dual Payment Gateway:** Toggle seamlessly between **Credit/Debit Card (Stripe)** with 1-click test card auto-fill and **Cash on Delivery (COD)**.
-* **Order Tracking & Fulfillment:** Dense table order ledger with accordion rows, horizontal fulfillment steppers (`[ PENDING ]───[ PAID ]───[ SHIPPED ]───[ DELIVERED ]`), and auto-generated tracking numbers (`TRK-84920194US`).
+### 🏢 1. Multi-Tenant Enterprise & Scope-Aware RBAC
+* **Hierarchical Approval Chain:** Onboarding pipeline for Managers (`MANAGER_ONBOARDING`), Staff (`STAFF_ONBOARDING`), and Vendors (`VENDOR_REGISTRATION`). Approvals assign targeted roles and store outlet scopes automatically upon approval.
+* **Hierarchical User Deletion:** Super Admins can manage and delete any vendor or staff account, while store managers can delete staff within their assigned outlet scope.
+* **Outlet Isolation:** Multi-outlet inventory ledger (`Flash Engine FSD` & `Flash Engine LHR`) with atomic inter-outlet stock transfers.
 
-### 🛡️ 2. Role-Gated Admin Control Center (`/admin`)
-* **240px Dark Control Rail:** Dark `--ink` sidebar with 6-cell KPI telemetry metrics bar (24h Revenue, 24h Orders, AOV, Active Holds, Redis Hits/s, Outbox Lag).
-* **Product Catalog CRUD:** Create products, sync Redis Lua stock locks, add product variants inline, and delete obsolete SKUs.
-* **Order Fulfillment Ledger:** Update order status, assign carrier details, and trigger Stripe refunds.
-* **Promo Code Generator:** Issue percentage (`%`) or fixed dollar (`$`) promotional codes with minimum order thresholds.
+### 🛒 2. "Trading Floor Editorial" Design System (`/frontend`)
+* **Editorial Aesthetic Tokens:** Built with Instrument Serif, Inter Tight, and JetBrains Mono. Flat paper surfaces (`--paper`, `--bone`, `--paper-sunk`), hairline borders (`1px solid var(--rule)`), and Signal Red (`#E5321B`) CTAs.
+* **Tabular Monospace Numerics:** All prices, stock counts, order SKUs, and timers use `font-variant-numeric: tabular-nums` with zero-padded formatting (`$099.99`).
+* **Session Persistence:** Session persistence across page refreshes via `/api/v1/auth/me` token validation.
+* **Delivery-Gated Product Reviews:** Verified purchase eligibility check preventing users from leaving product reviews unless they have a verified delivered order.
+* **Product Variant Swatches:** Inline color swatches and size selector options (`S`, `M`, `L`, `XL`) linked directly to stock ledger variants.
 
 ### ⚡ 3. High-Concurrency Distributed Backend (`/backend`)
 * **Redis Lua Atomic Stock Lock:** High-concurrency inventory holds executed atomically via Redis Lua scripts to eliminate race conditions and database row locking.
@@ -121,6 +125,14 @@ npm install
 npm run dev
 ```
 > The React application starts at **[http://localhost:5173](http://localhost:5173)**.
+
+---
+
+## 🔑 Default Credentials
+
+- **Super Admin Account:**
+  - **Email:** `admin@flashsale.com`
+  - **Password:** `Password123`
 
 ---
 
