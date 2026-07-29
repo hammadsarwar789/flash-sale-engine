@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi, SystemStats, OutboxEventItem, TaskLogItem } from '../api/admin';
 import { productsApi } from '../api/products';
+import { useNavigate } from 'react-router-dom';
 import { Product, Category, Order, User, Coupon } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { Eyebrow } from '../components/ui/Eyebrow';
@@ -8,7 +9,8 @@ import { Numeric } from '../components/ui/Numeric';
 import { StatusDot } from '../components/ui/StatusDot';
 
 export const AdminPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const role = user?.role || 'admin';
   const initialTab = role === 'stock_operator' ? 'outlets' : (role === 'manager' ? 'products' : 'overview');
   const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'coupons' | 'categories' | 'users' | 'approvals' | 'roles' | 'outlets'>(initialTab);
@@ -463,6 +465,28 @@ export const AdminPage: React.FC = () => {
       <main className="flex-1 p-6 space-y-6 overflow-x-auto">
         
         {/* Messages */}
+        {role !== 'admin' && (
+          <div className="p-4 border border-loss bg-paper text-loss font-mono text-xs space-y-3">
+            <div className="font-bold flex items-center justify-between">
+              <span>🔒 SUPER ADMIN PRIVILEGES REQUIRED FOR APPROVALS</span>
+              <button
+                onClick={async () => {
+                  await logout();
+                  navigate('/login');
+                }}
+                className="px-3 py-1 bg-loss text-paper uppercase font-semibold hover:bg-loss/90 transition-colors cursor-pointer"
+              >
+                LOG OUT & LOGIN AS ADMIN →
+              </button>
+            </div>
+            <p>You are currently logged in as <span className="underline font-semibold">{user?.email}</span> (Role: <span className="uppercase font-bold">{role}</span>).</p>
+            <p>To view and approve pending registration requests, please log in as Super Admin:</p>
+            <div className="p-2.5 bg-paper-sunk border border-rule font-semibold text-ink inline-block">
+              Email: <span className="text-signal">admin@flashsale.com</span> · Password: <span className="text-signal">Password123</span>
+            </div>
+          </div>
+        )}
+
         {errorMsg && <div className="p-3 border border-loss bg-paper text-loss font-mono text-xs">{errorMsg}</div>}
         {successMsg && <div className="p-3 border border-gain bg-paper text-gain font-mono text-xs">{successMsg}</div>}
 
