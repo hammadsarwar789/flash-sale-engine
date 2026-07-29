@@ -49,6 +49,7 @@ def sync_database_schema():
         # Create any new tables
         db.create_all()
         ensure_default_outlets()
+        ensure_default_admin()
         ensure_default_products_and_variants()
         logger.info("Database schema synchronized successfully.")
 
@@ -57,6 +58,7 @@ def sync_database_schema():
         try:
             db.create_all()
             ensure_default_outlets()
+            ensure_default_admin()
             ensure_default_products_and_variants()
         except Exception:
             pass
@@ -85,6 +87,37 @@ def ensure_default_outlets():
         db.session.commit()
     except Exception as e:
         logger.warning(f"Default outlets initialization warning: {e}")
+
+
+def ensure_default_admin():
+    """Ensure default enterprise admin account exists with active credentials."""
+    try:
+        from app.models.user import User
+        from app.core.security import hash_password
+
+        admin = db.session.query(User).filter_by(email="admin@flashsale.com").first()
+        if not admin:
+            admin = User(
+                email="admin@flashsale.com",
+                password_hash=hash_password("Password123"),
+                full_name="System Administrator",
+                role="admin",
+                user_type="SUPER_ADMIN",
+                status="ACTIVE",
+                is_active=True,
+                is_email_verified=True,
+            )
+            db.session.add(admin)
+            db.session.commit()
+        else:
+            if admin.role != "admin" or admin.status != "ACTIVE" or not admin.is_active:
+                admin.role = "admin"
+                admin.user_type = "SUPER_ADMIN"
+                admin.status = "ACTIVE"
+                admin.is_active = True
+                db.session.commit()
+    except Exception as e:
+        logger.warning(f"Default admin initialization warning: {e}")
 
 
 def ensure_default_products_and_variants():
