@@ -108,6 +108,12 @@ def delete_category(category_id):
 @products_bp.response(200, ProductResponseSchema(many=True))
 def list_products(query_args):
     """Retrieve active products with search, category filtering, sorting, and pagination."""
+    try:
+        from app.services.order_service import OrderService
+        OrderService.check_and_cancel_expired_orders()
+    except Exception as exp_err:
+        logger.warning(f"Expired order auto-cancellation warning on product list: {exp_err}")
+
     query = db.session.query(Product).filter(Product.is_active == True)
 
     search = query_args.get("search")

@@ -464,6 +464,107 @@ class OrderService:
             return False, str(e)
 
     @classmethod
+    def check_and_cancel_expired_orders(cls, user_id: str = None) -> int:
+        """
+        Finds all PENDING orders where expires_at <= current_time,
+        cancels them, and restores stock back to PostgreSQL and Redis.
+        """
+        now = datetime.now(timezone.utc)
+        query = db.session.query(Order).filter(
+            Order.status == OrderStatus.PENDING,
+            Order.expires_at <= now,
+        )
+        if user_id:
+            query = query.filter(Order.user_id == user_id)
+
+        expired_orders = query.all()
+        cancelled_count = 0
+
+        for order in expired_orders:
+            try:
+                order.status = OrderStatus.EXPIRED
+                release_items = []
+                if order.items:
+                    for item in order.items:
+                        if item.variant_id:
+                            from app.models.product_variant import ProductVariant
+                            variant = db.session.query(ProductVariant).filter_by(id=item.variant_id).first()
+                            if variant:
+                                variant.available_stock += item.quantity
+                            release_items.append((item.product_id, item.variant_id, item.quantity))
+                        else:
+                            product = db.session.query(Product).filter_by(id=item.product_id).first()
+                            if product:
+                                product.available_stock += item.quantity
+                            release_items.append((item.product_id, None, item.quantity))
+                elif order.product_id and order.quantity:
+                    product = db.session.query(Product).filter_by(id=order.product_id).first()
+                    if product:
+                        product.available_stock += order.quantity
+                    release_items.append((order.product_id, None, order.quantity))
+
+                db.session.commit()
+                if release_items:
+                    InventoryService.release_multi_stock(release_items)
+                cancelled_count += 1
+                logger.info(f"Auto-cancelled expired PENDING order '{order.id}' and restored stock for {len(release_items)} items.")
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error auto-cancelling expired order '{order.id}': {e}")
+
+        return cancelled_count
+
+    @classmethod
+    def restore_order_to_cart(cls, order_id: str, user_id: str) -> Tuple[bool, str]:
+        """
+        Cancels a PENDING order, restores stock to catalog, and re-adds line items back into user's cart.
+        """
+        order = db.session.query(Order).filter_by(id=order_id, user_id=user_id).first()
+        if not order:
+            return False, "Order not found"
+
+        if order.status != OrderStatus.PENDING:
+            return False, f"Cannot restore order in state {order.status}"
+
+        try:
+            # Re-add items to user's cart
+            if order.items:
+                for item in order.items:
+                    existing_cart_item = db.session.query(CartItem).filter_by(
+                        user_id=user_id,
+                        product_id=item.product_id,
+                        variant_id=item.variant_id
+                    ).first()
+                    if existing_cart_item:
+                        existing_cart_item.quantity += item.quantity
+                    else:
+                        new_cart_item = CartItem(
+                            user_id=user_id,
+                            product_id=item.product_id,
+                            variant_id=item.variant_id,
+                            quantity=item.quantity
+                        )
+                        db.session.add(new_cart_item)
+            elif order.product_id and order.quantity:
+                new_cart_item = CartItem(
+                    user_id=user_id,
+                    product_id=order.product_id,
+                    quantity=order.quantity
+                )
+                db.session.add(new_cart_item)
+
+            db.session.commit()
+
+            # Now cancel the order and release stock
+            cls.cancel_order(order_id, user_id)
+            return True, "Order cancelled and items restored to cart successfully"
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Failed to restore order {order_id} to cart: {e}")
+            return False, str(e)
+
+    @classmethod
     def pay_order(cls, order_id: str, user_id: str = None) -> Tuple[bool, str]:
         """Mark order as PAID and decrement total stock in DB for all items/variants."""
         query = db.session.query(Order).filter_by(id=order_id)

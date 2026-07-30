@@ -59,8 +59,14 @@ export const ordersApi = {
     });
   },
 
-  async payOrder(order_id: string): Promise<{ message: string; order_id: string; payment_status: string }> {
-    return apiFetch<{ message: string; order_id: string; payment_status: string }>(`/orders/${order_id}/pay`, {
+  async restoreOrderToCart(order_id: string): Promise<{ message: string; order_id: string; status: string }> {
+    return apiFetch<{ message: string; order_id: string; status: string }>(`/orders/${order_id}/restore-cart`, {
+      method: 'POST',
+    });
+  },
+
+  async payOrder(order_id: string): Promise<{ status: string; message: string; order_id: string }> {
+    return apiFetch<{ status: string; message: string; order_id: string }>(`/orders/${order_id}/pay`, {
       method: 'POST',
     });
   },

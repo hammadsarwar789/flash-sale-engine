@@ -197,6 +197,7 @@ def get_order_status(order_id):
 def list_user_orders():
     """Retrieve list of orders for the authenticated user."""
     user_id = g.current_user_id
+    OrderService.check_and_cancel_expired_orders(user_id=user_id)
     orders = (
         db.session.query(Order)
         .filter_by(user_id=user_id)
@@ -297,3 +298,26 @@ def cancel_order(order_id):
         )
 
     return jsonify({"message": msg, "order_id": order_id, "status": "CANCELLED"}), 200
+
+
+@orders_bp.route("/<string:order_id>/restore-cart", methods=["POST"])
+@jwt_required
+def restore_order_to_cart(order_id):
+    """Cancel active unpaid order reservation, release catalog stock, and return items back into cart."""
+    user_id = g.current_user_id
+    success, msg = OrderService.restore_order_to_cart(order_id=order_id, user_id=user_id)
+
+    if not success:
+        return (
+            jsonify(
+                {
+                    "type": "https://api.flashsale.com/errors/restore-failed",
+                    "title": "Restore Failed",
+                    "status": 400,
+                    "detail": msg,
+                }
+            ),
+            400,
+        )
+
+    return jsonify({"message": msg, "order_id": order_id, "status": "CANCELLED_AND_RESTORED"}), 200

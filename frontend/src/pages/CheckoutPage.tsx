@@ -255,6 +255,16 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
+  const handleRestoreCart = async () => {
+    if (!createdOrder?.id) return;
+    try {
+      await ordersApi.restoreOrderToCart(createdOrder.id);
+      navigate('/cart');
+    } catch (err: any) {
+      setCheckoutError(err.message || 'Failed to cancel reservation and restore cart.');
+    }
+  };
+
   if (items.length === 0 && !createdOrder) {
     return (
       <div className="max-w-md mx-auto py-20 text-center space-y-4 border border-rule bg-paper">
@@ -314,6 +324,18 @@ export const CheckoutPage: React.FC = () => {
                 isProcessing={false}
                 onPaymentSuccess={handlePaymentCompleted}
               />
+              <div className="border-t border-rule pt-4 text-center space-y-2 font-mono text-xs">
+                <p className="text-ash">
+                  Decided not to pay now? Cancel this temporary inventory reservation and put items back in your cart.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRestoreCart}
+                  className="px-5 py-2 bg-paper border border-loss text-loss hover:bg-loss hover:text-paper font-semibold uppercase transition-colors"
+                >
+                  ← CANCEL RESERVATION & RETURN ITEMS TO CART
+                </button>
+              </div>
             </div>
           ) : (
             <div className="font-mono text-xs text-gain p-4 border border-gain bg-paper-sunk">
