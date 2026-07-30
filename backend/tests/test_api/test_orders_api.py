@@ -28,6 +28,9 @@ def test_reserve_inventory_success_and_idempotency_replay(client, user_token, te
     except Exception:
         pytest.skip("Local Redis server is not running; skipping live Redis idempotency test.")
 
+    # Seed the Redis stock key so the Lua decrement script can find it
+    redis_client.set(f"product:{test_product.id}:stock", test_product.available_stock)
+
     idempotency_key = f"key-{str(uuid.uuid4())}"
     headers = {
         "Authorization": f"Bearer {user_token}",

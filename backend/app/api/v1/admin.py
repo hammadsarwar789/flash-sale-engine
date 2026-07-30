@@ -1,4 +1,4 @@
-from flask import jsonify
+from flask import jsonify, g
 from flask_smorest import Blueprint
 from app.core.extensions import db
 from app.models.product import Product
@@ -6,6 +6,11 @@ from app.models.order import Order, OrderStatus
 from app.models.user import User
 from app.models.outbox import OutboxEvent
 from app.models.task_log import TaskLog
+from app.models.rbac import UserRole, UserOutletScope
+from app.models.cart import CartItem
+from app.models.wishlist import WishlistItem
+from app.models.shipping_address import ShippingAddress
+from app.models.review import Review
 from app.api.decorators import admin_required
 from app.core.authorization import require_permission
 
@@ -81,12 +86,45 @@ def delete_user(user_id):
                 "message": f"Higher-level authority required to delete a {target_role.upper()} account."
             }), 403
 
-    db.session.delete(target_user)
-    db.session.commit()
+    try:
+        # Clean up secondary / non-historical dependent records
+        db.session.query(UserRole).filter_by(user_id=user_id).delete()
+        db.session.query(UserOutletScope).filter_by(user_id=user_id).delete()
+        db.session.query(CartItem).filter_by(user_id=user_id).delete()
+        db.session.query(WishlistItem).filter_by(user_id=user_id).delete()
+        db.session.query(ShippingAddress).filter_by(user_id=user_id).delete()
+        db.session.query(Review).filter_by(user_id=user_id).delete()
 
-    return jsonify({
-        "message": f"Account '{target_user.email}' ({target_role.upper()}) deleted successfully."
-    }), 200
+        # Unlink vendor from products
+        db.session.query(Product).filter_by(vendor_id=user_id).update({"vendor_id": None})
+
+        db.session.delete(target_user)
+        db.session.commit()
+
+        return jsonify({
+            "message": f"Account '{target_user.email}' ({target_role.upper()}) deleted successfully."
+        }), 200
+    except Exception:
+        db.session.rollback()
+        # Fallback: If hard delete fails due to immutable history (e.g. Orders or Audit Logs FK constraint), deactivate user
+        try:
+            target_user = db.session.query(User).filter_by(id=user_id).first()
+            if target_user:
+                target_user.is_active = False
+                target_user.status = "SUSPENDED"
+                db.session.query(UserRole).filter_by(user_id=user_id).delete()
+                db.session.query(UserOutletScope).filter_by(user_id=user_id).delete()
+                db.session.commit()
+                return jsonify({
+                    "message": f"Account '{target_user.email}' ({target_role.upper()}) deactivated successfully (retained for order/audit history)."
+                }), 200
+            return jsonify({"message": f"User '{user_id}' not found"}), 404
+        except Exception as inner_e:
+            db.session.rollback()
+            return jsonify({
+                "error": "Deletion Failed",
+                "message": f"Could not process user deletion: {str(inner_e)}"
+            }), 400
 
 
 @admin_bp.route("/orders", methods=["GET"])

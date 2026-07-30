@@ -65,14 +65,14 @@ def test_category_and_product_filtering(client, admin_token, user_token):
     # 3. Filter products by search query
     res_search = client.get("/api/v1/products?search=Noise-cancelling", headers=user_headers)
     assert res_search.status_code == 200
-    search_results = res_search.get_json()
+    search_results = res_search.get_json()["items"]
     assert len(search_results) == 1
     assert search_results[0]["id"] == prod_id
 
     # 4. Filter products by category_id
     res_filter = client.get(f"/api/v1/products?category_id={cat_id}", headers=user_headers)
     assert res_filter.status_code == 200
-    assert len(res_filter.get_json()) == 1
+    assert len(res_filter.get_json()["items"]) == 1
 
 
 def test_auth_completeness_workflow(client, test_user, user_token):
@@ -145,7 +145,7 @@ def test_admin_order_management(client, admin_token, test_user, test_product):
     assert updated_order["tracking_number"] == "TRK123456"
 
 
-def test_commerce_features(client, user_token, admin_token, test_product):
+def test_commerce_features(client, user_token, admin_token, test_product, test_user):
     """Test coupons, reviews, wishlist, and shipping addresses."""
     user_headers = {"Authorization": f"Bearer {user_token}"}
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
@@ -164,7 +164,24 @@ def test_commerce_features(client, user_token, admin_token, test_product):
     assert res_coupon.status_code == 200
     assert res_coupon.get_json()["calculated_discount"] == 20.0
 
-    # 2. Add product review
+    # 2. Add product review (requires a DELIVERED order for the test user)
+    from app.models.order import Order, OrderStatus
+    from datetime import datetime, timezone
+    with client.application.app_context():
+        delivered_order = Order(
+            user_id=test_user.id,
+            product_id=test_product.id,
+            quantity=1,
+            unit_price=test_product.price,
+            subtotal=test_product.price,
+            total_amount=test_product.price,
+            idempotency_key=f"review-order-{str(uuid.uuid4())}",
+            status=OrderStatus.DELIVERED,
+            expires_at=datetime.now(timezone.utc),
+        )
+        db.session.add(delivered_order)
+        db.session.commit()
+
     res_rev = client.post(
         f"/api/v1/products/{test_product.id}/reviews",
         json={"rating": 5, "title": "Amazing Product", "comment": "Loved it!"},

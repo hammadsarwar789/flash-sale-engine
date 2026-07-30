@@ -34,7 +34,7 @@ class User(db.Model):
     tenant = db.relationship("Tenant", back_populates="users")
     roles = db.relationship("Role", secondary="user_roles", lazy="subquery")
     outlet_scopes = db.relationship("Outlet", secondary="user_outlet_scopes", lazy="subquery")
-    orders = db.relationship("Order", back_populates="user", lazy="select")
+    orders = db.relationship("Order", back_populates="user", lazy="select", passive_deletes=True)
     cart_items = db.relationship("CartItem", back_populates="user", cascade="all, delete-orphan", lazy="select")
 
     def to_dict(self):

@@ -10,6 +10,7 @@ from app.schemas.order_schema import (
     PaymentIntentResponseSchema,
 )
 from app.services.order_service import OrderService
+from app.services.payment_service import PaymentService
 from app.api.decorators import jwt_required, idempotent, rate_limit
 
 orders_bp = Blueprint("orders", "orders", url_prefix="/api/v1/orders", description="Order & Reservation operations")

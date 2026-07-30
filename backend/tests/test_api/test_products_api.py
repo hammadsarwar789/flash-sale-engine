@@ -3,9 +3,11 @@ def test_list_products(client, test_product):
     response = client.get("/api/v1/products")
     assert response.status_code == 200
     data = response.get_json()
-    assert isinstance(data, list)
-    assert len(data) >= 1
-    assert data[0]["sku"] == test_product.sku
+    assert "items" in data
+    items = data["items"]
+    assert isinstance(items, list)
+    assert len(items) >= 1
+    assert items[0]["sku"] == test_product.sku
 
 
 def test_get_product_detail(client, test_product):
