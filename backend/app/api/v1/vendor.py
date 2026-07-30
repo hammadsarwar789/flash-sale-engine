@@ -150,4 +150,127 @@ def update_vendor_sub_order_status(sub_order_id: str):
     sub_order.status = new_status
     db.session.commit()
 
+    if new_status == "DELIVERED":
+        try:
+            from app.services.escrow_engine import set_sub_order_delivery_escrow
+            set_sub_order_delivery_escrow(sub_order_id)
+        except Exception as escrow_err:
+            pass
+
     return jsonify({"message": f"Sub-order status updated to '{new_status}'.", "sub_order": sub_order.to_dict()}), 200
+
+
+# --- Merchant Financial Ledger & Payout Requests ---
+
+@vendor_bp.route("/finance", methods=["GET"])
+@jwt_required
+def get_vendor_finance():
+    """Retrieve financial ledger telemetry, escrow held balances, and payout request history."""
+    from sqlalchemy import func
+    from app.models.financials import LedgerEntry, PayoutRequest
+    user_id = g.current_user_id
+    seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
+
+    if not seller:
+        staff_entry = db.session.query(SellerStaff).filter_by(user_id=user_id).first()
+        if staff_entry:
+            seller = staff_entry.seller
+
+    if not seller:
+        return jsonify({"error": "Forbidden", "message": "You must be an approved merchant owner to access financial ledger."}), 403
+
+    # Calculate balances
+    held_res = db.session.query(func.coalesce(func.sum(LedgerEntry.amount), 0.00)).filter(
+        LedgerEntry.seller_id == seller.id,
+        LedgerEntry.entry_type == "ESCROW_HOLD",
+        LedgerEntry.status == "HELD"
+    ).scalar()
+
+    released_res = db.session.query(func.coalesce(func.sum(LedgerEntry.amount), 0.00)).filter(
+        LedgerEntry.seller_id == seller.id,
+        LedgerEntry.entry_type == "ESCROW_RELEASE",
+        LedgerEntry.status == "RELEASED"
+    ).scalar()
+
+    paid_res = db.session.query(func.coalesce(func.sum(PayoutRequest.amount), 0.00)).filter(
+        PayoutRequest.seller_id == seller.id,
+        PayoutRequest.status == "PAID"
+    ).scalar()
+
+    pending_payouts_res = db.session.query(func.coalesce(func.sum(PayoutRequest.amount), 0.00)).filter(
+        PayoutRequest.seller_id == seller.id,
+        PayoutRequest.status.in_(["REQUESTED", "PROCESSING"])
+    ).scalar()
+
+    escrow_held_balance = float(held_res)
+    available_payout_balance = max(0.00, round(float(released_res) - float(paid_res) - float(pending_payouts_res), 2))
+
+    ledger = db.session.query(LedgerEntry).filter_by(seller_id=seller.id).order_by(LedgerEntry.created_at.desc()).limit(20).all()
+    payouts = db.session.query(PayoutRequest).filter_by(seller_id=seller.id).order_by(PayoutRequest.requested_at.desc()).limit(10).all()
+
+    return jsonify({
+        "seller_id": seller.id,
+        "store_name": seller.store_name,
+        "commission_rate": float(seller.commission_rate),
+        "escrow_held_balance": escrow_held_balance,
+        "available_payout_balance": available_payout_balance,
+        "total_payouts_processed": float(paid_res),
+        "pending_payouts_requested": float(pending_payouts_res),
+        "ledger": [entry.to_dict() for entry in ledger],
+        "payout_requests": [p.to_dict() for p in payouts],
+    }), 200
+
+
+@vendor_bp.route("/payouts", methods=["POST"])
+@jwt_required
+def request_vendor_payout():
+    """Submit a payout withdrawal request for released escrow balance."""
+    from sqlalchemy import func
+    from app.models.financials import LedgerEntry, PayoutRequest
+    user_id = g.current_user_id
+    seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
+
+    if not seller:
+        return jsonify({"error": "Forbidden", "message": "Only merchant store owners can request payouts."}), 403
+
+    data = request.get_json() or {}
+    try:
+        amount = round(float(data.get("amount", 0)), 2)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Bad Request", "message": "Invalid payout amount."}), 400
+
+    if amount <= 0:
+        return jsonify({"error": "Bad Request", "message": "Payout request amount must be greater than 0."}), 400
+
+    released_res = db.session.query(func.coalesce(func.sum(LedgerEntry.amount), 0.00)).filter(
+        LedgerEntry.seller_id == seller.id,
+        LedgerEntry.entry_type == "ESCROW_RELEASE",
+        LedgerEntry.status == "RELEASED"
+    ).scalar()
+
+    paid_res = db.session.query(func.coalesce(func.sum(PayoutRequest.amount), 0.00)).filter(
+        PayoutRequest.seller_id == seller.id,
+        PayoutRequest.status == "PAID"
+    ).scalar()
+
+    pending_payouts_res = db.session.query(func.coalesce(func.sum(PayoutRequest.amount), 0.00)).filter(
+        PayoutRequest.seller_id == seller.id,
+        PayoutRequest.status.in_(["REQUESTED", "PROCESSING"])
+    ).scalar()
+
+    available_balance = max(0.00, round(float(released_res) - float(paid_res) - float(pending_payouts_res), 2))
+
+    if amount > available_balance:
+        return jsonify({
+            "error": "Conflict",
+            "message": f"Requested amount (${amount:.2f}) exceeds available released payout balance (${available_balance:.2f})."
+        }), 409
+
+    payout = PayoutRequest(seller_id=seller.id, amount=amount, status="REQUESTED")
+    db.session.add(payout)
+    db.session.commit()
+
+    return jsonify({
+        "message": f"Payout withdrawal request for ${amount:.2f} submitted successfully!",
+        "payout_request": payout.to_dict(),
+    }), 201

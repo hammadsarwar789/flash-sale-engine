@@ -3,6 +3,7 @@ import logging
 from app.core.extensions import db
 from app.models.order import Order
 from app.models.sub_order import SubOrder
+from app.models.financials import LedgerEntry
 from app.models.seller import Seller
 from app.models.user import User
 
@@ -31,7 +32,8 @@ def ensure_default_platform_seller() -> Seller:
 def split_order_by_seller(order_id: str) -> list:
     """
     Splits a paid master Order into independent SubOrders grouped by Seller.
-    Calculates subtotal, commission amount, and seller payout amounts atomically.
+    Calculates subtotal, commission amount, and seller payout amounts atomically,
+    and writes ESCROW_HOLD double-entry ledger records.
     """
     order = db.session.query(Order).filter_by(id=order_id).first()
     if not order or not order.items:
@@ -72,6 +74,16 @@ def split_order_by_seller(order_id: str) -> list:
         )
         db.session.add(sub_order)
         db.session.flush()
+
+        # Write double-entry financial ledger escrow hold
+        ledger_entry = LedgerEntry(
+            sub_order_id=sub_order.id,
+            seller_id=seller.id,
+            entry_type="ESCROW_HOLD",
+            amount=seller_payout_amount,
+            status="HELD",
+        )
+        db.session.add(ledger_entry)
 
         for item in items:
             item.sub_order_id = sub_order.id

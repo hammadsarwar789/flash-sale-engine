@@ -269,3 +269,44 @@ def review_seller_kyc_doc(seller_id: str, doc_id: str):
     db.session.commit()
 
     return jsonify({"message": f"KYC document '{doc.doc_type}' set to '{status}'.", "kyc_document": doc.to_dict()}), 200
+
+
+# --- Admin Payout Clearinghouse ---
+
+@admin_bp.route("/payouts", methods=["GET"])
+@admin_required
+def list_admin_payouts():
+    """List all merchant payout withdrawal requests (Admin)."""
+    from app.models.financials import PayoutRequest
+    from flask import request
+    status_filter = request.args.get("status", "").upper()
+    query = db.session.query(PayoutRequest)
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    payouts = query.order_by(PayoutRequest.requested_at.desc()).all()
+    return jsonify([p.to_dict() for p in payouts]), 200
+
+
+@admin_bp.route("/payouts/<string:payout_id>", methods=["PATCH"])
+@admin_required
+def update_admin_payout_status(payout_id: str):
+    """Approve, process, or mark a merchant payout request as PAID or REJECTED (Admin)."""
+    from datetime import datetime, timezone
+    from app.models.financials import PayoutRequest
+    from flask import request
+    data = request.get_json() or {}
+    status = data.get("status", "").upper()
+
+    if status not in ["PROCESSING", "PAID", "REJECTED"]:
+        return jsonify({"error": "Bad Request", "message": "Status must be PROCESSING, PAID, or REJECTED."}), 400
+
+    payout = db.session.query(PayoutRequest).filter_by(id=payout_id).first()
+    if not payout:
+        return jsonify({"error": "Not Found", "message": f"Payout request '{payout_id}' not found."}), 404
+
+    payout.status = status
+    payout.processed_by = getattr(g, "current_user_id", None) or getattr(g, "user_id", None)
+    payout.processed_at = datetime.now(timezone.utc)
+    db.session.commit()
+
+    return jsonify({"message": f"Payout request for ${float(payout.amount):.2f} updated to '{status}'.", "payout": payout.to_dict()}), 200

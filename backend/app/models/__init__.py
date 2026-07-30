@@ -17,6 +17,7 @@ from app.models.outbox import OutboxEvent, OutboxStatus
 from app.models.task_log import TaskLog
 from app.models.seller import Seller, SellerStaff, SellerKYCDocument, Warehouse
 from app.models.sub_order import SubOrder
+from app.models.financials import CommissionRule, LedgerEntry, PayoutRequest
 
 __all__ = [
     "User",
@@ -49,4 +50,7 @@ __all__ = [
     "SellerKYCDocument",
     "Warehouse",
     "SubOrder",
+    "CommissionRule",
+    "LedgerEntry",
+    "PayoutRequest",
 ]
