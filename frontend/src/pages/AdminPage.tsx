@@ -1005,79 +1005,141 @@ export const AdminPage: React.FC = () => {
               <h2 className="font-serif text-3xl text-ink">Promo Coupon Generator</h2>
             </div>
 
-            <form onSubmit={handleCreateCoupon} className="border border-rule p-4 bg-paper-sunk space-y-3 font-mono text-xs">
-              <Eyebrow className="text-ink block">ISSUE NEW PROMOTIONAL CODE & USAGE RULES</Eyebrow>
-              <div className="grid grid-cols-1 sm:grid-cols-7 gap-2">
-                <input
-                  type="text"
-                  required
-                  placeholder="PROMO CODE (E.G. SUMMER30)"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink uppercase focus:outline-none"
-                />
-                <select
-                  value={discountType}
-                  onChange={(e) => setDiscountType(e.target.value as any)}
-                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink focus:outline-none"
-                >
-                  <option value="percentage">PERCENTAGE (%)</option>
-                  <option value="fixed">FIXED DOLLAR ($)</option>
-                </select>
-                <input
-                  type="number"
-                  required
-                  min="0.01"
-                  step="0.01"
-                  placeholder="DISCOUNT VALUE"
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(Math.max(0.01, parseFloat(e.target.value) || 0))}
-                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink focus:outline-none"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="MIN ORDER ($)"
-                  value={couponMinOrder || ''}
-                  onChange={(e) => setCouponMinOrder(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink focus:outline-none"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="FIRST N USERS LIMIT (0 = ALL)"
-                  value={couponUsageLimit || ''}
-                  onChange={(e) => setCouponUsageLimit(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink focus:outline-none"
-                />
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder="MAX USES PER USER"
-                  value={couponMaxPerUser || ''}
-                  onChange={(e) => setCouponMaxPerUser(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink focus:outline-none"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="VALID (DAYS)"
-                  value={couponValidDays || ''}
-                  onChange={(e) => setCouponValidDays(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink focus:outline-none"
-                />
+            <form onSubmit={handleCreateCoupon} className="border border-rule p-5 bg-paper-sunk space-y-4 font-mono text-xs">
+              <div className="flex items-center justify-between border-b border-rule pb-2">
+                <Eyebrow className="text-ink block font-bold">ISSUE NEW PROMOTIONAL CODE & USAGE RULES</Eyebrow>
+                <span className="text-[10px] text-ash">⚡ AUTO-DEACTIVATES WHEN FIRST N USERS EXCEEDED</span>
               </div>
-              <button
-                type="submit"
-                disabled={isCreatingCoupon}
-                className="bg-ink text-paper font-sans text-xs uppercase px-6 py-2 hover:bg-graphite transition-colors disabled:opacity-50"
-              >
-                {isCreatingCoupon ? 'CREATING...' : 'ISSUE PROMO CODE →'}
-              </button>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                {/* 1. Code */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-ash uppercase tracking-wider">
+                    PROMO CODE <span className="text-signal">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="E.G. SUMMER30"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    className="w-full bg-paper border border-rule px-2.5 py-2 text-ink uppercase focus:outline-none focus:border-ink font-semibold"
+                  />
+                  <span className="block text-[10px] text-ash">Unique promo key</span>
+                </div>
+
+                {/* 2. Type */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-ash uppercase tracking-wider">
+                    DISCOUNT TYPE
+                  </label>
+                  <select
+                    value={discountType}
+                    onChange={(e) => setDiscountType(e.target.value as any)}
+                    className="w-full bg-paper border border-rule px-2.5 py-2 text-ink focus:outline-none focus:border-ink"
+                  >
+                    <option value="percentage">PERCENTAGE (%)</option>
+                    <option value="fixed">FIXED DOLLAR ($)</option>
+                  </select>
+                  <span className="block text-[10px] text-ash">% or $ deduction</span>
+                </div>
+
+                {/* 3. Value */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-ash uppercase tracking-wider">
+                    VALUE <span className="text-signal">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0.01"
+                    step="0.01"
+                    placeholder="15 OR 30.00"
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(Math.max(0.01, parseFloat(e.target.value) || 0))}
+                    className="w-full bg-paper border border-rule px-2.5 py-2 text-ink focus:outline-none focus:border-ink"
+                  />
+                  <span className="block text-[10px] text-ash">Amount / Percentage</span>
+                </div>
+
+                {/* 4. Min Order */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-ash uppercase tracking-wider">
+                    MIN ORDER ($)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={couponMinOrder || ''}
+                    onChange={(e) => setCouponMinOrder(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="w-full bg-paper border border-rule px-2.5 py-2 text-ink focus:outline-none focus:border-ink"
+                  />
+                  <span className="block text-[10px] text-ash">Min cart total</span>
+                </div>
+
+                {/* 5. First N Users (Global Limit) */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-signal uppercase tracking-wider">
+                    FIRST N USERS <span className="text-ash font-normal">(0=ALL)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="E.G. 50 USERS"
+                    value={couponUsageLimit || ''}
+                    onChange={(e) => setCouponUsageLimit(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                    className="w-full bg-paper border border-rule px-2.5 py-2 text-ink focus:outline-none focus:border-signal font-semibold"
+                  />
+                  <span className="block text-[10px] text-signal font-semibold">Max total redemptions</span>
+                </div>
+
+                {/* 6. Max Uses Per User Account */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-gain uppercase tracking-wider">
+                    MAX PER USER
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="1 USE / ACC"
+                    value={couponMaxPerUser || ''}
+                    onChange={(e) => setCouponMaxPerUser(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    className="w-full bg-paper border border-rule px-2.5 py-2 text-ink focus:outline-none focus:border-gain font-semibold"
+                  />
+                  <span className="block text-[10px] text-gain font-semibold">Redemptions per user</span>
+                </div>
+
+                {/* 7. Expiration (Days) */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-ash uppercase tracking-wider">
+                    VALID DAYS
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="7 DAYS (0=INF)"
+                    value={couponValidDays || ''}
+                    onChange={(e) => setCouponValidDays(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                    className="w-full bg-paper border border-rule px-2.5 py-2 text-ink focus:outline-none focus:border-ink"
+                  />
+                  <span className="block text-[10px] text-ash">Active duration</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isCreatingCoupon}
+                  className="bg-ink text-paper font-sans text-xs uppercase px-8 py-2.5 hover:bg-graphite transition-colors disabled:opacity-50 font-semibold"
+                >
+                  {isCreatingCoupon ? 'CREATING PROMO RULE...' : 'ISSUE PROMOTIONAL CODE →'}
+                </button>
+              </div>
             </form>
 
             {/* Coupons List Table */}

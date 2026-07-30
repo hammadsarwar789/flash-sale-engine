@@ -43,24 +43,35 @@ export const CouponInput: React.FC<CouponInputProps> = ({
   };
 
   if (appliedCoupon && appliedCoupon.valid) {
+    const maxPerUser = (appliedCoupon as any).max_uses_per_user || 1;
+    const globalLimit = (appliedCoupon as any).usage_limit;
+
     return (
-      <div className="flex items-center justify-between p-3 border border-gain bg-paper text-gain font-mono text-xs">
-        <div>
-          <span>PROMO CODE '{appliedCoupon.code}' APPLIED (</span>
-          <Numeric value={Number(appliedCoupon.calculated_discount || 0)} format="price" zeroPadInt={2} />
-          <span>)</span>
+      <div className="p-3 border border-gain bg-paper text-gain font-mono text-xs space-y-1">
+        <div className="flex items-center justify-between">
+          <div className="font-semibold">
+            <span>PROMO CODE '{appliedCoupon.code}' APPLIED (</span>
+            <Numeric value={Number(appliedCoupon.calculated_discount || 0)} format="price" zeroPadInt={2} />
+            <span> SAVINGS)</span>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onCouponApplied({ valid: false });
+            }}
+            className="text-ash hover:text-loss underline"
+          >
+            [ REMOVE ]
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onCouponApplied({ valid: false });
-          }}
-          className="text-ash hover:text-loss underline"
-        >
-          [ REMOVE ]
-        </button>
+        <div className="text-[10px] text-graphite flex flex-wrap gap-2 pt-0.5">
+          <span>✓ {maxPerUser} use allowed per user account</span>
+          {globalLimit ? (
+            <span>· ⚡ Valid for first {globalLimit} customers</span>
+          ) : null}
+        </div>
       </div>
     );
   }
