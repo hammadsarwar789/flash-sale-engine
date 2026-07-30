@@ -19,7 +19,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('flash_user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    if (!savedUser) return null;
+    try {
+      return JSON.parse(savedUser);
+    } catch {
+      localStorage.removeItem('flash_user');
+      return null;
+    }
   });
   const [token, setTokenState] = useState<string | null>(getAuthToken());
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -31,12 +37,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (currentToken) {
         try {
           const freshUser = await authApi.getMe();
+          setTokenState(currentToken);
           setUser(freshUser);
         } catch (err) {
           console.warn('Session verification failed on mount:', err);
           setAuthToken(null);
           setUser(null);
           setTokenState(null);
+          localStorage.removeItem('flash_user');
+        }
+      } else {
+        if (localStorage.getItem('flash_user')) {
           localStorage.removeItem('flash_user');
         }
       }

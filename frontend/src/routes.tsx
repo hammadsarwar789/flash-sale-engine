@@ -37,8 +37,23 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const allowedRoles = ['admin', 'manager', 'stock_operator'];
+  const allowedRoles = ['admin', 'manager'];
   if (!user || !allowedRoles.includes(user.role)) {
+    return <Navigate to="/products" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const StaffRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, user } = useAuth();
+  const location = useLocation();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (!user || user.role !== 'stock_operator') {
     return <Navigate to="/products" replace />;
   }
 
@@ -108,6 +123,23 @@ export const AppRoutes: React.FC = () => {
             <AdminRoute>
               <AdminPage />
             </AdminRoute>
+          }
+        />
+
+        <Route
+          path="staff/*"
+          element={
+            <StaffRoute>
+              <AdminPage />
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="staff"
+          element={
+            <StaffRoute>
+              <AdminPage />
+            </StaffRoute>
           }
         />
 

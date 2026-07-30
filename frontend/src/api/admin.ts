@@ -77,6 +77,7 @@ export const adminApi = {
     description?: string;
     images?: string[];
     category_id?: string;
+    vendor_id?: string;
   }): Promise<Product> {
     return apiFetch<Product>('/products', {
       method: 'POST',
@@ -155,6 +156,18 @@ export const adminApi = {
     return apiFetch<Coupon>('/coupons', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+
+  async toggleCoupon(couponId: string): Promise<{ message: string; coupon: Coupon }> {
+    return apiFetch<{ message: string; coupon: Coupon }>(`/coupons/${couponId}/toggle`, {
+      method: 'PATCH',
+    });
+  },
+
+  async deleteCoupon(couponId: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>(`/coupons/${couponId}`, {
+      method: 'DELETE',
     });
   },
 

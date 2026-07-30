@@ -29,12 +29,12 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ productId, onReviewSubmi
         .then((res) => {
           setIsEligible(res.eligible);
           if (!res.eligible) {
-            setEligibilityMsg(res.message);
+            setEligibilityMsg(res.reason || res.message || 'Purchase & receive this product to leave a review.');
           }
         })
         .catch(() => {
           setIsEligible(false);
-          setEligibilityMsg('Unable to verify order delivery status.');
+          setEligibilityMsg('Purchase & receive this product to leave a review.');
         });
     }
   }, [isAuthenticated, productId]);
@@ -82,7 +82,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ productId, onReviewSubmi
 
       {isEligible === false && (
         <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono">
-          🔒 {eligibilityMsg || 'Only customers who have received delivery of this product can submit a review.'}
+          🔒 {eligibilityMsg || 'Purchase & receive this product to leave a review.'}
         </div>
       )}
 

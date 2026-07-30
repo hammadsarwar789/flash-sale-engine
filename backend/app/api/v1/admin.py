@@ -56,7 +56,7 @@ def list_outbox_events():
 
 
 @admin_bp.route("/users", methods=["GET"])
-@admin_required
+@require_permission("enterprise:users:read")
 def list_users():
     """Retrieve user account listing (Admin)."""
     users = db.session.query(User).order_by(User.created_at.desc()).all()
@@ -128,7 +128,7 @@ def delete_user(user_id):
 
 
 @admin_bp.route("/orders", methods=["GET"])
-@admin_required
+@require_permission("enterprise:orders:read")
 def list_admin_orders():
     """Retrieve all orders with optional status filtering (Admin)."""
     from flask import request
@@ -141,7 +141,7 @@ def list_admin_orders():
 
 
 @admin_bp.route("/orders/<string:order_id>", methods=["PATCH"])
-@admin_required
+@require_permission("enterprise:orders:write")
 def update_admin_order(order_id):
     """Update order status (e.g., SHIPPED, DELIVERED, REFUNDED) and fulfillment tracking (Admin)."""
     from flask import request

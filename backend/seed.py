@@ -5,6 +5,7 @@ from app import create_app
 from app.core.extensions import db
 from app.models.user import User
 from app.models.product import Product
+from app.models.product_variant import ProductVariant
 from app.core.security import hash_password
 from app.services.inventory_service import InventoryService
 
@@ -141,6 +142,28 @@ def seed_database():
                     InventoryService.warmup_product_stock(prod.id)
                 except Exception as e:
                     logger.warning(f"Skipped Redis stock warmup for product {prod.id}: {e}")
+
+                sample_variants = [
+                    ("Black", "S", 0),
+                    ("Silver", "M", 5),
+                    ("Gold", "L", 10),
+                ]
+                for color, size, price_offset in sample_variants:
+                    variant_sku = f"{prod.sku}-{color[:3].upper()}-{size}"
+                    if not db.session.query(ProductVariant).filter_by(sku=variant_sku).first():
+                        db.session.add(
+                            ProductVariant(
+                                product_id=prod.id,
+                                sku=variant_sku,
+                                name=f"{color} / Size {size}",
+                                color=color,
+                                size=size,
+                                price=float(p_data["price"]) + price_offset,
+                                total_stock=max(5, p_data["total_stock"] // 3),
+                                available_stock=max(5, p_data["available_stock"] // 3),
+                            )
+                        )
+                db.session.commit()
 
         # 5. Create Sample Coupons
         from app.models.coupon import Coupon

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   useProductDetail,
@@ -80,6 +81,17 @@ export const ProductDetailPage: React.FC = () => {
       await addToWishlist(id);
     }
   };
+
+  useEffect(() => {
+    if (variants.length === 0) {
+      setSelectedVariant(null);
+      return;
+    }
+
+    if (!selectedVariant || !variants.some((variant) => variant.id === selectedVariant.id)) {
+      setSelectedVariant(variants[0]);
+    }
+  }, [variants, selectedVariant]);
 
   if (isLoading) {
     return (

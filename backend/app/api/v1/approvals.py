@@ -19,17 +19,19 @@ def list_pending_approvals():
     if status_filter != "ALL":
         query = query.filter(RegistrationRequest.status == status_filter)
 
-    # If not enterprise admin, restrict requests to STAFF_ONBOARDING
+    # If not enterprise admin, restrict managers to staff onboarding within their outlets.
     if not g.is_enterprise_admin:
+        if getattr(g, "user_role", "") != "manager":
+            return jsonify([]), 200
+
         assigned_outlets = g.assigned_outlets or []
-        if assigned_outlets:
-            outlet_condition = (RegistrationRequest.target_outlet_id.in_(assigned_outlets)) | (RegistrationRequest.target_outlet_id.is_(None))
-        else:
-            outlet_condition = (RegistrationRequest.target_outlet_id.is_(None))
-            
+        if not assigned_outlets:
+            return jsonify([]), 200
+
+        outlet_condition = RegistrationRequest.target_outlet_id.in_(assigned_outlets)
         query = query.filter(
             RegistrationRequest.request_type == "STAFF_ONBOARDING",
-            outlet_condition
+            outlet_condition,
         )
 
     requests_list = query.all()
@@ -63,17 +65,24 @@ def process_approval_action(request_id: str):
         return jsonify({"error": "Conflict", "message": f"Request is already processed (Status: '{req.status}')."}), 409
 
     # Scope check & Hierarchy enforcement
-    if req.request_type in ["MANAGER_ONBOARDING", "VENDOR_REGISTRATION"] and not g.is_enterprise_admin:
-        return jsonify({
-            "error": "Forbidden Scope Access",
-            "message": "Only Super Admins can approve Manager or Vendor registration requests."
-        }), 403
-
-    if req.target_outlet_id and not g.is_enterprise_admin:
-        if req.target_outlet_id not in g.assigned_outlets:
+    actor_role = getattr(g, "user_role", "user")
+    if not g.is_enterprise_admin:
+        if actor_role != "manager":
             return jsonify({
                 "error": "Forbidden Scope Access",
-                "message": f"Cannot approve request for Outlet '{req.target_outlet_id}'. Scope mismatch."
+                "message": "Only Managers or Super Admins can process registration approvals.",
+            }), 403
+
+        if req.request_type != "STAFF_ONBOARDING":
+            return jsonify({
+                "error": "Forbidden Scope Access",
+                "message": "Managers can only approve staff or stock operator onboarding requests.",
+            }), 403
+
+        if req.target_outlet_id and req.target_outlet_id not in (g.assigned_outlets or []):
+            return jsonify({
+                "error": "Forbidden Scope Access",
+                "message": f"Cannot approve request for Outlet '{req.target_outlet_id}'. Scope mismatch.",
             }), 403
 
     actor_id = g.user_id

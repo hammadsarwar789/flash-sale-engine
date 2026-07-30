@@ -86,13 +86,22 @@ def register(user_data):
         )
         db.session.add(req)
 
+        requested_role = "stock_operator"
+        user_type = "STAFF"
+        if request_type == "MANAGER_ONBOARDING":
+            requested_role = "manager"
+        elif request_type == "VENDOR_REGISTRATION":
+            requested_role = "vendor"
+            user_type = "VENDOR"
+
         # Pre-register user with PENDING_APPROVAL status
         user = User(
             email=email,
             password_hash=hash_password(user_data["password"]),
             full_name=user_data.get("full_name"),
             tenant_id=tenant_id,
-            user_type="VENDOR" if request_type == "VENDOR_REGISTRATION" else "STAFF",
+            role=requested_role,
+            user_type=user_type,
             status="PENDING_APPROVAL",
             is_active=False,
         )

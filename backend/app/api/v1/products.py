@@ -5,6 +5,7 @@ from app.core.extensions import db, redis_client
 from app.models.product import Product
 from app.models.category import Category
 from app.models.product_variant import ProductVariant
+from app.models.user import User
 from app.schemas.product_schema import (
     ProductCreateSchema,
     ProductUpdateSchema,
@@ -21,6 +22,7 @@ from app.schemas.category_schema import (
 )
 from app.services.inventory_service import InventoryService
 from app.api.decorators import admin_required
+from app.core.authorization import require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +194,7 @@ def get_product(product_id):
 
 
 @products_bp.route("", methods=["POST"])
-@admin_required
+@require_permission("enterprise:products:write")
 @products_bp.arguments(ProductCreateSchema)
 @products_bp.response(201, ProductResponseSchema)
 def create_product(product_data):
@@ -212,11 +214,17 @@ def create_product(product_data):
         )
 
     variants_data = product_data.pop("variants", [])
+    vendor_id = product_data.get("vendor_id")
+    if vendor_id:
+        vendor = db.session.query(User).filter_by(id=vendor_id, role="vendor").first()
+        if not vendor:
+            return jsonify({"message": f"Vendor '{vendor_id}' not found"}), 404
 
     product = Product(
         name=product_data["name"],
         sku=product_data["sku"],
         category_id=product_data.get("category_id"),
+        vendor_id=vendor_id,
         description=product_data.get("description"),
         images=product_data.get("images", []),
         total_stock=product_data["total_stock"],
@@ -251,7 +259,7 @@ def create_product(product_data):
 
 
 @products_bp.route("/<string:product_id>", methods=["PUT"])
-@admin_required
+@require_permission("enterprise:products:write")
 @products_bp.arguments(ProductUpdateSchema)
 @products_bp.response(200, ProductResponseSchema)
 def update_product(product_data, product_id):
@@ -271,9 +279,20 @@ def update_product(product_data, product_id):
         )
 
     variants_data = product_data.pop("variants", None)
+    vendor_id = product_data.pop("vendor_id", None)
+
+    if vendor_id:
+        vendor = db.session.query(User).filter_by(id=vendor_id, role="vendor").first()
+        if not vendor:
+            return jsonify({"message": f"Vendor '{vendor_id}' not found"}), 404
 
     for field, val in product_data.items():
+        if field == "vendor_id":
+            continue
         setattr(product, field, val)
+
+    if vendor_id is not None:
+        product.vendor_id = vendor_id
 
     if variants_data is not None:
         db.session.query(ProductVariant).filter_by(product_id=product.id).delete()
@@ -300,7 +319,7 @@ def update_product(product_data, product_id):
 
 
 @products_bp.route("/<string:product_id>", methods=["DELETE"])
-@admin_required
+@require_permission("enterprise:products:write")
 def delete_product(product_id):
     """Deactivate/Delete product (Admin)."""
     product = db.session.query(Product).filter_by(id=product_id).first()
@@ -335,7 +354,7 @@ def list_product_variants(product_id):
 
 
 @products_bp.route("/<string:product_id>/variants", methods=["POST"])
-@admin_required
+@require_permission("enterprise:products:write")
 @products_bp.arguments(ProductVariantCreateSchema)
 @products_bp.response(201, ProductVariantResponseSchema)
 def create_product_variant(variant_data, product_id):
@@ -364,7 +383,7 @@ def create_product_variant(variant_data, product_id):
 
 
 @products_bp.route("/<string:product_id>/variants/<string:variant_id>", methods=["PUT"])
-@admin_required
+@require_permission("enterprise:products:write")
 @products_bp.arguments(ProductVariantUpdateSchema)
 @products_bp.response(200, ProductVariantResponseSchema)
 def update_product_variant(variant_data, product_id, variant_id):
@@ -381,7 +400,7 @@ def update_product_variant(variant_data, product_id, variant_id):
 
 
 @products_bp.route("/<string:product_id>/variants/<string:variant_id>", methods=["DELETE"])
-@admin_required
+@require_permission("enterprise:products:write")
 def delete_product_variant(product_id, variant_id):
     """Delete a product variant (Admin)."""
     variant = db.session.query(ProductVariant).filter_by(id=variant_id, product_id=product_id).first()
@@ -394,7 +413,7 @@ def delete_product_variant(product_id, variant_id):
 
 
 @products_bp.route("/<string:product_id>/sync-stock", methods=["POST"])
-@admin_required
+@require_permission("enterprise:products:write")
 def sync_product_stock(product_id):
     """Force synchronize Redis inventory cache with PostgreSQL DB state (Admin)."""
     try:

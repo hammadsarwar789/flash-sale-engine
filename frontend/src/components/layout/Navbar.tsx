@@ -77,8 +77,8 @@ export const Navbar: React.FC = () => {
                 )}
               </Link>
 
-              {/* Admin Link if role === 'admin' */}
-              {user?.role === 'admin' && (
+              {/* Admin Link for admin/manager roles */}
+              {(user?.role === 'admin' || user?.role === 'manager') && (
                 <Link
                   to="/admin"
                   className={`relative py-5 transition-colors font-mono text-xs uppercase tracking-wider ${
@@ -87,6 +87,20 @@ export const Navbar: React.FC = () => {
                 >
                   [ ADMIN RAIL ]
                   {isActive('/admin') && (
+                    <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-signal" />
+                  )}
+                </Link>
+              )}
+
+              {user?.role === 'stock_operator' && (
+                <Link
+                  to="/staff"
+                  className={`relative py-5 transition-colors font-mono text-xs uppercase tracking-wider ${
+                    isActive('/staff') ? 'text-signal font-semibold' : 'text-ash hover:text-ink'
+                  }`}
+                >
+                  [ STAFF RAIL ]
+                  {isActive('/staff') && (
                     <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-signal" />
                   )}
                 </Link>
@@ -142,13 +156,22 @@ export const Navbar: React.FC = () => {
                     >
                       MY ORDERS
                     </Link>
-                    {user?.role === 'admin' && (
+                    {(user?.role === 'admin' || user?.role === 'manager') && (
                       <Link
                         to="/admin"
                         onClick={() => setIsUserDropdownOpen(false)}
                         className="block px-2 py-1.5 text-signal hover:bg-paper-sunk font-semibold"
                       >
                         ADMIN CONTROL CENTER
+                      </Link>
+                    )}
+                    {user?.role === 'stock_operator' && (
+                      <Link
+                        to="/staff"
+                        onClick={() => setIsUserDropdownOpen(false)}
+                        className="block px-2 py-1.5 text-signal hover:bg-paper-sunk font-semibold"
+                      >
+                        STAFF CONTROL CENTER
                       </Link>
                     )}
                     <button

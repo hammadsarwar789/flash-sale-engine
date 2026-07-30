@@ -51,6 +51,7 @@ export const AdminPage: React.FC = () => {
   const [permissionsList, setPermissionsList] = useState<any[]>([]);
   const [outletInventories, setOutletInventories] = useState<any[]>([]);
   const [selectedOutletId, setSelectedOutletId] = useState<string>('out_fsd_01');
+  const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
 
   // Role creation state
   const [newRoleName, setNewRoleName] = useState('');
@@ -74,6 +75,7 @@ export const AdminPage: React.FC = () => {
   const [prodStock, setProdStock] = useState<number>(100);
   const [prodDesc, setProdDesc] = useState('');
   const [prodCatId, setProdCatId] = useState('');
+  const [prodVendorId, setProdVendorId] = useState('');
   const [prodDiscountPct, setProdDiscountPct] = useState<number>(0);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
@@ -107,22 +109,32 @@ export const AdminPage: React.FC = () => {
   const [editProdPrice, setEditProdPrice] = useState<number>(0);
   const [editProdStock, setEditProdStock] = useState<number>(0);
   const [editProdCatId, setEditProdCatId] = useState('');
+  const [editProdVendorId, setEditProdVendorId] = useState('');
   const [editProdDiscountPct, setEditProdDiscountPct] = useState<number>(0);
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
+
+  // Variant editor state
+  const [variantSku, setVariantSku] = useState('');
+  const [variantName, setVariantName] = useState('');
+  const [variantColor, setVariantColor] = useState('');
+  const [variantSize, setVariantSize] = useState('');
+  const [variantPrice, setVariantPrice] = useState<number>(0);
+  const [variantStock, setVariantStock] = useState<number>(0);
+  const [isCreatingVariant, setIsCreatingVariant] = useState(false);
 
   const loadAdminData = async () => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
       const [statsData, prodsData, catsData, ordersData, usersData, outboxData, logsData, couponsData, approvalsData, auditLogsData, rolesData, permsData, outletInvData] = await Promise.all([
-        adminApi.getStats().catch(() => null),
+        role === 'admin' ? adminApi.getStats().catch(() => null) : Promise.resolve(null),
         productsApi.getProducts({ per_page: 100 }).catch(() => ({ items: [] as Product[] })),
         productsApi.getCategories().catch(() => []),
-        adminApi.getAdminOrders(orderStatusFilter || undefined).catch(() => []),
-        adminApi.listUsers().catch(() => []),
-        adminApi.getOutboxEvents().catch(() => []),
-        adminApi.listTaskLogs().catch(() => []),
-        adminApi.listCoupons().catch(() => []),
+        (role === 'admin' || role === 'manager') ? adminApi.getAdminOrders(orderStatusFilter || undefined).catch(() => []) : Promise.resolve([]),
+        (role === 'admin' || role === 'manager') ? adminApi.listUsers().catch(() => []) : Promise.resolve([]),
+        role === 'admin' ? adminApi.getOutboxEvents().catch(() => []) : Promise.resolve([]),
+        role === 'admin' ? adminApi.listTaskLogs().catch(() => []) : Promise.resolve([]),
+        role === 'admin' ? adminApi.listCoupons().catch(() => []) : Promise.resolve([]),
         (role === 'admin' || role === 'manager') ? adminApi.getApprovals(approvalStatusFilter).catch(() => []) : Promise.resolve([]),
         (role === 'admin' || role === 'manager') ? adminApi.getApprovalAuditLogs().catch(() => []) : Promise.resolve([]),
         role === 'admin' ? adminApi.getRoles().catch(() => []) : Promise.resolve([]),
@@ -170,12 +182,14 @@ export const AdminPage: React.FC = () => {
         total_stock: validStock,
         description: prodDesc,
         category_id: prodCatId || undefined,
+        vendor_id: prodVendorId || undefined,
         discount_percentage: validDiscount,
       } as any);
       setSuccessMsg(`Product '${prodName}' created with ${validDiscount}% discount.`);
       setProdName('');
       setProdSku('');
       setProdDesc('');
+      setProdVendorId('');
       setProdDiscountPct(0);
       loadAdminData();
     } catch (err: any) {
@@ -191,6 +205,7 @@ export const AdminPage: React.FC = () => {
     setEditProdPrice(Math.max(0.01, Number(p.price) || 0));
     setEditProdStock(Math.max(0, p.total_stock || p.available_stock || 0));
     setEditProdCatId(typeof p.category === 'object' ? (p.category as any)?.id || '' : p.category_id || '');
+    setEditProdVendorId(p.vendor_id || '');
     setEditProdDiscountPct(Math.min(100, Math.max(0, Number((p as any).discount_percentage) || 0)));
   };
 
@@ -210,6 +225,7 @@ export const AdminPage: React.FC = () => {
         total_stock: validStock,
         available_stock: validStock,
         category_id: editProdCatId || undefined,
+        vendor_id: editProdVendorId || undefined,
         discount_percentage: validDiscount,
       } as any);
       setSuccessMsg(`Product '${editProdName}' updated successfully (${validDiscount}% discount applied).`);
@@ -229,6 +245,41 @@ export const AdminPage: React.FC = () => {
       loadAdminData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to sync stock cache.');
+    }
+  };
+
+  const handleCreateVariant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editProduct) return;
+
+    setIsCreatingVariant(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const validVariantPrice = Math.max(0.01, variantPrice || 0);
+      const validVariantStock = Math.max(0, variantStock || 0);
+      await adminApi.createVariant(editProduct.id, {
+        sku: variantSku.toUpperCase(),
+        name: variantName,
+        color: variantColor || undefined,
+        size: variantSize || undefined,
+        price: validVariantPrice,
+        total_stock: validVariantStock,
+        available_stock: validVariantStock,
+      });
+      setSuccessMsg(`Variant '${variantSku}' added to '${editProduct.name}'.`);
+      setVariantSku('');
+      setVariantName('');
+      setVariantColor('');
+      setVariantSize('');
+      setVariantPrice(0);
+      setVariantStock(0);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to create variant.');
+    } finally {
+      setIsCreatingVariant(false);
     }
   };
 
@@ -303,6 +354,29 @@ export const AdminPage: React.FC = () => {
       setErrorMsg(err.message || 'Failed to create promo coupon.');
     } finally {
       setIsCreatingCoupon(false);
+    }
+  };
+
+  const handleToggleCoupon = async (couponId: string, code: string, currentStatus: boolean) => {
+    try {
+      const res = await adminApi.toggleCoupon(couponId);
+      setSuccessMsg(res.message || `Coupon '${code}' ${currentStatus ? 'paused' : 'resumed'}.`);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || `Failed to update status for coupon '${code}'.`);
+    }
+  };
+
+  const handleDeleteCoupon = async (couponId: string, code: string) => {
+    if (!window.confirm(`Are you sure you want to delete promo coupon code '${code}'? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await adminApi.deleteCoupon(couponId);
+      setSuccessMsg(res.message || `Coupon '${code}' deleted successfully.`);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || `Failed to delete coupon '${code}'.`);
     }
   };
 
@@ -635,6 +709,18 @@ export const AdminPage: React.FC = () => {
                     <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
                   ))}
                 </select>
+                <select
+                  value={prodVendorId}
+                  onChange={(e) => setProdVendorId(e.target.value)}
+                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                >
+                  <option value="">ASSIGN VENDOR (OPTIONAL)</option>
+                  {usersList.filter((u) => u.role === 'vendor').map((vendor) => (
+                    <option key={vendor.id} value={vendor.id}>
+                      {vendor.full_name || vendor.email}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
@@ -664,6 +750,7 @@ export const AdminPage: React.FC = () => {
                     <th className="py-2.5 px-3">SKU</th>
                     <th className="py-2.5 px-3">CATEGORY</th>
                     <th className="py-2.5 px-3">VENDOR</th>
+                    <th className="py-2.5 px-3">VARIANTS</th>
                     <th className="py-2.5 px-3">PRICE</th>
                     <th className="py-2.5 px-3">DISCOUNT</th>
                     <th className="py-2.5 px-3">REDIS STOCK</th>
@@ -673,7 +760,8 @@ export const AdminPage: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-rule/40">
                   {products.map((p) => (
-                    <tr key={p.id} className="hover:bg-paper-sunk/40">
+                    <React.Fragment key={p.id}>
+                    <tr className="hover:bg-paper-sunk/40">
                       <td className="py-2.5 px-3 font-sans font-medium text-ink">{p.name}</td>
                       <td className="py-2.5 px-3 text-ash">{p.sku}</td>
                       <td className="py-2.5 px-3">
@@ -685,6 +773,15 @@ export const AdminPage: React.FC = () => {
                         <span className="bg-paper-sunk px-2 py-0.5 border border-rule text-ink font-semibold">
                           {p.vendor_name || 'Central Outlet'}
                         </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-ash">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedProductId(expandedProductId === p.id ? null : p.id)}
+                          className="underline text-signal hover:text-ink font-semibold"
+                        >
+                          {p.variants?.length || 0} VARIANTS {expandedProductId === p.id ? '▲' : '▼'}
+                        </button>
                       </td>
                       <td className="py-2.5 px-3 text-ink"><Numeric value={Number(p.price)} format="price" zeroPadInt={3} /></td>
                       <td className="py-2.5 px-3 font-semibold">
@@ -711,6 +808,38 @@ export const AdminPage: React.FC = () => {
                         </button>
                       </td>
                     </tr>
+                    {expandedProductId === p.id && (
+                      <tr className="bg-paper-sunk/30">
+                        <td colSpan={10} className="py-3 px-3">
+                          <div className="border border-rule bg-paper p-3 space-y-2">
+                            <div className="flex items-center justify-between text-[11px] font-mono text-ash uppercase">
+                              <span>Variant Details</span>
+                              <span>{p.variants?.length || 0} records</span>
+                            </div>
+                            {p.variants && p.variants.length > 0 ? (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {p.variants.map((variant) => (
+                                  <div key={variant.id} className="border border-rule px-3 py-2 bg-paper-sunk flex items-center justify-between gap-3">
+                                    <div>
+                                      <p className="font-semibold text-ink">{variant.name}</p>
+                                      <p className="text-[11px] text-ash font-mono">SKU: {variant.sku}</p>
+                                      <p className="text-[11px] text-ash font-mono">COLOR: {variant.color || 'N/A'} · SIZE: {variant.size || 'N/A'}</p>
+                                    </div>
+                                    <div className="text-right font-mono text-[11px]">
+                                      <p className="text-ink font-semibold">{variant.available_stock} / {variant.total_stock} STOCK</p>
+                                      <p className="text-gain">${Number(variant.price || 0).toFixed(2)}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-ash font-mono text-xs">No variants seeded yet.</p>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
@@ -935,34 +1064,63 @@ export const AdminPage: React.FC = () => {
                     <th className="py-2.5 px-3">MIN ORDER</th>
                     <th className="py-2.5 px-3">TIMES USED</th>
                     <th className="py-2.5 px-3">EXPIRATION DATE / STATUS</th>
+                    <th className="py-2.5 px-3 text-right">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-rule/40">
                   {coupons.map((c) => {
                     const isExp = c.expires_at && new Date(c.expires_at).getTime() < Date.now();
+                    const isPaused = c.is_active === false;
                     return (
                       <tr key={c.id} className="hover:bg-paper-sunk/40">
-                        <td className="py-2.5 px-3 font-semibold text-ink">{c.code}</td>
+                        <td className="py-2.5 px-3 font-semibold text-ink flex items-center space-x-2">
+                          <span>{c.code}</span>
+                          {isPaused && (
+                            <span className="px-1.5 py-0.5 text-[10px] bg-loss/10 text-loss border border-loss/30 uppercase font-bold">
+                              PAUSED
+                            </span>
+                          )}
+                        </td>
                         <td className="py-2.5 px-3 text-signal font-semibold">
                           {c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `$${c.discount_value} OFF`}
                         </td>
                         <td className="py-2.5 px-3 text-ash">${c.min_order_amount || '0.00'}</td>
                         <td className="py-2.5 px-3 text-ink">{c.times_used || 0} TIMES</td>
                         <td className="py-2.5 px-3">
-                          {c.expires_at ? (
+                          {isPaused ? (
+                            <span className="text-loss font-semibold">INACTIVE / PAUSED</span>
+                          ) : c.expires_at ? (
                             <span className={isExp ? 'text-loss font-semibold' : 'text-gain font-semibold'}>
                               {isExp ? `EXPIRED (${new Date(c.expires_at).toLocaleDateString()})` : `VALID UNTIL ${new Date(c.expires_at).toLocaleDateString()}`}
                             </span>
                           ) : (
-                            <span className="text-ash">NO EXPIRATION (PERPETUAL)</span>
+                            <span className="text-gain font-semibold">ACTIVE (PERPETUAL)</span>
                           )}
+                        </td>
+                        <td className="py-2.5 px-3 text-right space-x-2">
+                          <button
+                            onClick={() => handleToggleCoupon(c.id, c.code, c.is_active)}
+                            className={`px-2.5 py-1 text-[11px] font-mono font-semibold transition-colors cursor-pointer ${
+                              c.is_active
+                                ? 'bg-paper-sunk border border-rule text-ash hover:text-ink'
+                                : 'bg-gain text-paper hover:bg-gain/90'
+                            }`}
+                          >
+                            {c.is_active ? 'PAUSE ⏸' : 'RESUME ▶'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCoupon(c.id, c.code)}
+                            className="px-2.5 py-1 text-[11px] font-mono font-semibold bg-loss text-paper hover:bg-loss/90 transition-colors cursor-pointer"
+                          >
+                            DELETE ✕
+                          </button>
                         </td>
                       </tr>
                     );
                   })}
                   {coupons.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="py-4 text-center text-ash">No active promotional coupon codes issued yet.</td>
+                      <td colSpan={6} className="py-4 text-center text-ash">No active promotional coupon codes issued yet.</td>
                     </tr>
                   )}
                 </tbody>
@@ -1040,7 +1198,9 @@ export const AdminPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-right">
-                        {u.id !== user?.id ? (
+                        {u.id === user?.id ? (
+                          <span className="text-ash text-[11px] font-mono font-semibold">SELF (YOU)</span>
+                        ) : role === 'admin' ? (
                           <button
                             onClick={() => handleDeleteUser(u.id, u.email, u.role || 'user')}
                             className="px-2.5 py-1 bg-loss text-paper font-semibold hover:bg-loss/90 transition-colors text-[11px] cursor-pointer"
@@ -1048,7 +1208,7 @@ export const AdminPage: React.FC = () => {
                             DELETE ✕
                           </button>
                         ) : (
-                          <span className="text-ash text-[11px] font-mono font-semibold">SELF (YOU)</span>
+                          <span className="text-ash text-[11px] font-mono font-semibold">VIEW ONLY</span>
                         )}
                       </td>
                     </tr>
@@ -1062,10 +1222,10 @@ export const AdminPage: React.FC = () => {
         {/* TAB 6: PENDING REGISTRATION APPROVALS */}
         {activeTab === 'approvals' && (
           <div className="space-y-6">
-            {role !== 'admin' && (
+            {role !== 'admin' && role !== 'manager' && (
               <div className="p-4 border border-loss bg-paper text-loss font-mono text-xs space-y-3">
                 <div className="font-bold flex items-center justify-between">
-                  <span>🔒 SUPER ADMIN PRIVILEGES REQUIRED FOR FULL APPROVAL CONTROL</span>
+                  <span>🔒 ADMIN OR MANAGER PRIVILEGES REQUIRED FOR APPROVAL CONTROL</span>
                   <button
                     onClick={async () => {
                       await logout();
@@ -1077,7 +1237,7 @@ export const AdminPage: React.FC = () => {
                   </button>
                 </div>
                 <p>You are currently logged in as <span className="underline font-semibold">{user?.email}</span> (Role: <span className="uppercase font-bold">{role}</span>).</p>
-                <p>To view and approve pending registration requests, please log in as Super Admin:</p>
+                <p>To view and approve pending registration requests, please log in with an authorized admin or manager account:</p>
                 <div className="p-2.5 bg-paper-sunk border border-rule font-semibold text-ink inline-block">
                   Email: <span className="text-signal">admin@flashsale.com</span> · Password: <span className="text-signal">Password123</span>
                 </div>
@@ -1485,6 +1645,85 @@ export const AdminPage: React.FC = () => {
                     <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="space-y-1">
+                <Eyebrow className="text-ash block">ASSIGN VENDOR</Eyebrow>
+                <select
+                  value={editProdVendorId}
+                  onChange={(e) => setEditProdVendorId(e.target.value)}
+                  className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
+                >
+                  <option value="">NO VENDOR / CENTRAL OUTLET</option>
+                  {usersList.filter((u) => u.role === 'vendor').map((vendor) => (
+                    <option key={vendor.id} value={vendor.id}>{vendor.full_name || vendor.email}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pt-4 border-t border-rule space-y-3">
+                <div className="flex items-center justify-between">
+                  <Eyebrow className="text-ash block">ADD VARIANT</Eyebrow>
+                  <span className="text-[11px] text-ash font-mono">{editProduct.variants?.length || 0} EXISTING</span>
+                </div>
+                <form onSubmit={handleCreateVariant} className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    required
+                    placeholder="VARIANT SKU"
+                    value={variantSku}
+                    onChange={(e) => setVariantSku(e.target.value)}
+                    className="bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    required
+                    placeholder="VARIANT NAME"
+                    value={variantName}
+                    onChange={(e) => setVariantName(e.target.value)}
+                    className="bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="COLOR"
+                    value={variantColor}
+                    onChange={(e) => setVariantColor(e.target.value)}
+                    className="bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="SIZE"
+                    value={variantSize}
+                    onChange={(e) => setVariantSize(e.target.value)}
+                    className="bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
+                  />
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required
+                    placeholder="PRICE"
+                    value={variantPrice || ''}
+                    onChange={(e) => setVariantPrice(Math.max(0.01, parseFloat(e.target.value) || 0))}
+                    className="bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    placeholder="STOCK"
+                    value={variantStock || ''}
+                    onChange={(e) => setVariantStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                    className="bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isCreatingVariant}
+                    className="col-span-2 px-4 py-2 bg-signal text-paper font-semibold hover:bg-signal/90 disabled:opacity-50"
+                  >
+                    {isCreatingVariant ? 'CREATING VARIANT...' : 'CREATE VARIANT →'}
+                  </button>
+                </form>
               </div>
 
               <div className="pt-2 flex justify-end space-x-3">

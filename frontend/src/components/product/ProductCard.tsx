@@ -13,6 +13,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }
   const stock = product.available_stock ?? product.total_stock ?? 0;
   const isLive = stock > 0 && stock <= 15;
   const issueLabel = issueNumber || (product.sku ? `SKU: ${product.sku.toUpperCase()}` : `Nº ${String(product.id).slice(0, 8).toUpperCase()}`);
+  const variantColors = Array.from(new Set((product.variants || []).map((variant) => variant.color).filter(Boolean))) as string[];
 
   const defaultImg =
     product.images && product.images.length > 0
@@ -78,6 +79,32 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }
         <Eyebrow className="text-ash block">
           {typeof product.category === 'string' ? product.category : product.category?.name || 'CATALOG'}
         </Eyebrow>
+        {variantColors.length > 0 && (
+          <div className="flex items-center space-x-1.5 pt-1">
+            {variantColors.slice(0, 4).map((color) => {
+              const colorKey = color.toLowerCase();
+              const swatch = colorKey.includes('black')
+                ? '#111111'
+                : colorKey.includes('gold')
+                ? '#B08D57'
+                : colorKey.includes('silver') || colorKey.includes('grey') || colorKey.includes('gray')
+                ? '#A8A8A8'
+                : colorKey.includes('white')
+                ? '#F5F1E8'
+                : '#3A3A38';
+
+              return (
+                <span
+                  key={color}
+                  title={color}
+                  className="inline-flex h-3.5 w-3.5 rounded-full border border-rule"
+                  style={{ backgroundColor: swatch }}
+                />
+              );
+            })}
+            {variantColors.length > 4 && <span className="text-[10px] text-ash font-mono">+{variantColors.length - 4}</span>}
+          </div>
+        )}
       </div>
 
       {/* Pricing & Monospace Block Stock Gauge */}

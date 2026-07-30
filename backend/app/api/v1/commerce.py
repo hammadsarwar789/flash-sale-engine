@@ -93,6 +93,33 @@ def create_coupon():
     return jsonify(coupon.to_dict()), 201
 
 
+@commerce_bp.route("/coupons/<string:coupon_id>/toggle", methods=["PATCH"])
+@admin_required
+def toggle_coupon(coupon_id: str):
+    """Toggle promo coupon active status (Resume / Pause)."""
+    coupon = db.session.query(Coupon).filter_by(id=coupon_id).first()
+    if not coupon:
+        return jsonify({"message": f"Coupon '{coupon_id}' not found"}), 404
+
+    coupon.is_active = not coupon.is_active
+    db.session.commit()
+    return jsonify({"message": f"Coupon code '{coupon.code}' status updated", "coupon": coupon.to_dict()}), 200
+
+
+@commerce_bp.route("/coupons/<string:coupon_id>", methods=["DELETE"])
+@admin_required
+def delete_coupon(coupon_id: str):
+    """Delete a promotional coupon code (Admin)."""
+    coupon = db.session.query(Coupon).filter_by(id=coupon_id).first()
+    if not coupon:
+        return jsonify({"message": f"Coupon '{coupon_id}' not found"}), 404
+
+    db.session.delete(coupon)
+    db.session.commit()
+    return jsonify({"message": f"Coupon '{coupon.code}' deleted successfully"}), 200
+
+
+
 # --- Product Review Endpoints ---
 
 def user_has_delivered_order(user_id: str, product_id: str) -> bool:
@@ -125,11 +152,12 @@ def check_review_eligibility(product_id: str):
     user_id = g.current_user_id
     eligible = user_has_delivered_order(user_id, product_id)
     if eligible:
-        return jsonify({"eligible": True, "message": "Eligible to write product review"}), 200
+        return jsonify({"eligible": True, "message": "Eligible to write product review", "reason": "Eligible to write product review"}), 200
     else:
         return jsonify({
             "eligible": False,
-            "message": "Only customers who have received delivery of this product can submit a review."
+            "message": "Purchase & receive this product to leave a review.",
+            "reason": "Purchase & receive this product to leave a review.",
         }), 200
 
 
