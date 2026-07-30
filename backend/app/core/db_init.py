@@ -44,9 +44,10 @@ def sync_database_schema():
                 conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS carrier VARCHAR(64);"))
                 conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_intent_id VARCHAR(255);"))
 
-                # 4. Update 'cart_items' & 'order_items' for variant_id
+                # 4. Update 'cart_items' & 'order_items' for variant_id and sub_order_id
                 conn.execute(text("ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))
+                conn.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS sub_order_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE coupons ADD COLUMN IF NOT EXISTS max_uses_per_user INTEGER DEFAULT 1;"))
 
         # Create any new tables
