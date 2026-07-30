@@ -10,6 +10,7 @@ from app.api.v1.roles import roles_bp
 from app.api.v1.approvals import approvals_bp
 from app.api.v1.outlet_inventory import outlet_inventory_bp
 from app.api.v1.vendor import vendor_bp
+from app.api.v1.logistics import logistics_bp
 
 __all__ = [
     "auth_bp",
@@ -24,4 +25,5 @@ __all__ = [
     "approvals_bp",
     "outlet_inventory_bp",
     "vendor_bp",
+    "logistics_bp",
 ]

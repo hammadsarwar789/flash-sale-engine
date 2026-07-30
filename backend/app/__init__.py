@@ -77,6 +77,7 @@ def create_app(config_name: str = None) -> Flask:
     smorest_api.register_blueprint(approvals_bp)
     smorest_api.register_blueprint(outlet_inventory_bp)
     smorest_api.register_blueprint(vendor_bp)
+    smorest_api.register_blueprint(logistics_bp)
 
     # Root API Index route
     @app.route("/")

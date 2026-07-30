@@ -18,6 +18,7 @@ from app.models.task_log import TaskLog
 from app.models.seller import Seller, SellerStaff, SellerKYCDocument, Warehouse
 from app.models.sub_order import SubOrder
 from app.models.financials import CommissionRule, LedgerEntry, PayoutRequest
+from app.models.logistics import Carrier, Shipment
 
 __all__ = [
     "User",
@@ -53,4 +54,6 @@ __all__ = [
     "CommissionRule",
     "LedgerEntry",
     "PayoutRequest",
+    "Carrier",
+    "Shipment",
 ]
