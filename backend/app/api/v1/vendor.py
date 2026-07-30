@@ -91,3 +91,63 @@ def get_vendor_profile():
         "has_seller_account": True,
         "seller": seller.to_dict(),
     }), 200
+
+
+# --- Vendor Sub-Orders & Fulfillment Queue ---
+
+@vendor_bp.route("/sub-orders", methods=["GET"])
+@jwt_required
+def list_vendor_sub_orders():
+    """Retrieve sub-orders assigned to current merchant store for order fulfillment."""
+    from app.models.sub_order import SubOrder
+    user_id = g.current_user_id
+    seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
+
+    if not seller:
+        staff_entry = db.session.query(SellerStaff).filter_by(user_id=user_id).first()
+        if staff_entry:
+            seller = staff_entry.seller
+
+    if not seller:
+        return jsonify({"error": "Forbidden", "message": "You must be an approved merchant owner or staff to view sub-orders."}), 403
+
+    status_filter = request.args.get("status", "").upper()
+    query = db.session.query(SubOrder).filter_by(seller_id=seller.id)
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+
+    sub_orders = query.order_by(SubOrder.created_at.desc()).all()
+    return jsonify([so.to_dict() for so in sub_orders]), 200
+
+
+@vendor_bp.route("/sub-orders/<string:sub_order_id>/status", methods=["PATCH"])
+@jwt_required
+def update_vendor_sub_order_status(sub_order_id: str):
+    """Update fulfillment status of a vendor sub-order (e.g. PACKED, SHIPPED, DELIVERED)."""
+    from app.models.sub_order import SubOrder
+    user_id = g.current_user_id
+    data = request.get_json() or {}
+    new_status = data.get("status", "").upper()
+
+    if new_status not in ["PENDING", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED"]:
+        return jsonify({"error": "Bad Request", "message": "Invalid sub-order status."}), 400
+
+    sub_order = db.session.query(SubOrder).filter_by(id=sub_order_id).first()
+    if not sub_order:
+        return jsonify({"error": "Not Found", "message": f"Sub-order '{sub_order_id}' not found."}), 404
+
+    # Verify authorization
+    seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
+    is_owner_or_staff = (seller and seller.id == sub_order.seller_id)
+    if not is_owner_or_staff:
+        staff_entry = db.session.query(SellerStaff).filter_by(user_id=user_id, seller_id=sub_order.seller_id).first()
+        is_owner_or_staff = bool(staff_entry)
+
+    user = db.session.query(User).filter_by(id=user_id).first()
+    if not is_owner_or_staff and (not user or user.role != "admin"):
+        return jsonify({"error": "Forbidden", "message": "You are not authorized to update this sub-order."}), 403
+
+    sub_order.status = new_status
+    db.session.commit()
+
+    return jsonify({"message": f"Sub-order status updated to '{new_status}'.", "sub_order": sub_order.to_dict()}), 200

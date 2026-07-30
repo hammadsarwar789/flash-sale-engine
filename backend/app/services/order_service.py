@@ -501,6 +501,14 @@ class OrderService:
 
             db.session.commit()
             logger.info(f"Order {order_id} successfully paid.")
+
+            # Trigger Order Splitting Engine into Vendor SubOrders
+            try:
+                from app.services.order_splitter import split_order_by_seller
+                split_order_by_seller(order_id)
+            except Exception as split_err:
+                logger.error(f"Order splitting warning for paid order '{order_id}': {split_err}")
+
             return True, "Payment completed successfully"
 
         except Exception as e:

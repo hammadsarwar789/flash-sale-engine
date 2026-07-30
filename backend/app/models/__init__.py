@@ -16,6 +16,7 @@ from app.models.order_item import OrderItem
 from app.models.outbox import OutboxEvent, OutboxStatus
 from app.models.task_log import TaskLog
 from app.models.seller import Seller, SellerStaff, SellerKYCDocument, Warehouse
+from app.models.sub_order import SubOrder
 
 __all__ = [
     "User",
@@ -47,4 +48,5 @@ __all__ = [
     "SellerStaff",
     "SellerKYCDocument",
     "Warehouse",
+    "SubOrder",
 ]
