@@ -11,6 +11,7 @@ import { OrdersPage } from './pages/OrdersPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { WishlistPage } from './pages/WishlistPage';
 import { AdminPage } from './pages/AdminPage';
+import { VendorPortalPage } from './pages/VendorPortalPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
@@ -104,6 +105,16 @@ export const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <WishlistPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Vendor Merchant Portal Route */}
+        <Route
+          path="vendor"
+          element={
+            <ProtectedRoute>
+              <VendorPortalPage />
             </ProtectedRoute>
           }
         />

@@ -34,7 +34,7 @@ export const AdminPage: React.FC = () => {
   }
 
   const initialTab = role === 'stock_operator' ? 'outlets' : (role === 'manager' ? 'products' : 'overview');
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'coupons' | 'categories' | 'users' | 'approvals' | 'roles' | 'outlets'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'coupons' | 'categories' | 'users' | 'approvals' | 'roles' | 'outlets' | 'sellers' | 'payouts'>(initialTab);
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -50,6 +50,8 @@ export const AdminPage: React.FC = () => {
   const [rolesList, setRolesList] = useState<any[]>([]);
   const [permissionsList, setPermissionsList] = useState<any[]>([]);
   const [outletInventories, setOutletInventories] = useState<any[]>([]);
+  const [sellersList, setSellersList] = useState<any[]>([]);
+  const [payoutsList, setPayoutsList] = useState<any[]>([]);
   const [selectedOutletId, setSelectedOutletId] = useState<string>('out_fsd_01');
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
 
@@ -128,7 +130,7 @@ export const AdminPage: React.FC = () => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const [statsData, prodsData, catsData, ordersData, usersData, outboxData, logsData, couponsData, approvalsData, auditLogsData, rolesData, permsData, outletInvData] = await Promise.all([
+      const [statsData, prodsData, catsData, ordersData, usersData, outboxData, logsData, couponsData, approvalsData, auditLogsData, rolesData, permsData, outletInvData, sellersData, payoutsData] = await Promise.all([
         role === 'admin' ? adminApi.getStats().catch(() => null) : Promise.resolve(null),
         productsApi.getProducts({ per_page: 100 }).catch(() => ({ items: [] as Product[] })),
         productsApi.getCategories().catch(() => []),
@@ -142,6 +144,8 @@ export const AdminPage: React.FC = () => {
         role === 'admin' ? adminApi.getRoles().catch(() => []) : Promise.resolve([]),
         role === 'admin' ? adminApi.getPermissions().catch(() => []) : Promise.resolve([]),
         adminApi.getOutletInventory(selectedOutletId).catch(() => []),
+        role === 'admin' ? adminApi.getSellers().catch(() => []) : Promise.resolve([]),
+        role === 'admin' ? adminApi.getPayouts().catch(() => []) : Promise.resolve([]),
       ]);
 
       if (statsData) setStats(statsData);
@@ -157,6 +161,8 @@ export const AdminPage: React.FC = () => {
       setRolesList(rolesData || []);
       setPermissionsList(permsData || []);
       setOutletInventories(outletInvData || []);
+      setSellersList(sellersData || []);
+      setPayoutsList(payoutsData || []);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to load admin telemetry data.');
     } finally {
@@ -443,6 +449,26 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleUpdateSellerStatus = async (sellerId: string, status: 'APPROVED' | 'SUSPENDED' | 'REJECTED') => {
+    try {
+      const res = await adminApi.updateSellerStatus(sellerId, status);
+      setSuccessMsg(res.message || `Seller status updated to ${status}.`);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || `Failed to update seller status.`);
+    }
+  };
+
+  const handleUpdatePayoutStatus = async (payoutId: string, status: 'PROCESSING' | 'PAID' | 'REJECTED') => {
+    try {
+      const res = await adminApi.updatePayoutStatus(payoutId, status);
+      setSuccessMsg(res.message || `Payout status updated to ${status}.`);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || `Failed to update payout status.`);
+    }
+  };
+
   const handleTransferStock = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -576,6 +602,28 @@ export const AdminPage: React.FC = () => {
               }`}
             >
               08. OUTLET STOCKS
+            </button>
+          )}
+
+          {role === 'admin' && (
+            <button
+              onClick={() => setActiveTab('sellers')}
+              className={`w-full text-left px-3 py-2 border transition-colors ${
+                activeTab === 'sellers' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+              }`}
+            >
+              09. MERCHANT DIRECTORY ({sellersList.length})
+            </button>
+          )}
+
+          {role === 'admin' && (
+            <button
+              onClick={() => setActiveTab('payouts')}
+              className={`w-full text-left px-3 py-2 border transition-colors ${
+                activeTab === 'payouts' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+              }`}
+            >
+              10. PAYOUT CLEARINGHOUSE ({payoutsList.length})
             </button>
           )}
         </nav>
@@ -1718,6 +1766,136 @@ export const AdminPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 9: MERCHANT DIRECTORY & KYC AUDIT */}
+        {activeTab === 'sellers' && (
+          <div className="space-y-8">
+            <div className="flex justify-between items-center border-b border-rule pb-4">
+              <h2 className="font-serif text-3xl text-ink">Merchant Seller Directory & KYC Audit</h2>
+              <Eyebrow className="text-signal block font-mono">MULTI-VENDOR ONBOARDING QUEUE</Eyebrow>
+            </div>
+
+            <div className="border border-rule bg-paper overflow-x-auto font-mono text-xs">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-paper-sunk border-b border-rule text-ash">
+                    <th className="py-2.5 px-3">STORE NAME</th>
+                    <th className="py-2.5 px-3">SLUG</th>
+                    <th className="py-2.5 px-3">OWNER / EMAIL</th>
+                    <th className="py-2.5 px-3">REG / TAX ID</th>
+                    <th className="py-2.5 px-3">COMMISSION</th>
+                    <th className="py-2.5 px-3">STATUS</th>
+                    <th className="py-2.5 px-3 text-right">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rule/40">
+                  {sellersList.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-ash">NO MERCHANT APPLICATIONS SUBMITTED.</td>
+                    </tr>
+                  ) : (
+                    sellersList.map((s) => (
+                      <tr key={s.id} className="hover:bg-paper-sunk/40">
+                        <td className="py-2.5 px-3 text-ink font-semibold">{s.store_name}</td>
+                        <td className="py-2.5 px-3 text-signal font-semibold">/{s.store_slug}</td>
+                        <td className="py-2.5 px-3 text-ash">
+                          {s.owner_name} <span className="text-[10px]">({s.owner_email || 'N/A'})</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-ash">
+                          {s.business_registration_no || 'N/A'} / {s.tax_id || 'N/A'}
+                        </td>
+                        <td className="py-2.5 px-3 text-ink font-semibold">{s.commission_rate}%</td>
+                        <td className="py-2.5 px-3 font-semibold">
+                          <span className={`px-2 py-0.5 text-[10px] ${
+                            s.status === 'APPROVED' ? 'bg-gain/20 text-gain' : 'bg-signal/20 text-signal'
+                          }`}>
+                            ● {s.status}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right space-x-2">
+                          {s.status !== 'APPROVED' && (
+                            <button
+                              onClick={() => handleUpdateSellerStatus(s.id, 'APPROVED')}
+                              className="px-2.5 py-1 text-[11px] font-semibold bg-gain text-paper hover:bg-gain/90 transition-colors"
+                            >
+                              APPROVE STORE ✓
+                            </button>
+                          )}
+                          {s.status === 'APPROVED' && (
+                            <button
+                              onClick={() => handleUpdateSellerStatus(s.id, 'SUSPENDED')}
+                              className="px-2.5 py-1 text-[11px] font-semibold bg-loss text-paper hover:bg-loss/90 transition-colors"
+                            >
+                              SUSPEND ✕
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 10: PAYOUT CLEARINGHOUSE */}
+        {activeTab === 'payouts' && (
+          <div className="space-y-8">
+            <div className="flex justify-between items-center border-b border-rule pb-4">
+              <h2 className="font-serif text-3xl text-ink">Financial Clearinghouse & Merchant Payouts</h2>
+              <Eyebrow className="text-signal block font-mono">MERCHANT ESCROW WITHDRAWAL QUEUE</Eyebrow>
+            </div>
+
+            <div className="border border-rule bg-paper overflow-x-auto font-mono text-xs">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-paper-sunk border-b border-rule text-ash">
+                    <th className="py-2.5 px-3">PAYOUT ID</th>
+                    <th className="py-2.5 px-3">MERCHANT STORE</th>
+                    <th className="py-2.5 px-3">AMOUNT</th>
+                    <th className="py-2.5 px-3">STATUS</th>
+                    <th className="py-2.5 px-3">REQUESTED AT</th>
+                    <th className="py-2.5 px-3 text-right">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rule/40">
+                  {payoutsList.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-ash">NO PAYOUT REQUESTS PENDING.</td>
+                    </tr>
+                  ) : (
+                    payoutsList.map((p) => (
+                      <tr key={p.id} className="hover:bg-paper-sunk/40">
+                        <td className="py-2.5 px-3 text-ink font-semibold">{p.id.slice(0, 8)}...</td>
+                        <td className="py-2.5 px-3 font-semibold text-ink">{p.seller_name}</td>
+                        <td className="py-2.5 px-3 text-gain font-semibold">${p.amount.toFixed(2)}</td>
+                        <td className="py-2.5 px-3 font-semibold">
+                          <span className={`px-2 py-0.5 text-[10px] ${
+                            p.status === 'PAID' ? 'bg-gain/20 text-gain' : 'bg-signal/20 text-signal'
+                          }`}>
+                            ● {p.status}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-ash">{new Date(p.requested_at).toLocaleString()}</td>
+                        <td className="py-2.5 px-3 text-right space-x-2">
+                          {p.status !== 'PAID' && (
+                            <button
+                              onClick={() => handleUpdatePayoutStatus(p.id, 'PAID')}
+                              className="px-2.5 py-1 text-[11px] font-semibold bg-gain text-paper hover:bg-gain/90 transition-colors"
+                            >
+                              MARK PAID 💰
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

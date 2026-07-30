@@ -77,6 +77,20 @@ export const Navbar: React.FC = () => {
                 )}
               </Link>
 
+              {isAuthenticated && (
+                <Link
+                  to="/vendor"
+                  className={`relative py-5 transition-colors font-mono text-xs uppercase tracking-wider ${
+                    isActive('/vendor') ? 'text-signal font-semibold' : 'text-ash hover:text-ink'
+                  }`}
+                >
+                  [ VENDOR DESK ]
+                  {isActive('/vendor') && (
+                    <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-signal" />
+                  )}
+                </Link>
+              )}
+
               {/* Admin Link for admin/manager roles */}
               {(user?.role === 'admin' || user?.role === 'manager') && (
                 <Link

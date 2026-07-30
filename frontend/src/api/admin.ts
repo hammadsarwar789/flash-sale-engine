@@ -262,4 +262,17 @@ export const adminApi = {
       body: JSON.stringify({ status }),
     });
   },
+
+  // --- Merchant Payout Clearinghouse ---
+  async getPayouts(status?: string): Promise<any[]> {
+    const q = status ? `?status=${status}` : '';
+    return apiFetch<any[]>(`/admin/payouts${q}`);
+  },
+
+  async updatePayoutStatus(payoutId: string, status: 'PROCESSING' | 'PAID' | 'REJECTED'): Promise<any> {
+    return apiFetch<any>(`/admin/payouts/${payoutId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
 };
