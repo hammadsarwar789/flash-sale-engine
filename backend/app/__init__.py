@@ -14,6 +14,9 @@ from app.api import (
     roles_bp,
     approvals_bp,
     outlet_inventory_bp,
+    vendor_bp,
+    logistics_bp,
+    support_bp,
 )
 
 
