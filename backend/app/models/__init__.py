@@ -19,6 +19,7 @@ from app.models.seller import Seller, SellerStaff, SellerKYCDocument, Warehouse
 from app.models.sub_order import SubOrder
 from app.models.financials import CommissionRule, LedgerEntry, PayoutRequest
 from app.models.logistics import Carrier, Shipment
+from app.models.dispute import SellerRating, Dispute
 
 __all__ = [
     "User",
@@ -56,4 +57,6 @@ __all__ = [
     "PayoutRequest",
     "Carrier",
     "Shipment",
+    "SellerRating",
+    "Dispute",
 ]
