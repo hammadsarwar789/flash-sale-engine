@@ -13,6 +13,10 @@ roles_bp = Blueprint("roles", "roles", url_prefix="/api/v1/admin", description="
 def get_permissions():
     """List all available system permissions."""
     perms = db.session.query(Permission).all()
+    if not perms:
+        from app.core.db_init import ensure_default_permissions_and_roles
+        ensure_default_permissions_and_roles()
+        perms = db.session.query(Permission).all()
     return jsonify([p.to_dict() for p in perms]), 200
 
 
@@ -42,11 +46,16 @@ def create_permission():
 @require_permission("enterprise:roles:read")
 def get_roles():
     """List all dynamic roles for tenant."""
-    tenant_id = g.tenant_id
-    query = db.session.query(Role)
-    if tenant_id:
-        query = query.filter_by(tenant_id=tenant_id)
-    roles = query.all()
+    tenant_id = g.tenant_id or "ten_default"
+    roles = db.session.query(Role).filter(
+        (Role.tenant_id == tenant_id) | (Role.tenant_id == "ten_default")
+    ).all()
+    if not roles:
+        from app.core.db_init import ensure_default_permissions_and_roles
+        ensure_default_permissions_and_roles()
+        roles = db.session.query(Role).filter(
+            (Role.tenant_id == tenant_id) | (Role.tenant_id == "ten_default")
+        ).all()
     return jsonify([r.to_dict() for r in roles]), 200
 
 
@@ -58,7 +67,7 @@ def create_role():
     name = data.get("name")
     description = data.get("description", "")
     permission_codes = data.get("permissions", [])
-    tenant_id = g.tenant_id or data.get("tenant_id", "default_tenant")
+    tenant_id = g.tenant_id or data.get("tenant_id") or "ten_default"
 
     if not name:
         return jsonify({"error": "Bad Request", "message": "Role 'name' is required."}), 400
@@ -77,6 +86,19 @@ def create_role():
     db.session.add(role)
     db.session.commit()
     return jsonify(role.to_dict()), 201
+
+
+@roles_bp.route("/roles/<string:role_id>", methods=["DELETE"])
+@require_permission("enterprise:roles:write")
+def delete_role(role_id: str):
+    """Delete a dynamic custom role."""
+    role = db.session.query(Role).filter_by(id=role_id).first()
+    if not role:
+        return jsonify({"error": "Not Found", "message": f"Role '{role_id}' not found."}), 404
+
+    db.session.delete(role)
+    db.session.commit()
+    return jsonify({"message": f"Role '{role.name}' deleted successfully"}), 200
 
 
 @roles_bp.route("/users/<string:user_id>/roles", methods=["POST"])

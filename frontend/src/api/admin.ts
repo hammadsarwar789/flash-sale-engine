@@ -211,6 +211,12 @@ export const adminApi = {
     });
   },
 
+  async deleteRole(roleId: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>(`/admin/roles/${roleId}`, {
+      method: 'DELETE',
+    });
+  },
+
   async assignUserRoles(userId: string, data: { role_ids: string[]; outlet_ids: string[] }): Promise<any> {
     return apiFetch<any>(`/admin/users/${userId}/roles`, {
       method: 'POST',
@@ -234,6 +240,26 @@ export const adminApi = {
     return apiFetch<any>('/outlets/inventory/transfer', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+
+  // --- Merchant Seller Management ---
+  async getSellers(status?: string): Promise<any[]> {
+    const q = status ? `?status=${status}` : '';
+    return apiFetch<any[]>(`/admin/sellers${q}`);
+  },
+
+  async updateSellerStatus(sellerId: string, status: 'APPROVED' | 'SUSPENDED' | 'REJECTED' | 'PENDING'): Promise<any> {
+    return apiFetch<any>(`/admin/sellers/${sellerId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  async reviewSellerKyc(sellerId: string, docId: string, status: 'VERIFIED' | 'REJECTED'): Promise<any> {
+    return apiFetch<any>(`/admin/sellers/${sellerId}/kyc/${docId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
     });
   },
 };

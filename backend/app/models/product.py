@@ -11,6 +11,8 @@ class Product(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     category_id = db.Column(db.String(36), db.ForeignKey("categories.id"), nullable=True, index=True)
     vendor_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True, index=True)
+    seller_id = db.Column(db.String(36), db.ForeignKey("sellers.id", ondelete="SET NULL"), nullable=True, index=True)
+    warehouse_id = db.Column(db.String(36), db.ForeignKey("warehouses.id", ondelete="SET NULL"), nullable=True, index=True)
     name = db.Column(db.String(255), nullable=False)
     sku = db.Column(db.String(64), unique=True, nullable=False, index=True)
     description = db.Column(db.Text, nullable=True)
@@ -36,6 +38,8 @@ class Product(db.Model):
 
     category = db.relationship("Category", back_populates="products")
     vendor = db.relationship("User", foreign_keys=[vendor_id])
+    seller = db.relationship("Seller", back_populates="products", foreign_keys=[seller_id])
+    warehouse = db.relationship("Warehouse", foreign_keys=[warehouse_id])
     variants = db.relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan", lazy="joined")
     orders = db.relationship("Order", back_populates="product", lazy="select")
 

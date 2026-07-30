@@ -430,6 +430,19 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleDeleteRole = async (roleId: string, roleName: string) => {
+    if (!window.confirm(`Are you sure you want to delete custom role '${roleName}'? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await adminApi.deleteRole(roleId);
+      setSuccessMsg(res.message || `Role '${roleName}' deleted successfully.`);
+      loadAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || `Failed to delete role '${roleName}'.`);
+    }
+  };
+
   const handleTransferStock = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -1512,9 +1525,19 @@ export const AdminPage: React.FC = () => {
 
               <div>
                 <Eyebrow className="text-ash block mb-2">SELECT PERMISSION CODES</Eyebrow>
-                <div className="grid grid-cols-3 gap-2 border border-rule bg-paper p-3 max-h-40 overflow-y-auto">
-                  {permissionsList.map((p) => (
-                    <label key={p.id} className="flex items-center space-x-2 text-[11px] text-ink cursor-pointer">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 border border-rule bg-paper p-3 max-h-48 overflow-y-auto">
+                  {(permissionsList.length > 0 ? permissionsList : [
+                    { id: 'p1', code: 'outlet:stock:read', description: 'Read outlet inventory stock levels' },
+                    { id: 'p2', code: 'outlet:stock:write', description: 'Adjust and transfer outlet stock' },
+                    { id: 'p3', code: 'outlet:staff:approve', description: 'Approve or reject staff onboarding requests' },
+                    { id: 'p4', code: 'enterprise:roles:read', description: 'Read dynamic roles and permission matrix' },
+                    { id: 'p5', code: 'enterprise:roles:write', description: 'Create and modify dynamic custom roles' },
+                    { id: 'p6', code: 'enterprise:roles:assign', description: 'Assign roles to user accounts' },
+                    { id: 'p7', code: 'enterprise:orders:manage', description: 'Fulfill orders, update status, and process refunds' },
+                    { id: 'p8', code: 'enterprise:products:manage', description: 'Create, edit, and delete catalog products' },
+                    { id: 'p9', code: 'enterprise:coupons:manage', description: 'Generate and manage promo coupons' },
+                  ]).map((p) => (
+                    <label key={p.code} className="flex items-center space-x-2 text-[11px] text-ink cursor-pointer hover:bg-paper-sunk p-1 border border-transparent hover:border-rule">
                       <input
                         type="checkbox"
                         checked={selectedPerms.includes(p.code)}
@@ -1523,13 +1546,16 @@ export const AdminPage: React.FC = () => {
                           else setSelectedPerms(selectedPerms.filter((code) => code !== p.code));
                         }}
                       />
-                      <span>{p.code}</span>
+                      <div>
+                        <span className="font-semibold block">{p.code}</span>
+                        <span className="text-[10px] text-ash block">{p.description}</span>
+                      </div>
                     </label>
                   ))}
                 </div>
               </div>
 
-              <button type="submit" className="px-4 py-2 bg-ink text-paper font-semibold hover:bg-graphite">
+              <button type="submit" className="px-5 py-2.5 bg-ink text-paper font-semibold hover:bg-graphite transition-colors">
                 CREATE ROLE & BIND PERMISSIONS →
               </button>
             </form>
@@ -1542,7 +1568,8 @@ export const AdminPage: React.FC = () => {
                     <th className="py-2.5 px-3">ROLE ID</th>
                     <th className="py-2.5 px-3">ROLE NAME</th>
                     <th className="py-2.5 px-3">ASSIGNED PERMISSIONS</th>
-                    <th className="py-2.5 px-3 text-right">TYPE</th>
+                    <th className="py-2.5 px-3">TYPE</th>
+                    <th className="py-2.5 px-3 text-right">ACTION</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-rule/40">
@@ -1551,10 +1578,28 @@ export const AdminPage: React.FC = () => {
                       <td className="py-2.5 px-3 text-ink font-semibold">{r.id}</td>
                       <td className="py-2.5 px-3 text-ink font-semibold">{r.name}</td>
                       <td className="py-2.5 px-3 text-ash">
-                        {r.permissions && r.permissions.length > 0 ? r.permissions.join(', ') : 'NONE'}
+                        {r.permissions && r.permissions.length > 0
+                          ? (Array.isArray(r.permissions)
+                              ? r.permissions.map((p: any) => (typeof p === 'string' ? p : p.code)).join(', ')
+                              : 'ALL PERMISSIONS')
+                          : 'NONE'}
                       </td>
-                      <td className="py-2.5 px-3 text-right text-signal font-semibold">
-                        {r.is_system_role ? 'SYSTEM' : 'CUSTOM'}
+                      <td className="py-2.5 px-3 font-semibold">
+                        <span className={r.is_system_role || r.name.toLowerCase().includes('admin') ? 'text-signal' : 'text-gain'}>
+                          {r.is_system_role || r.name.toLowerCase().includes('admin') ? 'SYSTEM ROLE' : 'CUSTOM ROLE'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        {!r.is_system_role && !r.name.toLowerCase().includes('admin') ? (
+                          <button
+                            onClick={() => handleDeleteRole(r.id, r.name)}
+                            className="px-2.5 py-1 text-[11px] font-mono font-semibold bg-loss text-paper hover:bg-loss/90 transition-colors cursor-pointer"
+                          >
+                            DELETE ✕
+                          </button>
+                        ) : (
+                          <span className="text-ash text-[11px]">PROTECTED</span>
+                        )}
                       </td>
                     </tr>
                   ))}

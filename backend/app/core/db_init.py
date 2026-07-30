@@ -26,6 +26,8 @@ def sync_database_schema():
                 # 2. Update existing 'products' table
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS category_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS vendor_id VARCHAR(36);"))
+                conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS seller_id VARCHAR(36);"))
+                conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS warehouse_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT;"))
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;"))
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percentage DOUBLE PRECISION DEFAULT 0.0;"))
@@ -50,6 +52,7 @@ def sync_database_schema():
         # Create any new tables
         db.create_all()
         ensure_default_outlets()
+        ensure_default_permissions_and_roles()
         ensure_default_admin()
         ensure_default_products_and_variants()
         logger.info("Database schema synchronized successfully.")
@@ -59,10 +62,58 @@ def sync_database_schema():
         try:
             db.create_all()
             ensure_default_outlets()
+            ensure_default_permissions_and_roles()
             ensure_default_admin()
             ensure_default_products_and_variants()
         except Exception:
             pass
+
+
+def ensure_default_permissions_and_roles():
+    """Ensure standard system permissions and default roles exist in database."""
+    try:
+        from app.models.rbac import Permission, Role
+
+        system_permissions = [
+            ("outlet:stock:read", "inventory", "Read outlet inventory stock levels"),
+            ("outlet:stock:write", "inventory", "Adjust and transfer outlet stock"),
+            ("outlet:staff:approve", "approvals", "Approve or reject staff onboarding requests"),
+            ("enterprise:roles:read", "rbac", "Read dynamic roles and permission matrix"),
+            ("enterprise:roles:write", "rbac", "Create and modify dynamic custom roles"),
+            ("enterprise:roles:assign", "rbac", "Assign roles to user accounts"),
+            ("enterprise:orders:manage", "orders", "Fulfill orders, update status, and process refunds"),
+            ("enterprise:products:manage", "catalog", "Create, edit, and delete catalog products"),
+            ("enterprise:coupons:manage", "coupons", "Generate and manage promo coupons"),
+        ]
+
+        for code, module, desc in system_permissions:
+            perm = db.session.query(Permission).filter_by(code=code).first()
+            if not perm:
+                perm = Permission(code=code, module=module, description=desc)
+                db.session.add(perm)
+
+        db.session.commit()
+
+        # Seed default Super Admin and Manager roles if missing
+        admin_role = db.session.query(Role).filter_by(tenant_id="ten_default", name="Super Administrator").first()
+        if not admin_role:
+            all_perms = db.session.query(Permission).all()
+            admin_role = Role(tenant_id="ten_default", name="Super Administrator", description="Full enterprise administrative privilege access")
+            admin_role.permissions = all_perms
+            db.session.add(admin_role)
+
+        mgr_role = db.session.query(Role).filter_by(tenant_id="ten_default", name="Store Manager").first()
+        if not mgr_role:
+            mgr_perms = db.session.query(Permission).filter(Permission.code.in_([
+                "outlet:stock:read", "outlet:stock:write", "outlet:staff:approve", "enterprise:orders:manage"
+            ])).all()
+            mgr_role = Role(tenant_id="ten_default", name="Store Manager", description="Store branch operational management")
+            mgr_role.permissions = mgr_perms
+            db.session.add(mgr_role)
+
+        db.session.commit()
+    except Exception as e:
+        logger.warning(f"Permissions/Roles initialization warning: {e}")
 
 
 def ensure_default_outlets():

@@ -15,6 +15,7 @@ from app.models.cart import CartItem
 from app.models.order_item import OrderItem
 from app.models.outbox import OutboxEvent, OutboxStatus
 from app.models.task_log import TaskLog
+from app.models.seller import Seller, SellerStaff, SellerKYCDocument, Warehouse
 
 __all__ = [
     "User",
@@ -42,4 +43,8 @@ __all__ = [
     "OutboxEvent",
     "OutboxStatus",
     "TaskLog",
+    "Seller",
+    "SellerStaff",
+    "SellerKYCDocument",
+    "Warehouse",
 ]

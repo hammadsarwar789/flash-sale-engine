@@ -88,22 +88,29 @@ def delete_user(user_id):
 
     try:
         # Clean up secondary / non-historical dependent records
-        db.session.query(UserRole).filter_by(user_id=user_id).delete()
-        db.session.query(UserOutletScope).filter_by(user_id=user_id).delete()
-        db.session.query(CartItem).filter_by(user_id=user_id).delete()
-        db.session.query(WishlistItem).filter_by(user_id=user_id).delete()
-        db.session.query(ShippingAddress).filter_by(user_id=user_id).delete()
-        db.session.query(Review).filter_by(user_id=user_id).delete()
+        user = db.session.query(User).filter_by(id=user_id).first()
+        if not user:
+            return jsonify({"error": "Not Found", "message": f"User '{user_id}' not found."}), 404
 
-        # Unlink vendor from products
-        db.session.query(Product).filter_by(vendor_id=user_id).update({"vendor_id": None})
+        # 1. Clear cart items and wishlist
+        db.session.query(CartItem).filter_by(user_id=user_id).delete(synchronize_session=False)
+        db.session.query(WishlistItem).filter_by(user_id=user_id).delete(synchronize_session=False)
 
-        db.session.delete(target_user)
+        # 2. Clear reviews & shipping addresses
+        db.session.query(Review).filter_by(user_id=user_id).delete(synchronize_session=False)
+        db.session.query(ShippingAddress).filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 3. Clear RBAC roles & outlet scopes
+        db.session.query(UserRole).filter_by(user_id=user_id).delete(synchronize_session=False)
+        db.session.query(UserOutletScope).filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 4. Delete user account
+        db.session.delete(user)
         db.session.commit()
 
-        return jsonify({
-            "message": f"Account '{target_user.email}' ({target_role.upper()}) deleted successfully."
-        }), 200
+        return jsonify({"message": f"User account '{target_user.email}' ({target_role}) deleted successfully."}), 200
+
+
     except Exception:
         db.session.rollback()
         # Fallback: If hard delete fails due to immutable history (e.g. Orders or Audit Logs FK constraint), deactivate user
@@ -189,3 +196,76 @@ def list_task_logs():
         .all()
     )
     return jsonify([l.to_dict() for l in logs]), 200
+
+
+# --- Merchant Seller & KYC Management ---
+
+@admin_bp.route("/sellers", methods=["GET"])
+@admin_required
+def list_sellers():
+    """List all merchant sellers for approval, suspension, or compliance audit (Admin)."""
+    from app.models.seller import Seller
+    from flask import request
+    status_filter = request.args.get("status", "").upper()
+    query = db.session.query(Seller)
+    if status_filter:
+        query = query.filter(Seller.status == status_filter)
+    sellers = query.order_by(Seller.created_at.desc()).all()
+    return jsonify([s.to_dict() for s in sellers]), 200
+
+
+@admin_bp.route("/sellers/<string:seller_id>/status", methods=["PATCH"])
+@admin_required
+def update_seller_status(seller_id: str):
+    """Approve, suspend, or reject a merchant store (Admin)."""
+    from datetime import datetime, timezone
+    from app.models.seller import Seller
+    from flask import request
+    data = request.get_json() or {}
+    status = data.get("status", "").upper()
+
+    if status not in ["APPROVED", "SUSPENDED", "REJECTED", "PENDING"]:
+        return jsonify({"error": "Bad Request", "message": "Status must be APPROVED, SUSPENDED, REJECTED, or PENDING."}), 400
+
+    seller = db.session.query(Seller).filter_by(id=seller_id).first()
+    if not seller:
+        return jsonify({"error": "Not Found", "message": f"Seller '{seller_id}' not found."}), 404
+
+    seller.status = status
+
+    # Update seller owner user status
+    if seller.owner:
+        if status == "APPROVED":
+            seller.owner.status = "ACTIVE"
+            seller.owner.is_active = True
+        elif status in ["SUSPENDED", "REJECTED"]:
+            seller.owner.status = status
+            seller.owner.is_active = False
+
+    db.session.commit()
+    return jsonify({"message": f"Seller '{seller.store_name}' status set to '{status}'.", "seller": seller.to_dict()}), 200
+
+
+@admin_bp.route("/sellers/<string:seller_id>/kyc/<string:doc_id>", methods=["PATCH"])
+@admin_required
+def review_seller_kyc_doc(seller_id: str, doc_id: str):
+    """Review and verify or reject a seller KYC document (Admin)."""
+    from datetime import datetime, timezone
+    from app.models.seller import SellerKYCDocument
+    from flask import request
+    data = request.get_json() or {}
+    status = data.get("status", "").upper()
+
+    if status not in ["VERIFIED", "REJECTED"]:
+        return jsonify({"error": "Bad Request", "message": "Status must be VERIFIED or REJECTED."}), 400
+
+    doc = db.session.query(SellerKYCDocument).filter_by(id=doc_id, seller_id=seller_id).first()
+    if not doc:
+        return jsonify({"error": "Not Found", "message": "KYC document not found."}), 404
+
+    doc.status = status
+    doc.reviewed_by = getattr(g, "current_user_id", None) or getattr(g, "user_id", None)
+    doc.reviewed_at = datetime.now(timezone.utc)
+    db.session.commit()
+
+    return jsonify({"message": f"KYC document '{doc.doc_type}' set to '{status}'.", "kyc_document": doc.to_dict()}), 200
