@@ -45,6 +45,7 @@ def sync_database_schema():
                 # 4. Update 'cart_items' & 'order_items' for variant_id
                 conn.execute(text("ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))
+                conn.execute(text("ALTER TABLE coupons ADD COLUMN IF NOT EXISTS max_uses_per_user INTEGER DEFAULT 1;"))
 
         # Create any new tables
         db.create_all()

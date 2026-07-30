@@ -151,6 +151,8 @@ export const adminApi = {
     discount_type: 'percentage' | 'fixed';
     discount_value: number;
     min_order_amount?: number;
+    usage_limit?: number;
+    max_uses_per_user?: number;
     valid_days?: number;
   }): Promise<Coupon> {
     return apiFetch<Coupon>('/coupons', {

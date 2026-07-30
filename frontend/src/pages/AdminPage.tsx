@@ -86,6 +86,8 @@ export const AdminPage: React.FC = () => {
   const [discountValue, setDiscountValue] = useState<number>(15);
   const [couponMinOrder, setCouponMinOrder] = useState<number>(0);
   const [couponValidDays, setCouponValidDays] = useState<number>(7);
+  const [couponUsageLimit, setCouponUsageLimit] = useState<number>(0);
+  const [couponMaxPerUser, setCouponMaxPerUser] = useState<number>(1);
   const [isCreatingCoupon, setIsCreatingCoupon] = useState(false);
 
   // Order Fulfillment update state & search/modals
@@ -338,17 +340,23 @@ export const AdminPage: React.FC = () => {
     const validVal = Math.max(0.01, discountValue || 0);
     const validMin = Math.max(0, couponMinOrder || 0);
     const validDays = Math.max(0, couponValidDays || 0);
+    const usageLimit = Math.max(0, couponUsageLimit || 0);
+    const maxPerUser = Math.max(1, couponMaxPerUser || 1);
     try {
       await adminApi.createCoupon({
         code: couponCode.toUpperCase(),
         discount_type: discountType,
         discount_value: validVal,
         min_order_amount: validMin,
+        usage_limit: usageLimit > 0 ? usageLimit : undefined,
+        max_uses_per_user: maxPerUser,
         valid_days: validDays > 0 ? validDays : undefined,
       });
-      setSuccessMsg(`Promo code '${couponCode}' issued (Min order: $${validMin.toFixed(2)}).`);
+      setSuccessMsg(`Promo code '${couponCode}' issued (Max per user: ${maxPerUser}, Global limit: ${usageLimit > 0 ? usageLimit : 'Unlimited'}).`);
       setCouponCode('');
       setCouponMinOrder(0);
+      setCouponUsageLimit(0);
+      setCouponMaxPerUser(1);
       loadAdminData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to create promo coupon.');
@@ -998,33 +1006,33 @@ export const AdminPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreateCoupon} className="border border-rule p-4 bg-paper-sunk space-y-3 font-mono text-xs">
-              <Eyebrow className="text-ink block">ISSUE NEW PROMOTIONAL CODE</Eyebrow>
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+              <Eyebrow className="text-ink block">ISSUE NEW PROMOTIONAL CODE & USAGE RULES</Eyebrow>
+              <div className="grid grid-cols-1 sm:grid-cols-7 gap-2">
                 <input
                   type="text"
                   required
                   placeholder="PROMO CODE (E.G. SUMMER30)"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  className="bg-paper border border-rule px-3 py-1.5 text-ink uppercase focus:outline-none"
+                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink uppercase focus:outline-none"
                 />
                 <select
                   value={discountType}
                   onChange={(e) => setDiscountType(e.target.value as any)}
-                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink focus:outline-none"
                 >
-                  <option value="percentage">PERCENTAGE (%) DISCOUNT</option>
-                  <option value="fixed">FIXED DOLLAR ($) DISCOUNT</option>
+                  <option value="percentage">PERCENTAGE (%)</option>
+                  <option value="fixed">FIXED DOLLAR ($)</option>
                 </select>
                 <input
                   type="number"
                   required
                   min="0.01"
                   step="0.01"
-                  placeholder="VALUE (E.G. 15 OR 30)"
+                  placeholder="DISCOUNT VALUE"
                   value={discountValue}
                   onChange={(e) => setDiscountValue(Math.max(0.01, parseFloat(e.target.value) || 0))}
-                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink focus:outline-none"
                 />
                 <input
                   type="number"
@@ -1033,16 +1041,34 @@ export const AdminPage: React.FC = () => {
                   placeholder="MIN ORDER ($)"
                   value={couponMinOrder || ''}
                   onChange={(e) => setCouponMinOrder(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink focus:outline-none"
                 />
                 <input
                   type="number"
                   min="0"
                   step="1"
-                  placeholder="VALID DURATION (DAYS, E.G. 7)"
+                  placeholder="FIRST N USERS LIMIT (0 = ALL)"
+                  value={couponUsageLimit || ''}
+                  onChange={(e) => setCouponUsageLimit(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink focus:outline-none"
+                />
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="MAX USES PER USER"
+                  value={couponMaxPerUser || ''}
+                  onChange={(e) => setCouponMaxPerUser(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink focus:outline-none"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="VALID (DAYS)"
                   value={couponValidDays || ''}
                   onChange={(e) => setCouponValidDays(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                  className="bg-paper border border-rule px-2.5 py-1.5 text-ink focus:outline-none"
                 />
               </div>
               <button
@@ -1062,7 +1088,8 @@ export const AdminPage: React.FC = () => {
                     <th className="py-2.5 px-3">PROMO CODE</th>
                     <th className="py-2.5 px-3">DISCOUNT</th>
                     <th className="py-2.5 px-3">MIN ORDER</th>
-                    <th className="py-2.5 px-3">TIMES USED</th>
+                    <th className="py-2.5 px-3">USER LIMIT</th>
+                    <th className="py-2.5 px-3">GLOBAL USES / LIMIT</th>
                     <th className="py-2.5 px-3">EXPIRATION DATE / STATUS</th>
                     <th className="py-2.5 px-3 text-right">ACTIONS</th>
                   </tr>
@@ -1071,6 +1098,8 @@ export const AdminPage: React.FC = () => {
                   {coupons.map((c) => {
                     const isExp = c.expires_at && new Date(c.expires_at).getTime() < Date.now();
                     const isPaused = c.is_active === false;
+                    const isLimitReached = c.usage_limit && (c.times_used || 0) >= c.usage_limit;
+
                     return (
                       <tr key={c.id} className="hover:bg-paper-sunk/40">
                         <td className="py-2.5 px-3 font-semibold text-ink flex items-center space-x-2">
@@ -1080,15 +1109,33 @@ export const AdminPage: React.FC = () => {
                               PAUSED
                             </span>
                           )}
+                          {isLimitReached && (
+                            <span className="px-1.5 py-0.5 text-[10px] bg-warn/10 text-warn border border-warn/30 uppercase font-bold">
+                              LIMIT REACHED
+                            </span>
+                          )}
                         </td>
                         <td className="py-2.5 px-3 text-signal font-semibold">
                           {c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `$${c.discount_value} OFF`}
                         </td>
                         <td className="py-2.5 px-3 text-ash">${c.min_order_amount || '0.00'}</td>
-                        <td className="py-2.5 px-3 text-ink">{c.times_used || 0} TIMES</td>
+                        <td className="py-2.5 px-3 text-ink font-semibold">
+                          {c.max_uses_per_user ? `${c.max_uses_per_user} USE / ACCOUNT` : '1 USE / ACCOUNT'}
+                        </td>
+                        <td className="py-2.5 px-3 text-ink">
+                          {c.usage_limit ? (
+                            <span className={isLimitReached ? 'text-loss font-semibold' : 'text-ink font-semibold'}>
+                              {c.times_used || 0} / {c.usage_limit} USES
+                            </span>
+                          ) : (
+                            <span className="text-ash">{c.times_used || 0} USES (NO LIMIT)</span>
+                          )}
+                        </td>
                         <td className="py-2.5 px-3">
                           {isPaused ? (
                             <span className="text-loss font-semibold">INACTIVE / PAUSED</span>
+                          ) : isLimitReached ? (
+                            <span className="text-warn font-semibold">AUTO-DEACTIVATED (MAX REDEMPTIONS)</span>
                           ) : c.expires_at ? (
                             <span className={isExp ? 'text-loss font-semibold' : 'text-gain font-semibold'}>
                               {isExp ? `EXPIRED (${new Date(c.expires_at).toLocaleDateString()})` : `VALID UNTIL ${new Date(c.expires_at).toLocaleDateString()}`}
@@ -1120,7 +1167,7 @@ export const AdminPage: React.FC = () => {
                   })}
                   {coupons.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="py-4 text-center text-ash">No active promotional coupon codes issued yet.</td>
+                      <td colSpan={7} className="py-4 text-center text-ash">No active promotional coupon codes issued yet.</td>
                     </tr>
                   )}
                 </tbody>

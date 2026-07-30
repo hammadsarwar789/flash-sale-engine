@@ -2026,6 +2026,7 @@ export interface Coupon {
   discount_value: number;
   min_order_amount: number;
   usage_limit?: number;
+  max_uses_per_user?: number;
   times_used?: number;
   expires_at?: string | null;
   is_active: boolean;

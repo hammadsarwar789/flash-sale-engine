@@ -22,22 +22,59 @@ def list_coupons():
 
 @commerce_bp.route("/coupons/validate", methods=["POST"])
 def validate_coupon():
-    """Validate a promo code for discount applicability."""
+    """Validate a promo code for discount applicability, global limits, and per-user limits."""
     data = request.get_json() or {}
     code = data.get("code")
     amount = float(data.get("amount", 0.0))
+    user_id = data.get("user_id")
+
+    if not user_id:
+        try:
+            from flask import current_app
+            from app.core.security import decode_access_token
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                token_str = auth_header.split(" ")[1]
+                secret_key = current_app.config.get("JWT_SECRET_KEY") or current_app.config["SECRET_KEY"]
+                payload = decode_access_token(token_str, secret_key)
+                if payload and "sub" in payload:
+                    user_id = payload["sub"]
+        except Exception:
+            pass
 
     if not code:
         return jsonify({"message": "Coupon code is required"}), 400
 
-    coupon = db.session.query(Coupon).filter_by(code=code.upper(), is_active=True).first()
+    coupon = db.session.query(Coupon).filter_by(code=code.upper()).first()
     if not coupon:
         return jsonify({"valid": False, "message": "Invalid or expired coupon code"}), 404
+
+    if not coupon.is_active:
+        return jsonify({"valid": False, "message": "This promo coupon code is currently inactive or paused"}), 400
 
     if coupon.expires_at:
         exp_dt = coupon.expires_at.replace(tzinfo=timezone.utc) if coupon.expires_at.tzinfo is None else coupon.expires_at
         if datetime.now(timezone.utc) > exp_dt:
             return jsonify({"valid": False, "message": "This promo coupon code has expired"}), 400
+
+    # 1. Global usage limit check (First N users)
+    if coupon.usage_limit is not None and coupon.usage_limit > 0:
+        if coupon.times_used >= coupon.usage_limit:
+            coupon.is_active = False
+            db.session.commit()
+            return jsonify({"valid": False, "message": f"Coupon limit reached ({coupon.usage_limit} total redemptions limit exceeded)"}), 400
+
+    # 2. Per-User usage limit check
+    if user_id and coupon.max_uses_per_user:
+        from app.models.coupon import CouponRedemption
+        user_usage_count = db.session.query(CouponRedemption).filter_by(
+            coupon_id=coupon.id, user_id=user_id
+        ).count()
+        if user_usage_count >= coupon.max_uses_per_user:
+            return jsonify({
+                "valid": False,
+                "message": f"You have reached the maximum allowed limit of {coupon.max_uses_per_user} use(s) for this coupon."
+            }), 400
 
     if amount < float(coupon.min_order_amount):
         return jsonify({
@@ -57,13 +94,16 @@ def validate_coupon():
         "discount_type": coupon.discount_type,
         "discount_value": float(coupon.discount_value),
         "calculated_discount": discount,
+        "max_uses_per_user": coupon.max_uses_per_user,
+        "usage_limit": coupon.usage_limit,
+        "times_used": coupon.times_used,
     }), 200
 
 
 @commerce_bp.route("/coupons", methods=["POST"])
 @admin_required
 def create_coupon():
-    """Create a new promotional coupon code with optional expiration (Admin)."""
+    """Create a new promotional coupon code with optional expiration, global usage limits, and per-user limits (Admin)."""
     data = request.get_json() or {}
     code = data.get("code", "").upper()
     if not code:
@@ -79,18 +119,58 @@ def create_coupon():
         except Exception:
             pass
 
+    usage_limit = None
+    if data.get("usage_limit") is not None and str(data["usage_limit"]).isdigit() and int(data["usage_limit"]) > 0:
+        usage_limit = int(data["usage_limit"])
+
+    max_uses_per_user = 1
+    if data.get("max_uses_per_user") is not None and str(data["max_uses_per_user"]).isdigit() and int(data["max_uses_per_user"]) > 0:
+        max_uses_per_user = int(data["max_uses_per_user"])
+
     coupon = Coupon(
         code=code,
         discount_type=data.get("discount_type", "percentage"),
         discount_value=data.get("discount_value", 10.0),
         min_order_amount=data.get("min_order_amount", 0.0),
-        usage_limit=data.get("usage_limit"),
+        usage_limit=usage_limit,
+        max_uses_per_user=max_uses_per_user,
         expires_at=expires_at,
         is_active=True,
     )
     db.session.add(coupon)
     db.session.commit()
     return jsonify(coupon.to_dict()), 201
+
+
+@commerce_bp.route("/coupons/redeem", methods=["POST"])
+@jwt_required
+def redeem_coupon():
+    """Redeem a coupon code upon order checkout, recording per-user redemption and checking auto-deactivation."""
+    user_id = g.current_user_id
+    data = request.get_json() or {}
+    code = data.get("code")
+    order_id = data.get("order_id")
+
+    if not code:
+        return jsonify({"message": "Coupon code is required"}), 400
+
+    coupon = db.session.query(Coupon).filter_by(code=code.upper(), is_active=True).first()
+    if not coupon:
+        return jsonify({"message": "Coupon code not found or inactive"}), 404
+
+    from app.models.coupon import CouponRedemption
+    redemption = CouponRedemption(coupon_id=coupon.id, user_id=user_id, order_id=order_id)
+    db.session.add(redemption)
+
+    coupon.times_used = (coupon.times_used or 0) + 1
+
+    # Auto-deactivate if global limit reached!
+    if coupon.usage_limit is not None and coupon.usage_limit > 0:
+        if coupon.times_used >= coupon.usage_limit:
+            coupon.is_active = False
+
+    db.session.commit()
+    return jsonify({"message": "Coupon redeemed successfully", "coupon": coupon.to_dict()}), 200
 
 
 @commerce_bp.route("/coupons/<string:coupon_id>/toggle", methods=["PATCH"])
