@@ -8,13 +8,13 @@ A production-grade, full-stack distributed e-commerce platform and high-concurre
 
 ### 🛍️ 1. Floor Catalog & Real-Time Drops (`/products`)
 ![Trading Floor Catalog](frontend/public/screenshots/catalog.png)
-*High-density 4-column product grid featuring issue counters (`Nº 001`), live signal dots, monospace stock block gauges (`▓▓▓▓▓░░░`), category filters (`● ALL`, `FOOTWEAR`, `TECH`), and zero-padded tabular prices (`$099.99`).*
+*High-density 4-column product grid featuring issue counters (`Nº 001`), live signal dots, monospace stock block gauges (`▓▓▓▓▓░░░`), category filters (`● ALL`, `FOOTWEAR`, `TECH`), inline variant color swatches, and zero-padded tabular prices (`$099.99`).*
 
 ---
 
 ### 🛒 2. Cart & Reserved Inventory Hold Timer (`/cart`)
 ![Cart & Inventory Hold Timer](frontend/public/screenshots/cart.png)
-*Active inventory reservation hold timer featuring real-time digit-flip countdown, `localStorage` persistence across page refreshes, promo coupon code validation, and sticky order subtotal summary.*
+*Active inventory reservation hold timer featuring real-time digit-flip countdown, `localStorage` persistence across page refreshes, promo coupon code validation with usage hints, and sticky order subtotal summary.*
 
 ---
 
@@ -26,7 +26,7 @@ A production-grade, full-stack distributed e-commerce platform and high-concurre
 
 ### 🏢 4. Hierarchical Approval Pipeline & Multi-Tenant Control (`/admin`)
 ![Admin Control Rail & Approvals](frontend/public/screenshots/approvals.png)
-*Role-gated Admin Control Floor featuring multi-outlet RBAC, onboarding approval pipeline, user directory deletion controls, and stock ledger telemetry.*
+*Role-gated Admin Control Floor featuring multi-outlet RBAC, onboarding approval pipeline, user directory deletion controls, dynamic custom role generator, promo coupon rules engine, and stock ledger telemetry.*
 
 ---
 
@@ -36,9 +36,9 @@ A production-grade, full-stack distributed e-commerce platform and high-concurre
 flash-sale-engine/
 ├── backend/                  # Python Flask REST API & Async Workers
 │   ├── app/                  # Application core, blueprints, models, schemas, services
-│   │   ├── api/v1/           # Auth, Products, Cart, Orders, Approvals, RBAC, Outlets, Webhooks
+│   │   ├── api/v1/           # Auth, Products, Cart, Orders, Approvals, RBAC, Outlets, Commerce, Webhooks
 │   │   ├── core/             # DB extensions, config, security, rate limiting, RBAC authorization
-│   │   ├── models/           # SQLAlchemy ORM models (Product, Order, User, Tenant, Outlet, Approval, RBAC)
+│   │   ├── models/           # SQLAlchemy ORM models (Product, Order, User, Tenant, Outlet, Approval, RBAC, Coupon, CouponRedemption)
 │   │   ├── schemas/          # Marshmallow validation schemas
 │   │   └── services/         # MultiOutletService, InventoryService, OrderService, PaymentService
 │   ├── tests/                # Automated pytest suite
@@ -50,7 +50,7 @@ flash-sale-engine/
     ├── public/screenshots/   # Visual interface documentation screenshots
     ├── src/
     │   ├── api/              # Typed REST client wrappers (Auth, Products, Cart, Orders, Admin, Commerce)
-    │   ├── components/       # UI components (Navbar, Footer, ProductCard, VariantPicker, ReviewForm, StripeForm)
+    │   ├── components/       # UI components (Navbar, Footer, ProductCard, VariantPicker, ReviewForm, CouponInput, StripeForm)
     │   ├── context/          # AuthContext session management & Bearer token handling
     │   ├── hooks/            # TanStack React Query state management hooks
     │   ├── pages/            # Public & protected views + Admin Portal sub-routes
@@ -63,19 +63,27 @@ flash-sale-engine/
 
 ## 🔥 Key System Capabilities
 
-### 🏢 1. Multi-Tenant Enterprise & Scope-Aware RBAC
+### 🏢 1. Dynamic RBAC & Multi-Tenant Enterprise Scope
+* **Dynamic Custom Role Generator:** Create custom organizational roles (e.g., `Store Manager`, `Stock Auditor`, `Vendor Specialist`) and bind granular permission codes dynamically.
+* **Granular Permission Matrix:** Enforces 9+ permission scopes (`outlet:stock:read`, `outlet:stock:write`, `outlet:staff:approve`, `enterprise:roles:read`, `enterprise:roles:write`, `enterprise:roles:assign`, `enterprise:orders:manage`, `enterprise:products:manage`, `enterprise:coupons:manage`).
 * **Hierarchical Approval Chain:** Onboarding pipeline for Managers (`MANAGER_ONBOARDING`), Staff (`STAFF_ONBOARDING`), and Vendors (`VENDOR_REGISTRATION`). Approvals assign targeted roles and store outlet scopes automatically upon approval.
 * **Hierarchical User Deletion:** Super Admins can manage and delete any vendor or staff account, while store managers can delete staff within their assigned outlet scope.
 * **Outlet Isolation:** Multi-outlet inventory ledger (`Flash Engine FSD` & `Flash Engine LHR`) with atomic inter-outlet stock transfers.
 
-### 🛒 2. "Trading Floor Editorial" Design System (`/frontend`)
+### 🎟️ 2. Advanced Promotional Coupon Engine
+* **Global Usage Limit ("First N Users"):** Set global redemption caps (e.g., valid for the first 50 customers). Automatically deactivates (`AUTO-DEACTIVATED`) once the limit is reached.
+* **Per-User Usage Limit:** Configure maximum allowed redemptions per customer account (e.g., 1 use per account). Redemptions are tracked via the `CouponRedemption` ledger.
+* **Pause / Resume & Deletion Controls:** Instant status toggles (`PAUSE ⏸` / `RESUME ▶`) and soft/hard deletion (`DELETE ✕`) from the Admin Floor.
+* **Cart Hint Badges:** Real-time feedback in the cart UI displaying active discount amounts and usage restriction hints.
+
+### 🛒 3. "Trading Floor Editorial" Design System (`/frontend`)
 * **Editorial Aesthetic Tokens:** Built with Instrument Serif, Inter Tight, and JetBrains Mono. Flat paper surfaces (`--paper`, `--bone`, `--paper-sunk`), hairline borders (`1px solid var(--rule)`), and Signal Red (`#E5321B`) CTAs.
 * **Tabular Monospace Numerics:** All prices, stock counts, order SKUs, and timers use `font-variant-numeric: tabular-nums` with zero-padded formatting (`$099.99`).
 * **Session Persistence:** Session persistence across page refreshes via `/api/v1/auth/me` token validation.
 * **Delivery-Gated Product Reviews:** Verified purchase eligibility check preventing users from leaving product reviews unless they have a verified delivered order.
 * **Product Variant Swatches:** Inline color swatches and size selector options (`S`, `M`, `L`, `XL`) linked directly to stock ledger variants.
 
-### ⚡ 3. High-Concurrency Distributed Backend (`/backend`)
+### ⚡ 4. High-Concurrency Distributed Backend (`/backend`)
 * **Redis Lua Atomic Stock Lock:** High-concurrency inventory holds executed atomically via Redis Lua scripts to eliminate race conditions and database row locking.
 * **Transactional Outbox Pattern:** Ensures atomic database updates by writing domain models (`Order`) and event payloads (`OutboxEvent`) within a single PostgreSQL transaction.
 * **Async Workers & Event Broker:** Outbox publisher relays events to **RabbitMQ**, consumed by **Celery** workers for Stripe PaymentIntents and 10-minute hold expirations.
