@@ -274,3 +274,137 @@ def request_vendor_payout():
         "message": f"Payout withdrawal request for ${amount:.2f} submitted successfully!",
         "payout_request": payout.to_dict(),
     }), 201
+
+
+# --- Merchant Product Catalog Management ---
+
+@vendor_bp.route("/products", methods=["GET"])
+@jwt_required
+def list_vendor_products():
+    """List products created by and assigned to current seller store."""
+    from app.models.product import Product
+    user_id = g.current_user_id
+    seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
+    if not seller:
+        staff_entry = db.session.query(SellerStaff).filter_by(user_id=user_id).first()
+        if staff_entry:
+            seller = staff_entry.seller
+
+    if not seller:
+        return jsonify({"error": "Forbidden", "message": "Only approved merchants can access product catalog."}), 403
+
+    products = db.session.query(Product).filter_by(seller_id=seller.id).order_by(Product.created_at.desc()).all()
+    return jsonify([p.to_dict() for p in products]), 200
+
+
+@vendor_bp.route("/products", methods=["POST"])
+@jwt_required
+def create_vendor_product():
+    """Create a new product assigned to current merchant's seller account."""
+    from app.models.product import Product
+    from app.core.extensions import redis_client
+    user_id = g.current_user_id
+    seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
+    if not seller:
+        return jsonify({"error": "Forbidden", "message": "Only approved merchant store owners can list new products."}), 403
+
+    if seller.status != "APPROVED":
+        return jsonify({"error": "Forbidden", "message": f"Merchant store account is currently '{seller.status}'. Store must be APPROVED."}), 403
+
+    data = request.get_json() or {}
+    name = data.get("name", "").strip()
+    sku = data.get("sku", "").strip().upper()
+    try:
+        price = float(data.get("price", 0))
+        total_stock = int(data.get("total_stock", 0))
+    except (ValueError, TypeError):
+        return jsonify({"error": "Bad Request", "message": "Invalid price or stock values."}), 400
+
+    if not name or not sku or price <= 0:
+        return jsonify({"error": "Bad Request", "message": "Name, SKU, and positive Price are required."}), 400
+
+    existing = db.session.query(Product).filter_by(sku=sku).first()
+    if existing:
+        return jsonify({"error": "Conflict", "message": f"Product with SKU '{sku}' already exists."}), 409
+
+    product = Product(
+        seller_id=seller.id,
+        vendor_id=user_id,
+        name=name,
+        sku=sku,
+        description=data.get("description", ""),
+        category_id=data.get("category_id"),
+        price=price,
+        total_stock=total_stock,
+        available_stock=total_stock,
+        images=data.get("images", []),
+        is_active=True,
+    )
+    db.session.add(product)
+    db.session.flush()
+
+    try:
+        redis_client.set(f"product:{product.id}:stock", total_stock)
+    except Exception:
+        pass
+
+    db.session.commit()
+    return jsonify({"message": f"Product '{name}' created successfully!", "product": product.to_dict()}), 201
+
+
+@vendor_bp.route("/products/<string:product_id>", methods=["PUT"])
+@jwt_required
+def update_vendor_product(product_id: str):
+    """Update seller's own product details."""
+    from app.models.product import Product
+    from app.core.extensions import redis_client
+    user_id = g.current_user_id
+    seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
+    if not seller:
+        return jsonify({"error": "Forbidden", "message": "Access denied."}), 403
+
+    product = db.session.query(Product).filter_by(id=product_id, seller_id=seller.id).first()
+    if not product:
+        return jsonify({"error": "Not Found", "message": "Product not found or not owned by your seller store."}), 404
+
+    data = request.get_json() or {}
+    if "name" in data:
+        product.name = data["name"]
+    if "description" in data:
+        product.description = data["description"]
+    if "price" in data:
+        product.price = float(data["price"])
+    if "category_id" in data:
+        product.category_id = data["category_id"]
+    if "total_stock" in data:
+        new_stock = int(data["total_stock"])
+        diff = new_stock - product.total_stock
+        product.total_stock = new_stock
+        product.available_stock = max(0, product.available_stock + diff)
+        try:
+            redis_client.set(f"product:{product.id}:stock", product.available_stock)
+        except Exception:
+            pass
+
+    db.session.commit()
+    return jsonify({"message": "Product updated successfully.", "product": product.to_dict()}), 200
+
+
+@vendor_bp.route("/products/<string:product_id>", methods=["DELETE"])
+@jwt_required
+def delete_vendor_product(product_id: str):
+    """Deactivate product owned by seller."""
+    from app.models.product import Product
+    user_id = g.current_user_id
+    seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
+    if not seller:
+        return jsonify({"error": "Forbidden", "message": "Access denied."}), 403
+
+    product = db.session.query(Product).filter_by(id=product_id, seller_id=seller.id).first()
+    if not product:
+        return jsonify({"error": "Not Found", "message": "Product not found or not owned by your store."}), 404
+
+    product.is_active = False
+    db.session.commit()
+    return jsonify({"message": f"Product '{product.name}' deactivated."}), 200
+

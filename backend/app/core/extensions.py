@@ -41,6 +41,15 @@ def make_celery(app=None) -> Celery:
     if app:
         celery_app.conf.update(app.config)
 
+        # Configure Celery Beat periodic schedules
+        from celery.schedules import crontab
+        celery_app.conf.beat_schedule = {
+            "release-matured-escrow-daily": {
+                "task": "app.workers.tasks.release_matured_escrow_task",
+                "schedule": crontab(hour=2, minute=0),  # Daily at 02:00 UTC
+            },
+        }
+
         class ContextTask(celery_app.Task):
             def __call__(self, *args, **kwargs):
                 with app.app_context():

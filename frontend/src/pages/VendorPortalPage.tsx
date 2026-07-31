@@ -3,7 +3,7 @@ import { Eyebrow } from '../components/ui/Eyebrow';
 import { vendorApi, SellerProfile, VendorSubOrder, VendorFinanceSummary } from '../api/vendor';
 
 export const VendorPortalPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'sub-orders' | 'finance' | 'onboarding'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'sub-orders' | 'products' | 'finance' | 'onboarding'>('overview');
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [hasAccount, setHasAccount] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -22,7 +22,16 @@ export const VendorPortalPage: React.FC = () => {
   // Data states
   const [subOrders, setSubOrders] = useState<VendorSubOrder[]>([]);
   const [finance, setFinance] = useState<VendorFinanceSummary | null>(null);
+  const [vendorProducts, setVendorProducts] = useState<any[]>([]);
   const [payoutAmount, setPayoutAmount] = useState<string>('');
+
+  // Vendor New Product Form State
+  const [prodName, setProdName] = useState('');
+  const [prodSku, setProdSku] = useState('');
+  const [prodPrice, setProdPrice] = useState<number>(49.99);
+  const [prodStock, setProdStock] = useState<number>(50);
+  const [prodDesc, setProdDesc] = useState('');
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
   const loadVendorData = async () => {
     setLoading(true);
@@ -33,12 +42,14 @@ export const VendorPortalPage: React.FC = () => {
         setHasAccount(true);
         setProfile(res.seller);
         if (res.seller.status === 'APPROVED') {
-          const [soData, finData] = await Promise.all([
+          const [soData, finData, prodData] = await Promise.all([
             vendorApi.getSubOrders(),
             vendorApi.getFinance(),
+            vendorApi.getProducts().catch(() => []),
           ]);
           setSubOrders(soData);
           setFinance(finData);
+          setVendorProducts(prodData);
         } else {
           setActiveTab('onboarding');
         }
@@ -109,7 +120,48 @@ export const VendorPortalPage: React.FC = () => {
       const finData = await vendorApi.getFinance();
       setFinance(finData);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to request payout.');
+      setErrorMsg(err.message || 'Failed to request payout withdrawal.');
+    }
+  };
+
+  const handleCreateVendorProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+    setIsCreatingProduct(true);
+    try {
+      const res = await vendorApi.createProduct({
+        name: prodName,
+        sku: prodSku,
+        price: prodPrice,
+        total_stock: prodStock,
+        description: prodDesc,
+      });
+      setSuccessMsg(res.message);
+      setProdName('');
+      setProdSku('');
+      setProdPrice(49.99);
+      setProdStock(50);
+      setProdDesc('');
+      const prods = await vendorApi.getProducts();
+      setVendorProducts(prods);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to create product listing.');
+    } finally {
+      setIsCreatingProduct(false);
+    }
+  };
+
+  const handleDeactivateVendorProduct = async (productId: string) => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await vendorApi.deleteProduct(productId);
+      setSuccessMsg(res.message);
+      const prods = await vendorApi.getProducts();
+      setVendorProducts(prods);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to deactivate product.');
     }
   };
 
@@ -180,6 +232,16 @@ export const VendorPortalPage: React.FC = () => {
               }`}
             >
               SUB-ORDERS & FULFILLMENT ({subOrders.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('products')}
+              className={`px-5 py-3 border-b-2 font-semibold transition-colors ${
+                activeTab === 'products'
+                  ? 'border-signal text-signal bg-paper'
+                  : 'border-transparent text-ash hover:text-ink'
+              }`}
+            >
+              STORE PRODUCTS CATALOG ({vendorProducts.length})
             </button>
             <button
               onClick={() => setActiveTab('finance')}
@@ -411,6 +473,140 @@ export const VendorPortalPage: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* TAB: STORE PRODUCTS CATALOG */}
+        {hasAccount && profile?.status === 'APPROVED' && activeTab === 'products' && (
+          <div className="space-y-8 font-mono text-xs">
+            {/* Create Product Form */}
+            <form onSubmit={handleCreateVendorProduct} className="border border-rule bg-paper p-6 space-y-4">
+              <div className="border-b border-rule pb-2">
+                <h3 className="font-serif text-2xl text-ink">List New Store Product</h3>
+                <p className="text-ash text-[11px]">Add a product directly under your merchant store catalog.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Eyebrow className="text-ash block mb-1">PRODUCT NAME *</Eyebrow>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Speed Runner Pro"
+                    value={prodName}
+                    onChange={(e) => setProdName(e.target.value)}
+                    className="w-full bg-paper border border-rule px-3 py-2 text-ink"
+                  />
+                </div>
+                <div>
+                  <Eyebrow className="text-ash block mb-1">UNIQUE SKU *</Eyebrow>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. SKU-SRP-001"
+                    value={prodSku}
+                    onChange={(e) => setProdSku(e.target.value)}
+                    className="w-full bg-paper border border-rule px-3 py-2 text-ink uppercase"
+                  />
+                </div>
+                <div>
+                  <Eyebrow className="text-ash block mb-1">PRICE ($) *</Eyebrow>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={prodPrice}
+                    onChange={(e) => setProdPrice(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-paper border border-rule px-3 py-2 text-ink"
+                  />
+                </div>
+                <div>
+                  <Eyebrow className="text-ash block mb-1">TOTAL STOCK *</Eyebrow>
+                  <input
+                    type="number"
+                    required
+                    value={prodStock}
+                    onChange={(e) => setProdStock(parseInt(e.target.value) || 0)}
+                    className="w-full bg-paper border border-rule px-3 py-2 text-ink"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Eyebrow className="text-ash block mb-1">PRODUCT DESCRIPTION</Eyebrow>
+                <textarea
+                  rows={2}
+                  placeholder="Detailed product features, dimensions, specifications..."
+                  value={prodDesc}
+                  onChange={(e) => setProdDesc(e.target.value)}
+                  className="w-full bg-paper border border-rule px-3 py-2 text-ink resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isCreatingProduct}
+                  className="px-6 py-2.5 bg-ink text-paper font-semibold hover:bg-graphite transition-colors uppercase cursor-pointer"
+                >
+                  {isCreatingProduct ? 'CREATING...' : 'PUBLISH STORE PRODUCT →'}
+                </button>
+              </div>
+            </form>
+
+            {/* Vendor Products Table */}
+            <div className="border border-rule bg-paper p-6 space-y-4">
+              <h3 className="font-serif text-2xl text-ink">Active Merchant Catalog ({vendorProducts.length})</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-paper-sunk border-b border-rule text-ash">
+                      <th className="py-2.5 px-3">PRODUCT</th>
+                      <th className="py-2.5 px-3">SKU</th>
+                      <th className="py-2.5 px-3">PRICE</th>
+                      <th className="py-2.5 px-3">AVAIL / TOTAL STOCK</th>
+                      <th className="py-2.5 px-3">STATUS</th>
+                      <th className="py-2.5 px-3 text-right">ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vendorProducts.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-ash font-mono">
+                          No products listed under your merchant store yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      vendorProducts.map((p) => (
+                        <tr key={p.id} className="border-b border-rule/50 hover:bg-paper-sunk/40">
+                          <td className="py-3 px-3 font-semibold text-ink">{p.name}</td>
+                          <td className="py-3 px-3 text-ash font-mono">{p.sku}</td>
+                          <td className="py-3 px-3 font-semibold text-ink">${p.price.toFixed(2)}</td>
+                          <td className="py-3 px-3 font-mono">
+                            <span className="text-gain font-semibold">{p.available_stock}</span> / {p.total_stock}
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className={`px-2 py-0.5 text-[10px] font-semibold ${p.is_active ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'}`}>
+                              {p.is_active ? 'ACTIVE' : 'DEACTIVATED'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            {p.is_active && (
+                              <button
+                                onClick={() => handleDeactivateVendorProduct(p.id)}
+                                className="px-2.5 py-1 text-[11px] font-semibold bg-loss/10 text-loss hover:bg-loss hover:text-paper transition-colors"
+                              >
+                                DEACTIVATE
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 

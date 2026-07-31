@@ -662,6 +662,29 @@ class OrderService:
                             product.total_stock += order.quantity
                     release_items.append((order.product_id, None, order.quantity))
 
+            # Reverse related SubOrders and write REFUND ledger entries
+            from app.models.sub_order import SubOrder
+            from app.models.financials import LedgerEntry
+
+            sub_orders = db.session.query(SubOrder).filter_by(order_id=order.id).all()
+            for so in sub_orders:
+                so.status = "CANCELLED"
+
+                # Flip existing HELD escrow entries to REVERSED
+                holds = db.session.query(LedgerEntry).filter_by(sub_order_id=so.id, status="HELD").all()
+                for hold in holds:
+                    hold.status = "REVERSED"
+
+                # Append double-entry REFUND reversal ledger record
+                refund_entry = LedgerEntry(
+                    sub_order_id=so.id,
+                    seller_id=so.seller_id,
+                    entry_type="REFUND",
+                    amount=so.seller_payout_amount,
+                    status="REVERSED",
+                )
+                db.session.add(refund_entry)
+
             db.session.commit()
 
             # Restore Redis stock pool

@@ -132,3 +132,45 @@ def send_notification_task(self, user_id: str, notification_type: str, payload: 
     db.session.commit()
 
     return {"status": "sent", "user_id": user_id, "type": notification_type}
+
+
+@shared_task(bind=True)
+def release_matured_escrow_task(self):
+    """Celery Beat automated periodic task to release matured vendor escrow holds into available balance."""
+    start_time = time.time()
+    task_id = self.request.id or "escrow-release-task"
+
+    try:
+        from app.services.escrow_engine import release_matured_escrow
+        released_count = release_matured_escrow()
+        execution_time = (time.time() - start_time) * 1000
+
+        task_log = TaskLog(
+            task_id=task_id,
+            task_name="release_matured_escrow_task",
+            status="SUCCESS",
+            execution_time_ms=execution_time,
+            error_message=None,
+        )
+        db.session.add(task_log)
+        db.session.commit()
+
+        logger.info(f"Escrow release task {task_id} completed. Released {released_count} matured holds.")
+        return {"status": "success", "released_count": released_count}
+
+    except Exception as e:
+        db.session.rollback()
+        execution_time = (time.time() - start_time) * 1000
+        task_log = TaskLog(
+            task_id=task_id,
+            task_name="release_matured_escrow_task",
+            status="FAILURE",
+            execution_time_ms=execution_time,
+            error_message=str(e),
+        )
+        db.session.add(task_log)
+        db.session.commit()
+
+        logger.error(f"Escrow release task {task_id} failed: {e}")
+        return {"status": "error", "message": str(e)}
+

@@ -117,11 +117,38 @@ export const CartPage: React.FC = () => {
       {/* Cart Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         
-        {/* Left Column: Line Items */}
-        <div className="lg:col-span-8 space-y-0 border-t border-rule">
-          {items.map((item: CartItem, idx: number) => (
-            <CartItemRow key={item.id} item={item} itemIndex={idx} />
-          ))}
+        {/* Left Column: Line Items Grouped by Seller */}
+        <div className="lg:col-span-8 space-y-6">
+          {Object.entries(
+            items.reduce((acc: Record<string, CartItem[]>, item: CartItem) => {
+              const seller = item.product?.seller_name || item.product?.vendor_name || 'Central Platform Store';
+              if (!acc[seller]) acc[seller] = [];
+              acc[seller].push(item);
+              return acc;
+            }, {})
+          ).map(([sellerName, sellerItems]) => {
+            const sellerSubtotal = sellerItems.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
+            return (
+              <div key={sellerName} className="border border-rule bg-paper p-4 space-y-3">
+                <div className="flex justify-between items-center border-b border-rule pb-2 font-mono text-xs">
+                  <div className="flex items-center space-x-2 font-semibold text-ink">
+                    <span>🏪 STORE:</span>
+                    <span className="uppercase text-signal">{sellerName}</span>
+                    <span className="text-ash font-normal">({sellerItems.length} items)</span>
+                  </div>
+                  <div className="text-ash">
+                    Branch Subtotal: <span className="font-semibold text-ink">${sellerSubtotal.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-0 border-t border-rule">
+                  {sellerItems.map((item: CartItem, idx: number) => (
+                    <CartItemRow key={item.id} item={item} itemIndex={idx} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Right Column: Sticky Summary Panel (320px layout) */}

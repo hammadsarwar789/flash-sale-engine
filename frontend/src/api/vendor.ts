@@ -122,4 +122,28 @@ export const vendorApi = {
       body: JSON.stringify(data),
     });
   },
+
+  async getProducts(): Promise<any[]> {
+    return apiFetch<any[]>('/vendor/products');
+  },
+
+  async createProduct(data: { name: string; sku: string; price: number; total_stock: number; description?: string; category_id?: string }): Promise<{ message: string; product: any }> {
+    return apiFetch<{ message: string; product: any }>('/vendor/products', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateProduct(id: string, data: Partial<{ name: string; description: string; price: number; total_stock: number; category_id: string }>): Promise<{ message: string; product: any }> {
+    return apiFetch<{ message: string; product: any }>(`/vendor/products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteProduct(id: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>(`/vendor/products/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };

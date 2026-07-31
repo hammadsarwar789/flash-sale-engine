@@ -576,7 +576,31 @@ export const CheckoutPage: React.FC = () => {
               />
             </div>
 
-            <div className="font-mono text-xs text-graphite border border-rule p-4 bg-paper space-y-2">
+            <div className="font-mono text-xs text-graphite border border-rule p-4 bg-paper space-y-3">
+              {/* Multi-Vendor Store Fulfillment Branches */}
+              <div className="border-b border-rule pb-2 space-y-2">
+                <span className="text-ash font-semibold block text-[11px] uppercase">FULFILLMENT BRANCHES BY SELLER</span>
+                {Object.entries(
+                  items.reduce((acc: Record<string, any[]>, item: any) => {
+                    const seller = item.product?.seller_name || item.product?.vendor_name || 'Central Platform Store';
+                    if (!acc[seller]) acc[seller] = [];
+                    acc[seller].push(item);
+                    return acc;
+                  }, {})
+                ).map(([sellerName, sellerItems]) => {
+                  const sTotal = sellerItems.reduce((s: number, i: any) => s + (i.product?.price || 0) * i.quantity, 0);
+                  return (
+                    <div key={sellerName} className="flex justify-between items-center bg-paper-sunk p-2 border border-rule/50">
+                      <div>
+                        <span className="font-semibold text-ink uppercase">🏪 {sellerName}</span>
+                        <span className="text-ash text-[10px] block">{sellerItems.length} line items → Independent fulfillment thread</span>
+                      </div>
+                      <span className="font-semibold text-ink">${sTotal.toFixed(2)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
               <div className="flex justify-between">
                 <span>SUBTOTAL ({items.length} items)</span>
                 <Numeric value={subtotal} format="price" zeroPadInt={3} />

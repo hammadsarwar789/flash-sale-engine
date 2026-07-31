@@ -54,9 +54,11 @@ def test_scope_aware_rbac_middleware(client, app_instance):
         db.session.add_all([outlet_1, outlet_2])
         db.session.commit()
 
-        perm_read = Permission(code="outlet:stock:read", module="stock", description="Read store stock")
-        db.session.add(perm_read)
-        db.session.commit()
+        perm_read = db.session.query(Permission).filter_by(code="outlet:stock:read").first()
+        if not perm_read:
+            perm_read = Permission(code="outlet:stock:read", module="stock", description="Read store stock")
+            db.session.add(perm_read)
+            db.session.commit()
 
         role_manager = Role(tenant_id=tenant.id, name="Outlet Manager")
         role_manager.permissions.append(perm_read)
