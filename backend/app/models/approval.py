@@ -38,7 +38,7 @@ class RegistrationRequest(db.Model):
             "requested_role_id": self.requested_role_id,
             "payload": self.payload,
             "status": self.status,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None ,
         }
 
 
