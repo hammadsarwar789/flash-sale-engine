@@ -3,7 +3,6 @@
 A production-grade, full-stack distributed e-commerce platform and high-concurrency inventory reservation engine. Designed around **Frontend Design Specification v2 ("Trading Floor Editorial")** using **React 18 + Vite + TypeScript** and backed by an event-driven **Flask + PostgreSQL + Redis + RabbitMQ + Celery** microservice architecture.
 
 ---
-
 ## 🎨 Visual Interface Showcase
 
 ### 🛍️ 1. Floor Catalog & Real-Time Drops (`/products`)
