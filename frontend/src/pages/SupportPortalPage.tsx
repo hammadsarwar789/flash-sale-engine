@@ -77,7 +77,11 @@ export const SupportPortalPage: React.FC = () => {
       setSubject('');
       setMessage('');
       setActiveTab('tickets');
-      loadData();
+      if (res.ticket) {
+        setTickets(prev => [res.ticket, ...prev.filter(t => t.id !== res.ticket.id)]);
+        handleSelectTicket(res.ticket.id);
+      }
+      await loadData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to submit ticket.');
     } finally {
