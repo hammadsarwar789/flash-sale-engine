@@ -26,6 +26,8 @@ class BaseConfig:
     REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
+
+
     # RabbitMQ & Celery Configuration
     RABBITMQ_URL: str = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672//")
     CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", RABBITMQ_URL)

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
 import { Wordmark } from '../ui/Wordmark';
@@ -10,6 +11,7 @@ import { CommandPalette } from '../common/CommandPalette';
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { cart } = useCart();
   const { wishlistItems } = useWishlist();
   const location = useLocation();
@@ -137,8 +139,19 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Right Action Bar */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
             
+            {/* Day / Night Theme Conversion Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-paper border border-rule hover:border-ink text-xs font-mono transition-all rounded-none cursor-pointer"
+              title={`Switch to ${theme === 'day' ? 'Night (Dark)' : 'Day (Light)'} Mode`}
+              aria-label="Day and Night Theme Conversion"
+            >
+              <span className="text-xs">{theme === 'day' ? '☀️' : '🌙'}</span>
+              <span className="text-ink font-semibold tracking-wider text-[11px]">{theme === 'day' ? 'DAY' : 'NIGHT'}</span>
+            </button>
+
             {/* Search Keyboard Chip */}
             <button
               onClick={() => setIsPaletteOpen(true)}

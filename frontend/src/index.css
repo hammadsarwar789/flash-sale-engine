@@ -2,14 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* Day Mode (Light) Variables */
+:root, .light {
   --bone: #F4F1EA;
   --paper: #FBF9F4;
   --paper-sunk: #EDE8DC;
   --ink: #111111;
   --graphite: #3A3A38;
   --ash: #7A776E;
-  --rule: #1C1C1A;
+  --rule: #DCD6C8;
   --signal: #E5321B;
   --signal-ink: #FFFFFF;
   --gain: #1F6B3A;
@@ -18,22 +19,21 @@
   --marker: #F5E6A8;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bone: #0E0E0C;
-    --paper: #161613;
-    --paper-sunk: #1F1F1B;
-    --ink: #F1EEE6;
-    --graphite: #C8C4B8;
-    --ash: #8A8779;
-    --rule: #3A3935;
-    --signal: #FF4A32;
-    --signal-ink: #0E0E0C;
-    --gain: #4FBE7B;
-    --warn: #E0A44A;
-    --loss: #E5321B;
-    --marker: #5A4A18;
-  }
+/* Night Mode (Dark) Variables */
+.dark {
+  --bone: #0E0E0C;
+  --paper: #161613;
+  --paper-sunk: #1F1F1B;
+  --ink: #F1EEE6;
+  --graphite: #C8C4B8;
+  --ash: #8A8779;
+  --rule: #3A3935;
+  --signal: #FF4A32;
+  --signal-ink: #0E0E0C;
+  --gain: #4FBE7B;
+  --warn: #E0A44A;
+  --loss: #E5321B;
+  --marker: #5A4A18;
 }
 
 @layer base {
@@ -46,6 +46,7 @@
     letter-spacing: 0;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
   /* Structural 1px Hairline Rule Defaults */
@@ -97,14 +98,4 @@
 .numeric-tabular {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
-}
-
-/* Eyebrow Label Utility */
-.eyebrow-label {
-  font-family: 'Inter Tight', system-ui, sans-serif;
-  font-size: 11px;
-  line-height: 14px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
