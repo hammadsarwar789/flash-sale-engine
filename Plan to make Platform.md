@@ -56,22 +56,24 @@ The Customer Support Service leverages the existing microservices/modular monoli
 
 ## 📁 File Structure & Module Layout
 
-The support module integrates into the primary codebase under `backend/app/`:
+The Customer Support Service is isolated in a dedicated module directory under `backend/app/customer_support/`:
 
 ```text
 backend/
 └── app/
-    ├── api/
-    │   └── v1/
-    │       └── support.py          # REST endpoints for tickets, replies, and dashboards
-    ├── models/
-    │   ├── ticket.py               # Ticket and TicketAI SQLAlchemy models
-    │   └── ticket_message.py       # TicketMessage SQLAlchemy model
-    ├── services/
-    │   ├── ai_service.py           # LLM interactions, RAG retrieval, sentiment & priority scoring
-    │   └── ticket_service.py       # Business logic for ticket lifecycle & agent assignment
-    └── workers/
-        └── ai_tasks.py             # Asynchronous Celery tasks for background AI processing
+    └── customer_support/               # Dedicated Customer Support Module
+        ├── __init__.py
+        ├── api/
+        │   └── v1/
+        │       └── support.py          # REST endpoints for tickets, replies, and dashboards
+        ├── models/
+        │   ├── ticket.py               # Ticket and TicketAI SQLAlchemy models
+        │   └── ticket_message.py       # TicketMessage SQLAlchemy model
+        ├── services/
+        │   ├── ai_service.py           # LLM interactions, RAG retrieval, sentiment & priority scoring
+        │   └── ticket_service.py       # Business logic for ticket lifecycle & agent assignment
+        └── workers/
+            └── ai_tasks.py             # Asynchronous Celery tasks for background AI processing
 ```
 
 ---
