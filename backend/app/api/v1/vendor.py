@@ -300,8 +300,9 @@ def list_vendor_products():
 @vendor_bp.route("/products", methods=["POST"])
 @jwt_required
 def create_vendor_product():
-    """Create a new product assigned to current merchant's seller account."""
+    """Create a new product with optional variants and discount percentage assigned to current merchant."""
     from app.models.product import Product
+    from app.models.product_variant import ProductVariant
     from app.core.extensions import redis_client
     user_id = g.current_user_id
     seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
@@ -314,11 +315,13 @@ def create_vendor_product():
     data = request.get_json() or {}
     name = data.get("name", "").strip()
     sku = data.get("sku", "").strip().upper()
+    variants_data = data.get("variants", [])
     try:
         price = float(data.get("price", 0))
         total_stock = int(data.get("total_stock", 0))
+        discount_pct = float(data.get("discount_percentage", 0.0))
     except (ValueError, TypeError):
-        return jsonify({"error": "Bad Request", "message": "Invalid price or stock values."}), 400
+        return jsonify({"error": "Bad Request", "message": "Invalid price, stock, or discount values."}), 400
 
     if not name or not sku or price <= 0:
         return jsonify({"error": "Bad Request", "message": "Name, SKU, and positive Price are required."}), 400
@@ -335,6 +338,7 @@ def create_vendor_product():
         description=data.get("description", ""),
         category_id=data.get("category_id"),
         price=price,
+        discount_percentage=discount_pct,
         total_stock=total_stock,
         available_stock=total_stock,
         images=data.get("images", []),
@@ -343,19 +347,37 @@ def create_vendor_product():
     db.session.add(product)
     db.session.flush()
 
+    for var_data in variants_data:
+        var_sku = var_data.get("sku", f"{sku}-{len(product.variants) + 1}").upper()
+        var_name = var_data.get("name", f"{name} Variant")
+        var_price = float(var_data.get("price", price))
+        var_stock = int(var_data.get("total_stock", total_stock))
+
+        variant = ProductVariant(
+            product_id=product.id,
+            sku=var_sku,
+            name=var_name,
+            size=var_data.get("size"),
+            color=var_data.get("color"),
+            price=var_price,
+            total_stock=var_stock,
+            available_stock=var_stock,
+        )
+        db.session.add(variant)
+
     try:
         redis_client.set(f"product:{product.id}:stock", total_stock)
     except Exception:
         pass
 
     db.session.commit()
-    return jsonify({"message": f"Product '{name}' created successfully!", "product": product.to_dict()}), 201
+    return jsonify({"message": f"Product '{name}' created successfully with {len(variants_data)} variants!", "product": product.to_dict()}), 201
 
 
 @vendor_bp.route("/products/<string:product_id>", methods=["PUT"])
 @jwt_required
 def update_vendor_product(product_id: str):
-    """Update seller's own product details."""
+    """Update seller's own product details and discount percentage."""
     from app.models.product import Product
     from app.core.extensions import redis_client
     user_id = g.current_user_id
@@ -374,8 +396,12 @@ def update_vendor_product(product_id: str):
         product.description = data["description"]
     if "price" in data:
         product.price = float(data["price"])
+    if "discount_percentage" in data:
+        product.discount_percentage = float(data["discount_percentage"])
     if "category_id" in data:
         product.category_id = data["category_id"]
+    if "images" in data:
+        product.images = data["images"]
     if "total_stock" in data:
         new_stock = int(data["total_stock"])
         diff = new_stock - product.total_stock
@@ -388,6 +414,77 @@ def update_vendor_product(product_id: str):
 
     db.session.commit()
     return jsonify({"message": "Product updated successfully.", "product": product.to_dict()}), 200
+
+
+@vendor_bp.route("/products/<string:product_id>/variants", methods=["POST"])
+@jwt_required
+def create_vendor_product_variant(product_id: str):
+    """Add a new product SKU variant (Size, Color, Price, Stock) to seller's product."""
+    from app.models.product import Product
+    from app.models.product_variant import ProductVariant
+    user_id = g.current_user_id
+    seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
+    if not seller:
+        return jsonify({"error": "Forbidden", "message": "Access denied."}), 403
+
+    product = db.session.query(Product).filter_by(id=product_id, seller_id=seller.id).first()
+    if not product:
+        return jsonify({"error": "Not Found", "message": "Product not found or not owned by your store."}), 404
+
+    data = request.get_json() or {}
+    var_sku = data.get("sku", "").strip().upper()
+    var_name = data.get("name", "").strip()
+    try:
+        var_price = float(data.get("price", product.price))
+        var_stock = int(data.get("total_stock", 0))
+    except (ValueError, TypeError):
+        return jsonify({"error": "Bad Request", "message": "Invalid variant price or stock."}), 400
+
+    if not var_sku or not var_name:
+        return jsonify({"error": "Bad Request", "message": "Variant SKU and Name are required."}), 400
+
+    existing = db.session.query(ProductVariant).filter_by(sku=var_sku).first()
+    if existing:
+        return jsonify({"error": "Conflict", "message": f"Variant SKU '{var_sku}' already exists."}), 409
+
+    variant = ProductVariant(
+        product_id=product.id,
+        sku=var_sku,
+        name=var_name,
+        size=data.get("size"),
+        color=data.get("color"),
+        price=var_price,
+        total_stock=var_stock,
+        available_stock=var_stock,
+    )
+    db.session.add(variant)
+    db.session.commit()
+
+    return jsonify({"message": f"Variant '{var_name}' added successfully!", "variant": variant.to_dict()}), 201
+
+
+@vendor_bp.route("/products/<string:product_id>/variants/<string:variant_id>", methods=["DELETE"])
+@jwt_required
+def delete_vendor_product_variant(product_id: str, variant_id: str):
+    """Remove a variant from seller's product."""
+    from app.models.product import Product
+    from app.models.product_variant import ProductVariant
+    user_id = g.current_user_id
+    seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
+    if not seller:
+        return jsonify({"error": "Forbidden", "message": "Access denied."}), 403
+
+    product = db.session.query(Product).filter_by(id=product_id, seller_id=seller.id).first()
+    if not product:
+        return jsonify({"error": "Not Found", "message": "Product not found."}), 404
+
+    variant = db.session.query(ProductVariant).filter_by(id=variant_id, product_id=product.id).first()
+    if not variant:
+        return jsonify({"error": "Not Found", "message": "Variant not found."}), 404
+
+    db.session.delete(variant)
+    db.session.commit()
+    return jsonify({"message": f"Variant '{variant.name}' deleted."}), 200
 
 
 @vendor_bp.route("/products/<string:product_id>", methods=["DELETE"])
@@ -407,4 +504,5 @@ def delete_vendor_product(product_id: str):
     product.is_active = False
     db.session.commit()
     return jsonify({"message": f"Product '{product.name}' deactivated."}), 200
+
 

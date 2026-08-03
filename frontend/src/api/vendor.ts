@@ -127,17 +127,30 @@ export const vendorApi = {
     return apiFetch<any[]>('/vendor/products');
   },
 
-  async createProduct(data: { name: string; sku: string; price: number; total_stock: number; description?: string; category_id?: string }): Promise<{ message: string; product: any }> {
+  async createProduct(data: { name: string; sku: string; price: number; total_stock: number; description?: string; category_id?: string; discount_percentage?: number; variants?: any[] }): Promise<{ message: string; product: any }> {
     return apiFetch<{ message: string; product: any }>('/vendor/products', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  async updateProduct(id: string, data: Partial<{ name: string; description: string; price: number; total_stock: number; category_id: string }>): Promise<{ message: string; product: any }> {
+  async updateProduct(id: string, data: Partial<{ name: string; description: string; price: number; total_stock: number; category_id: string; discount_percentage: number }>): Promise<{ message: string; product: any }> {
     return apiFetch<{ message: string; product: any }>(`/vendor/products/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  },
+
+  async createVariant(productId: string, data: { name: string; sku: string; price?: number; total_stock: number; size?: string; color?: string }): Promise<{ message: string; variant: any }> {
+    return apiFetch<{ message: string; variant: any }>(`/vendor/products/${productId}/variants`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteVariant(productId: string, variantId: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>(`/vendor/products/${productId}/variants/${variantId}`, {
+      method: 'DELETE',
     });
   },
 
