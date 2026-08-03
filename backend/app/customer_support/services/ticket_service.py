@@ -116,8 +116,8 @@ class TicketService:
         """
         query = db.session.query(Ticket)
 
-        if user_role in ["customer", "user"]:
-            query = query.filter_by(customer_id=user_id)
+        if user_role in ["admin", "support_manager", "support_agent"]:
+            pass  # Global oversight across all stores
         elif user_role in ["vendor", "seller"]:
             # Find seller store associated with current merchant staff/owner
             seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
@@ -126,9 +126,11 @@ class TicketService:
                 if staff:
                     seller = staff.seller
             seller_id = seller.id if seller else user_id
-            query = query.filter((Ticket.vendor_id == seller_id) | (Ticket.vendor_id == user_id))
-        elif user_role in ["admin", "support_manager", "support_agent"]:
-            pass  # Global oversight across all stores
+            query = query.filter(
+                (Ticket.customer_id == user_id) |
+                (Ticket.vendor_id == seller_id) |
+                (Ticket.vendor_id == user_id)
+            )
         else:
             query = query.filter_by(customer_id=user_id)
 
@@ -156,13 +158,18 @@ class TicketService:
         if not ticket:
             return None
 
-        if user_role in ["customer", "user"] and ticket.customer_id != user_id:
-            return None
+        # The ticket creator (customer_id == user_id) can ALWAYS view their own ticket
+        if ticket.customer_id == user_id:
+            pass
+        elif user_role in ["admin", "support_manager", "support_agent"]:
+            pass
         elif user_role in ["vendor", "seller"]:
             seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
             seller_id = seller.id if seller else user_id
             if ticket.vendor_id not in [seller_id, user_id]:
                 return None
+        else:
+            return None
 
         data = ticket.to_dict()
         data["messages"] = [m.to_dict() for m in ticket.messages]
