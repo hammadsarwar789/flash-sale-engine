@@ -222,12 +222,12 @@ The existing RBAC engine is extended with 4 dedicated roles:
 
 ## 🚀 Phased 5-Phase Implementation Plan
 
-### Phase 1: Multi-Vendor Marketplace Foundation & Catalog Parity
+### Phase 1: Multi-Vendor Marketplace Foundation & Catalog Parity [COMPLETED ✅]
 * `seller_id`, `seller_name`, `seller_slug` in `Product.to_dict()`.
 * Vendor CRUD & variant management endpoints (`POST/GET/PUT/DELETE /api/v1/vendor/products`, `POST/DELETE /variants`).
 * Vendor Portal product form (`ISSUE NEW STORE PRODUCT RECORD`, category selector, discount % input, `[ EDIT STOCK ]` modal, `N VARIANTS` drawer).
 
-### Phase 2: Multi-Seller Order Splitting & Escrow Financial Engine
+### Phase 2: Multi-Seller Order Splitting & Escrow Financial Engine [COMPLETED ✅]
 * Order splitting into vendor `SubOrder` records and `ESCROW_HOLD` entries in `ledger_entries`.
 * Celery Beat schedule (`release_matured_escrow_task`) running daily at 02:00 UTC for 7-day maturity holds.
 * Multi-seller line item grouping in Cart & Checkout UI.
