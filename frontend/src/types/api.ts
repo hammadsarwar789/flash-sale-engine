@@ -1965,6 +1965,9 @@ export interface Product {
   category?: Category;
   vendor_id?: string;
   vendor_name?: string;
+  seller_id?: string;
+  seller_name?: string;
+  seller_slug?: string;
   images: string[];
   is_active: boolean;
   variants?: ProductVariant[];
