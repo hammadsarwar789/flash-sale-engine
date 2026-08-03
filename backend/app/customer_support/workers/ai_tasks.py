@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 def process_new_ticket_task(ticket_id: str) -> dict:
     """
     Async Celery worker task triggered on ticket creation.
-    Performs automated sentiment detection, priority scoring, tag extraction,
-    and populates TicketAI metadata.
+    Performs automated RAG first-line response synthesis, sentiment detection,
+    vendor routing, and populates TicketAI metadata.
     """
     logger.info(f"[AI-TASK] Starting async analysis for Ticket ID: {ticket_id}")
     
@@ -21,11 +21,18 @@ def process_new_ticket_task(ticket_id: str) -> dict:
         logger.warning(f"[AI-TASK] Ticket '{ticket_id}' not found.")
         return {"status": "error", "message": "Ticket not found"}
 
+    from app.customer_support.services.ai_service import ai_service
+    from app.customer_support.services.ticket_service import ticket_service
+    from app.models.sub_order import SubOrder
+
+    # 1. RAG Intelligence Synthesis
+    rag_data = ai_service.generate_rag_suggested_reply(ticket_id)
+
+    # Rule & Keyword AI Sentiment & Priority Detection Engine
     messages = [m.message for m in ticket.messages]
     full_text = f"{ticket.subject} " + " ".join(messages)
     text_upper = full_text.upper()
 
-    # Rule & Keyword AI Sentiment & Priority Detection Engine
     sentiment = "NEUTRAL"
     if any(k in text_upper for k in ["URGENT", "BROKEN", "DAMAGED", "WRONG", "ANGRY", "REFUND", "FRAUD"]):
         sentiment = "FRUSTRATED" if "REFUND" in text_upper or "DAMAGED" in text_upper else "URGENT"
@@ -36,15 +43,7 @@ def process_new_ticket_task(ticket_id: str) -> dict:
     elif "REFUND" in text_upper or "EXCHANGE" in text_upper:
         suggested_priority = "HIGH"
 
-    # AI Summary & Response Recommendation Synthesis
-    summary_text = f"Customer issue regarding '{ticket.subject}'. Category: {ticket.category}. Primary keywords detected: {sentiment}."
-    
-    suggested_reply = (
-        f"Hello {ticket.customer.full_name if ticket.customer else 'Valued Customer'},\n\n"
-        f"We have received your request concerning '{ticket.subject}'. "
-        f"Our support team has prioritized this as [{suggested_priority}] priority. "
-        f"A support specialist will assist you shortly."
-    )
+    summary_text = f"Issue regarding '{ticket.subject}'. Category: {ticket.category}. Keywords: {sentiment}."
 
     ai_meta = db.session.query(TicketAI).filter_by(ticket_id=ticket_id).first()
     if not ai_meta:
@@ -54,19 +53,40 @@ def process_new_ticket_task(ticket_id: str) -> dict:
     ai_meta.summary = summary_text
     ai_meta.sentiment = sentiment
     ai_meta.ai_suggested_priority = suggested_priority
-    ai_meta.suggested_reply = suggested_reply
-    ai_meta.confidence = 0.94
+    if rag_data:
+        ai_meta.suggested_reply = rag_data.get("suggested_reply")
+        ai_meta.confidence = rag_data.get("confidence", 0.90)
+
     ai_meta.predicted_category = ticket.category
     ai_meta.analyzed_at = datetime.now(timezone.utc)
-
     db.session.commit()
-    logger.info(f"[AI-TASK] Completed analysis for Ticket #{ticket.ticket_number}. Sentiment: {sentiment}, Priority: {priority}")
+
+    # 2. Automated Vendor Escalation & Routing
+    if ticket.order_id and not ticket.vendor_id:
+        sub_order = db.session.query(SubOrder).filter_by(order_id=ticket.order_id).first()
+        if sub_order:
+            ticket.vendor_id = sub_order.seller_id
+            ticket.priority = "HIGH"
+            db.session.commit()
+            logger.info(f"[VENDOR-ROUTING] Ticket #{ticket.ticket_number} routed to seller_id: {sub_order.seller_id}")
+
+    # 3. AI First-Line Auto-Responder for Policy & General Queries
+    if rag_data and rag_data.get("confidence", 0) >= 0.85 and ticket.category in ["GENERAL", "SHIPPING", "RETURNS", "WARRANTY"]:
+        ticket_service.add_message(
+            ticket_id=ticket.id,
+            sender_id="SYSTEM_AI_BOT",
+            sender_type="SYSTEM",
+            message=rag_data["suggested_reply"]
+        )
+        ticket_service.update_status(ticket.id, "WAITING_CUSTOMER", user_role="support_agent")
+        logger.info(f"[AI-FIRST-LINE] Auto-replied to Ticket #{ticket.ticket_number} via SYSTEM_AI_BOT")
+        return {"status": "auto_replied_by_ai", "ticket_number": ticket.ticket_number}
 
     return {
         "status": "success",
         "ticket_number": ticket.ticket_number,
         "sentiment": sentiment,
-        "priority": priority,
+        "priority": suggested_priority,
     }
 
 

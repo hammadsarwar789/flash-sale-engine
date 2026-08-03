@@ -1,6 +1,27 @@
+import uuid
+from datetime import datetime, timezone, timedelta
 import pytest
 from app.models.user import User
+from app.models.order import Order, OrderStatus
+from app.models.seller import Seller
 from app.core.extensions import db
+
+
+@pytest.fixture(autouse=True)
+def seed_test_purchase(test_user):
+    """Seed a valid purchase order for test_user so ticket creation validation passes."""
+    existing = db.session.query(Order).filter_by(user_id=test_user.id).first()
+    if not existing:
+        order = Order(
+            id=str(uuid.uuid4()),
+            user_id=test_user.id,
+            total_amount=99.99,
+            status=OrderStatus.PAID,
+            idempotency_key=f"test-seed-{uuid.uuid4()}",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        )
+        db.session.add(order)
+        db.session.commit()
 
 
 def test_customer_create_support_ticket(client, user_token):
@@ -21,6 +42,37 @@ def test_customer_create_support_ticket(client, user_token):
     assert data["ticket"]["priority"] == "HIGH"
     assert data["ticket"]["status"] == "OPEN"
     assert data["ticket"]["ticket_number"].startswith("TICK-")
+
+
+def test_purchaser_only_validation(client):
+    """Test non-purchaser user blocked from creating tickets with 403 Forbidden."""
+    from werkzeug.security import generate_password_hash
+    from app.core.security import create_access_token
+
+    non_purchaser = User(
+        id=str(uuid.uuid4()),
+        email=f"nopurchase_{uuid.uuid4().hex[:6]}@example.com",
+        password_hash=generate_password_hash("Password123!"),
+        full_name="Non Purchaser",
+        role="customer",
+        is_email_verified=True,
+        status="ACTIVE"
+    )
+    db.session.add(non_purchaser)
+    db.session.commit()
+
+    token = create_access_token(
+        user_id=non_purchaser.id,
+        role="customer",
+        secret_key=client.application.config["JWT_SECRET_KEY"]
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Attempt ticket creation
+    response = client.post("/api/v1/support/tickets", json={"subject": "No Purchase Query", "message": "I have not bought anything."}, headers=headers)
+    assert response.status_code == 403
+    assert "Forbidden" in response.get_json()["error"]
+    assert "purchased products" in response.get_json()["message"]
 
 
 def test_list_support_tickets(client, user_token):
@@ -132,3 +184,21 @@ def test_marshmallow_validation_and_domain_rbac_enforcement(client, user_token, 
     rbac_pass = client.put(f"/api/v1/support/tickets/{ticket_id}/status", json={"status": "CLOSED"}, headers=headers)
     assert rbac_pass.status_code == 200
     assert rbac_pass.get_json()["ticket"]["status"] == "CLOSED"
+
+
+def test_reply_to_closed_ticket_blocked(client, user_token, admin_token):
+    """Test that replying to a CLOSED or RESOLVED ticket returns 403 Forbidden."""
+    headers = {"Authorization": f"Bearer {user_token}"}
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    create_res = client.post("/api/v1/support/tickets", json={"subject": "Closing Query", "message": "Closing this ticket request."}, headers=headers)
+    ticket_id = create_res.get_json()["ticket"]["id"]
+
+    # Close ticket
+    client.put(f"/api/v1/support/tickets/{ticket_id}/status", json={"status": "CLOSED"}, headers=headers)
+
+    # Attempt to reply to closed ticket -> 403 Forbidden
+    reply_res = client.post(f"/api/v1/support/tickets/{ticket_id}/reply", json={"message": "Can I add one more message?"}, headers=headers)
+    assert reply_res.status_code == 403
+    assert "Forbidden" in reply_res.get_json()["error"]
+    assert "Cannot reply to a ticket with status 'CLOSED'" in reply_res.get_json()["message"]

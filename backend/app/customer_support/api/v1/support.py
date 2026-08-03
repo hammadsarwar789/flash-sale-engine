@@ -33,16 +33,19 @@ def create_ticket():
     except ValidationError as err:
         return jsonify({"error": "Validation Error", "messages": err.messages}), 400
 
-    ticket = ticket_service.create_ticket(
-        customer_id=g.current_user_id,
-        subject=data["subject"].strip(),
-        message=data["message"].strip(),
-        category=data.get("category", "GENERAL").strip(),
-        priority=data.get("priority", "MEDIUM").strip(),
-        order_id=data.get("order_id"),
-        vendor_id=data.get("vendor_id"),
-        attachments=data.get("attachments", [])
-    )
+    try:
+        ticket = ticket_service.create_ticket(
+            customer_id=g.current_user_id,
+            subject=data["subject"].strip(),
+            message=data["message"].strip(),
+            category=data.get("category", "GENERAL").strip(),
+            priority=data.get("priority", "MEDIUM").strip(),
+            order_id=data.get("order_id"),
+            vendor_id=data.get("vendor_id"),
+            attachments=data.get("attachments", [])
+        )
+    except PermissionError as err:
+        return jsonify({"error": "Forbidden", "message": str(err)}), 403
 
     return jsonify({
         "message": "Support ticket created successfully!",
@@ -108,13 +111,16 @@ def add_reply(ticket_id: str):
         return jsonify({"error": "Not Found", "message": "Ticket not found or access denied."}), 404
 
     sender_type = "AGENT" if role in ["admin", "support_agent", "support_manager"] else "CUSTOMER"
-    msg = ticket_service.add_message(
-        ticket_id=ticket_id,
-        sender_id=g.current_user_id,
-        sender_type=sender_type,
-        message=data["message"].strip(),
-        attachments=data.get("attachments", [])
-    )
+    try:
+        msg = ticket_service.add_message(
+            ticket_id=ticket_id,
+            sender_id=g.current_user_id,
+            sender_type=sender_type,
+            message=data["message"].strip(),
+            attachments=data.get("attachments", [])
+        )
+    except PermissionError as err:
+        return jsonify({"error": "Forbidden", "message": str(err)}), 403
 
     return jsonify({
         "message": "Reply posted successfully!",

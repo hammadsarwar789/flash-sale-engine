@@ -6,6 +6,8 @@ from app.core.extensions import db
 from app.customer_support.models.ticket import Ticket, TicketAI
 from app.customer_support.models.ticket_message import TicketMessage
 from app.models.user import User
+from app.models.order import Order
+from app.models.seller import Seller, SellerStaff
 
 
 class TicketService:
@@ -33,7 +35,19 @@ class TicketService:
         vendor_id: str = None,
         attachments: list = None
     ) -> Ticket:
-        """Create a new support ticket and record the initial customer message thread."""
+        """
+        Create a new support ticket. Restrict creation to valid purchasing customers.
+        """
+        # Purchaser-Only Ticket Validation
+        if order_id:
+            order = db.session.query(Order).filter_by(id=order_id, user_id=customer_id).first()
+            if not order:
+                raise PermissionError("Invalid order ID or access denied. Support tickets are restricted to valid purchasers.")
+        else:
+            has_purchases = db.session.query(Order).filter_by(user_id=customer_id).first()
+            if not has_purchases:
+                raise PermissionError("Only customers who have purchased products can submit support tickets.")
+
         ticket_no = self.generate_ticket_number()
         while db.session.query(Ticket).filter_by(ticket_number=ticket_no).first():
             ticket_no = self.generate_ticket_number()
@@ -75,7 +89,7 @@ class TicketService:
 
         db.session.commit()
 
-        # Trigger async Celery background AI analysis & notification worker
+        # Trigger async Celery background AI analysis, first-line responder & vendor routing
         try:
             from app.customer_support.workers.ai_tasks import process_new_ticket_task
             process_new_ticket_task.delay(ticket.id)
@@ -94,11 +108,27 @@ class TicketService:
         page: int = 1,
         per_page: int = 20
     ):
-        """Fetch paginated tickets using indexed columns. Customers see their own tickets; Agents/Admins see all."""
+        """
+        Fetch paginated tickets with domain RBAC isolation:
+        - Customer sees only self-owned tickets.
+        - Vendor sees tickets assigned to their store/products.
+        - Admin / Support Manager retains full global oversight across all stores.
+        """
         query = db.session.query(Ticket)
 
-        if user_role not in ["admin", "support_agent", "support_manager"]:
+        if user_role == "customer":
             query = query.filter_by(customer_id=user_id)
+        elif user_role in ["vendor", "seller"]:
+            # Find seller store associated with current merchant staff/owner
+            seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
+            if not seller:
+                staff = db.session.query(SellerStaff).filter_by(user_id=user_id).first()
+                if staff:
+                    seller = staff.seller
+            seller_id = seller.id if seller else user_id
+            query = query.filter((Ticket.vendor_id == seller_id) | (Ticket.vendor_id == user_id))
+        elif user_role in ["admin", "support_manager", "support_agent"]:
+            pass  # Global oversight across all stores
 
         if status:
             query = query.filter_by(status=status.upper())
@@ -124,8 +154,13 @@ class TicketService:
         if not ticket:
             return None
 
-        if user_role not in ["admin", "support_agent", "support_manager"] and ticket.customer_id != user_id:
+        if user_role == "customer" and ticket.customer_id != user_id:
             return None
+        elif user_role in ["vendor", "seller"]:
+            seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
+            seller_id = seller.id if seller else user_id
+            if ticket.vendor_id not in [seller_id, user_id]:
+                return None
 
         data = ticket.to_dict()
         data["messages"] = [m.to_dict() for m in ticket.messages]
@@ -144,6 +179,10 @@ class TicketService:
         if not ticket:
             return None
 
+        # Block replies on closed or resolved tickets
+        if ticket.status in ["CLOSED", "RESOLVED"]:
+            raise PermissionError(f"Cannot reply to a ticket with status '{ticket.status}'. Please open a new ticket if you need further assistance.")
+
         msg = TicketMessage(
             ticket_id=ticket_id,
             sender_id=sender_id,
@@ -157,7 +196,7 @@ class TicketService:
         ticket.message_count = (ticket.message_count or 0) + 1
 
         # Update status based on sender
-        if sender_type.upper() in ["AGENT", "ADMIN"]:
+        if sender_type.upper() in ["AGENT", "ADMIN", "VENDOR"]:
             ticket.status = "WAITING_CUSTOMER"
         elif sender_type.upper() == "CUSTOMER":
             ticket.status = "IN_PROGRESS"
@@ -199,12 +238,12 @@ class TicketService:
             return None, f"Invalid ticket status '{new_status}'."
 
         # Domain-Level RBAC Enforcement Matrix
-        if user_role not in ["admin", "support_agent", "support_manager"]:
+        if user_role not in ["admin", "support_agent", "support_manager", "vendor", "seller"]:
             if target != "CLOSED":
                 return None, "Forbidden: Customers are only permitted to cancel their own tickets by setting status to CLOSED."
 
-        if user_role == "support_agent" and target not in ["IN_PROGRESS", "WAITING_CUSTOMER", "RESOLVED", "CLOSED"]:
-            return None, f"Forbidden: Support agents cannot set status to '{target}'."
+        if user_role in ["support_agent", "vendor", "seller"] and target not in ["IN_PROGRESS", "WAITING_CUSTOMER", "RESOLVED", "CLOSED"]:
+            return None, f"Forbidden: Support agents and vendors cannot set status to '{target}'."
 
         ticket.status = target
         ticket.updated_at = datetime.now(timezone.utc)

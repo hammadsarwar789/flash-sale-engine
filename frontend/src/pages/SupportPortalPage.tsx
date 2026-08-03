@@ -417,26 +417,33 @@ export const SupportPortalPage: React.FC = () => {
                 </div>
 
                 {/* Response Entry Box */}
-                <form onSubmit={handleSendReply} className="border-t border-rule pt-4 space-y-3">
-                  <textarea
-                    rows={4}
-                    required
-                    placeholder="Type your official support response here..."
-                    value={replyMessage}
-                    onChange={(e) => setReplyMessage(e.target.value)}
-                    className="w-full bg-paper border border-rule px-3 py-2 text-ink focus:outline-none resize-none font-mono text-xs"
-                  />
-                  <div className="flex justify-between items-center">
-                    <span className="text-ash text-[11px]">Pressing send notifies the user via email.</span>
-                    <button
-                      type="submit"
-                      disabled={isReplying || !replyMessage.trim()}
-                      className="px-6 py-2 bg-ink text-paper font-semibold hover:bg-graphite transition-colors uppercase cursor-pointer"
-                    >
-                      {isReplying ? 'SENDING...' : 'SEND RESPONSE →'}
-                    </button>
+                {['CLOSED', 'RESOLVED'].includes(selectedTicketDetail.status) ? (
+                  <div className="border border-rule bg-paper-sunk p-4 text-center text-ash space-y-1">
+                    <p className="font-semibold text-ink">🔒 TICKET IS {selectedTicketDetail.status}</p>
+                    <p className="text-[11px]">New replies are disabled for resolved or closed tickets. Please open a new ticket if you need further assistance.</p>
                   </div>
-                </form>
+                ) : (
+                  <form onSubmit={handleSendReply} className="border-t border-rule pt-4 space-y-3">
+                    <textarea
+                      rows={4}
+                      required
+                      placeholder="Type your official support response here..."
+                      value={replyMessage}
+                      onChange={(e) => setReplyMessage(e.target.value)}
+                      className="w-full bg-paper border border-rule px-3 py-2 text-ink focus:outline-none resize-none font-mono text-xs"
+                    />
+                    <div className="flex justify-between items-center">
+                      <span className="text-ash text-[11px]">Pressing send notifies the user via email.</span>
+                      <button
+                        type="submit"
+                        disabled={isReplying || !replyMessage.trim()}
+                        className="px-6 py-2 bg-ink text-paper font-semibold hover:bg-graphite transition-colors uppercase cursor-pointer"
+                      >
+                        {isReplying ? 'SENDING...' : 'SEND RESPONSE →'}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             ) : (
               <div className="border border-rule bg-paper p-12 text-center text-ash space-y-2">
