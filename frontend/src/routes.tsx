@@ -12,6 +12,7 @@ import { OrderDetailPage } from './pages/OrderDetailPage';
 import { WishlistPage } from './pages/WishlistPage';
 import { AdminPage } from './pages/AdminPage';
 import { VendorPortalPage } from './pages/VendorPortalPage';
+import { SupportPortalPage } from './pages/SupportPortalPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
@@ -115,6 +116,16 @@ export const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <VendorPortalPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Customer Support & AI Desk Route */}
+        <Route
+          path="support"
+          element={
+            <ProtectedRoute>
+              <SupportPortalPage />
             </ProtectedRoute>
           }
         />
