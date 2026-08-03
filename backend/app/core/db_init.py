@@ -1,6 +1,7 @@
 import logging
 from sqlalchemy import text
 from app.core.extensions import db
+from app.models.return_request import ReturnRequest
 
 logger = logging.getLogger(__name__)
 

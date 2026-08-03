@@ -309,3 +309,42 @@ class InventoryService:
                 "db_total_stock": product.total_stock,
                 "redis_status": f"Redis offline: {str(e)}",
             }
+
+    @classmethod
+    def restock(cls, product_id: str, quantity: int = 1) -> bool:
+        """Restock SQL database available_stock and Redis stock cache upon item return."""
+        product = db.session.query(Product).filter_by(id=product_id).first()
+        if not product:
+            return False
+
+        product.available_stock += quantity
+        db.session.commit()
+
+        try:
+            stock_key, _ = cls._get_keys(product_id)
+            if redis_client.exists(stock_key):
+                redis_client.incrby(stock_key, quantity)
+        except Exception:
+            pass
+
+        return True
+
+    @classmethod
+    def confirm_stock_deduction(cls, product_id: str, quantity: int = 1) -> bool:
+        """Confirm stock deduction for an exchange item release in DB and Redis."""
+        product = db.session.query(Product).filter_by(id=product_id).first()
+        if not product or product.available_stock < quantity:
+            return False
+
+        product.available_stock -= quantity
+        db.session.commit()
+
+        try:
+            stock_key, _ = cls._get_keys(product_id)
+            if redis_client.exists(stock_key):
+                redis_client.decrby(stock_key, quantity)
+        except Exception:
+            pass
+
+        return True
+

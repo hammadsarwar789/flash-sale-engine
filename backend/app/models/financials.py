@@ -40,7 +40,7 @@ class LedgerEntry(db.Model):
     __tablename__ = "ledger_entries"
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    sub_order_id = db.Column(db.String(36), db.ForeignKey("sub_orders.id", ondelete="CASCADE"), nullable=False, index=True)
+    sub_order_id = db.Column(db.String(36), db.ForeignKey("sub_orders.id", ondelete="CASCADE"), nullable=True, index=True)
     seller_id = db.Column(db.String(36), db.ForeignKey("sellers.id"), nullable=False, index=True)
     entry_type = db.Column(db.String(32), nullable=False, index=True)  # ESCROW_HOLD, ESCROW_RELEASE, COMMISSION_DEDUCTION, REFUND, PAYOUT
     amount = db.Column(db.Numeric(12, 2), nullable=False, default=0.00)

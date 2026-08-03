@@ -116,7 +116,7 @@ class TicketService:
         """
         query = db.session.query(Ticket)
 
-        if user_role == "customer":
+        if user_role in ["customer", "user"]:
             query = query.filter_by(customer_id=user_id)
         elif user_role in ["vendor", "seller"]:
             # Find seller store associated with current merchant staff/owner
@@ -129,6 +129,8 @@ class TicketService:
             query = query.filter((Ticket.vendor_id == seller_id) | (Ticket.vendor_id == user_id))
         elif user_role in ["admin", "support_manager", "support_agent"]:
             pass  # Global oversight across all stores
+        else:
+            query = query.filter_by(customer_id=user_id)
 
         if status:
             query = query.filter_by(status=status.upper())
@@ -154,7 +156,7 @@ class TicketService:
         if not ticket:
             return None
 
-        if user_role == "customer" and ticket.customer_id != user_id:
+        if user_role in ["customer", "user"] and ticket.customer_id != user_id:
             return None
         elif user_role in ["vendor", "seller"]:
             seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()

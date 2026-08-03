@@ -247,6 +247,7 @@ export const SupportPortalPage: React.FC = () => {
                     <option value="IN_PROGRESS">IN PROGRESS</option>
                     <option value="WAITING_CUSTOMER">WAITING CUST</option>
                     <option value="RESOLVED">RESOLVED</option>
+                    <option value="CLOSED">CLOSED</option>
                   </select>
                   <select
                     value={priorityFilter}

@@ -174,3 +174,52 @@ def release_matured_escrow_task(self):
         logger.error(f"Escrow release task {task_id} failed: {e}")
         return {"status": "error", "message": str(e)}
 
+
+@shared_task(name="tasks.reconcile_returned_escrow")
+def reconcile_returned_escrow(sub_order_id: str) -> dict:
+    """Cancels pending escrow releases for sub-orders undergoing return."""
+    from app.models.financials import LedgerEntry
+
+    escrow_entries = db.session.query(LedgerEntry).filter_by(
+        sub_order_id=sub_order_id,
+        entry_type="ESCROW_HOLD",
+        status="HELD"
+    ).all()
+
+    for entry in escrow_entries:
+        entry.status = "CANCELLED_DUE_TO_RETURN"
+
+    db.session.commit()
+    logger.info(f"[FINANCE-RECONCILE] Cancelled {len(escrow_entries)} escrow hold entries for sub_order '{sub_order_id}'.")
+    return {"status": "reconciled", "sub_order_id": sub_order_id, "count": len(escrow_entries)}
+
+
+@shared_task(name="tasks.enforce_vendor_inspection_sla")
+def enforce_vendor_inspection_sla() -> dict:
+    """
+    Celery Beat scheduled task running hourly.
+    Auto-approves returns stuck at 'ARRIVED_AT_WAREHOUSE' past SLA threshold (48 hours).
+    """
+    from datetime import timedelta
+    from app.models.return_request import ReturnRequest
+    from app.services.inspection_service import inspection_service
+
+    sla_cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+    overdue_returns = db.session.query(ReturnRequest).filter(
+        ReturnRequest.status == "ARRIVED_AT_WAREHOUSE",
+        ReturnRequest.updated_at <= sla_cutoff
+    ).all()
+
+    approved_count = 0
+    for req in overdue_returns:
+        inspection_service.process_warehouse_inspection(
+            return_id=req.id,
+            inspection_passed=True,
+            inspector_notes="SYSTEM_AUTO_APPROVAL_VENDOR_SLA_BREACH"
+        )
+        approved_count += 1
+
+    logger.info(f"[VENDOR-SLA-BEAT] Auto-approved {approved_count} overdue warehouse inspection returns.")
+    return {"status": "sla_enforced", "approved_count": approved_count}
+
+

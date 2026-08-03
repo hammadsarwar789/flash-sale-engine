@@ -19,6 +19,7 @@ from app.api import (
     support_bp,
 )
 from app.customer_support.api.v1.support import support_ticket_bp
+from app.api.v1.courier_webhooks import courier_webhook_bp
 from app.core.db_init import sync_database_schema
 
 
@@ -82,6 +83,7 @@ def create_app(config_name: str = None) -> Flask:
     smorest_api.register_blueprint(logistics_bp)
     smorest_api.register_blueprint(support_bp)
     smorest_api.register_blueprint(support_ticket_bp)
+    app.register_blueprint(courier_webhook_bp)
 
     # Root API Index route
     @app.route("/")
