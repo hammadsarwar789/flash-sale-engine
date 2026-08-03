@@ -247,6 +247,7 @@ The existing RBAC engine is extended with 4 dedicated roles:
 * **Phase 5.2 (Marshmallow & Strict RBAC)**: Request schemas (`CreateTicketSchema`, `UpdateStatusSchema`), role-gated state transitions (Customers restricted from setting `RESOLVED`).
 * **Phase 5.3 (Service Concurrency & AI Safety)**: Race-free ticket number sequence, `ai_suggested_priority` column in `TicketAI`.
 * **Phase 5.4 (Production RAG & Vector Embeddings)**: Cosine similarity vector search over platform policy documentation.
+* **Phase 5.5 (Purchaser Validation, AI Auto-Responder, Vendor Routing & Vendor/Admin RBAC)**: Restrict ticket creation to purchasing customers, auto-reply via RAG AI for policy queries, route order/product tickets to seller `vendor_id`, enforce vendor store isolation vs admin global oversight.
 
 ---
 
