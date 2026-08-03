@@ -48,7 +48,9 @@ def sync_database_schema():
                 conn.execute(text("ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS sub_order_id VARCHAR(36);"))
-                conn.execute(text("ALTER TABLE coupons ADD COLUMN IF NOT EXISTS max_uses_per_user INTEGER DEFAULT 1;"))
+                # 5. Update 'tickets' & 'ticket_ai' for customer support module
+                conn.execute(text("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS message_count INTEGER NOT NULL DEFAULT 1;"))
+                conn.execute(text("ALTER TABLE ticket_ai ADD COLUMN IF NOT EXISTS ai_suggested_priority VARCHAR(20);"))
 
         # Create any new tables
         db.create_all()
