@@ -947,9 +947,6 @@ export const VendorPortalPage: React.FC = () => {
                   </form>
                 </div>
               </div>
-            )}
-          </div>
-        )}
           </div>
         )}
 
