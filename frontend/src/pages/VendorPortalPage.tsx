@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Eyebrow } from '../components/ui/Eyebrow';
+import { Numeric } from '../components/ui/Numeric';
 import { vendorApi, SellerProfile, VendorSubOrder, VendorFinanceSummary } from '../api/vendor';
+import { productsApi } from '../api/products';
+import { Category } from '../types/api';
 
 export const VendorPortalPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'sub-orders' | 'products' | 'finance' | 'onboarding'>('overview');
@@ -23,17 +26,28 @@ export const VendorPortalPage: React.FC = () => {
   const [subOrders, setSubOrders] = useState<VendorSubOrder[]>([]);
   const [finance, setFinance] = useState<VendorFinanceSummary | null>(null);
   const [vendorProducts, setVendorProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [payoutAmount, setPayoutAmount] = useState<string>('');
 
   // Vendor New Product Form State
   const [prodName, setProdName] = useState('');
   const [prodSku, setProdSku] = useState('');
-  const [prodPrice, setProdPrice] = useState<number>(49.99);
-  const [prodStock, setProdStock] = useState<number>(50);
+  const [prodPrice, setProdPrice] = useState<number>(99.99);
+  const [prodStock, setProdStock] = useState<number>(100);
   const [prodDiscountPct, setProdDiscountPct] = useState<number>(0);
+  const [prodCatId, setProdCatId] = useState<string>('');
   const [prodDesc, setProdDesc] = useState('');
   const [prodImageUrl, setProdImageUrl] = useState('');
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+
+  // Edit Product Modal State
+  const [editProduct, setEditProduct] = useState<any | null>(null);
+  const [editProdName, setEditProdName] = useState('');
+  const [editProdPrice, setEditProdPrice] = useState<number>(0);
+  const [editProdStock, setEditProdStock] = useState<number>(0);
+  const [editProdCatId, setEditProdCatId] = useState('');
+  const [editProdDiscountPct, setEditProdDiscountPct] = useState<number>(0);
+  const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
 
   // Variant Editor State for Product Expansion
   const [expandedProdId, setExpandedProdId] = useState<string | null>(null);
@@ -54,14 +68,16 @@ export const VendorPortalPage: React.FC = () => {
         setHasAccount(true);
         setProfile(res.seller);
         if (res.seller.status === 'APPROVED') {
-          const [soData, finData, prodData] = await Promise.all([
+          const [soData, finData, prodData, catData] = await Promise.all([
             vendorApi.getSubOrders(),
             vendorApi.getFinance(),
             vendorApi.getProducts().catch(() => []),
+            productsApi.getCategories().catch(() => []),
           ]);
           setSubOrders(soData);
           setFinance(finData);
           setVendorProducts(prodData);
+          setCategories(catData);
         } else {
           setActiveTab('onboarding');
         }
@@ -148,14 +164,16 @@ export const VendorPortalPage: React.FC = () => {
         price: prodPrice,
         total_stock: prodStock,
         discount_percentage: prodDiscountPct,
+        category_id: prodCatId || undefined,
         description: prodDesc,
       });
       setSuccessMsg(res.message);
       setProdName('');
       setProdSku('');
-      setProdPrice(49.99);
-      setProdStock(50);
+      setProdPrice(99.99);
+      setProdStock(100);
       setProdDiscountPct(0);
+      setProdCatId('');
       setProdDesc('');
       setProdImageUrl('');
       const prods = await vendorApi.getProducts();
@@ -164,6 +182,40 @@ export const VendorPortalPage: React.FC = () => {
       setErrorMsg(err.message || 'Failed to create product listing.');
     } finally {
       setIsCreatingProduct(false);
+    }
+  };
+
+  const handleOpenEditProduct = (p: any) => {
+    setEditProduct(p);
+    setEditProdName(p.name);
+    setEditProdPrice(p.price);
+    setEditProdStock(p.total_stock);
+    setEditProdCatId(p.category_id || '');
+    setEditProdDiscountPct(p.discount_percentage || 0);
+  };
+
+  const handleSaveEditProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editProduct) return;
+    setErrorMsg('');
+    setSuccessMsg('');
+    setIsUpdatingProduct(true);
+    try {
+      const res = await vendorApi.updateProduct(editProduct.id, {
+        name: editProdName,
+        price: editProdPrice,
+        total_stock: editProdStock,
+        category_id: editProdCatId || undefined,
+        discount_percentage: editProdDiscountPct,
+      });
+      setSuccessMsg(res.message);
+      setEditProduct(null);
+      const prods = await vendorApi.getProducts();
+      setVendorProducts(prods);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to update product.');
+    } finally {
+      setIsUpdatingProduct(false);
     }
   };
 
@@ -539,273 +591,365 @@ export const VendorPortalPage: React.FC = () => {
           <div className="space-y-8 font-mono text-xs">
             {/* Create Product Form */}
             <form onSubmit={handleCreateVendorProduct} className="border border-rule bg-paper p-6 space-y-4">
-              <div className="border-b border-rule pb-2">
-                <h3 className="font-serif text-2xl text-ink">List New Store Product</h3>
-                <p className="text-ash text-[11px]">Add a product directly under your merchant store catalog.</p>
+              <Eyebrow className="text-ash block font-mono text-xs mb-3 uppercase tracking-widest">
+                ISSUE NEW STORE PRODUCT RECORD
+              </Eyebrow>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                <input
+                  type="text"
+                  required
+                  placeholder="NAME"
+                  value={prodName}
+                  onChange={(e) => setProdName(e.target.value)}
+                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                />
+                <input
+                  type="text"
+                  required
+                  placeholder="SKU (E.G. FL-8800)"
+                  value={prodSku}
+                  onChange={(e) => setProdSku(e.target.value)}
+                  className="bg-paper border border-rule px-3 py-1.5 text-ink uppercase focus:outline-none"
+                />
+                <input
+                  type="number"
+                  required
+                  min="0.01"
+                  step="0.01"
+                  placeholder="PRICE ($)"
+                  value={prodPrice}
+                  onChange={(e) => setProdPrice(Math.max(0.01, parseFloat(e.target.value) || 0))}
+                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="DISCOUNT (% OFF)"
+                  value={prodDiscountPct || ''}
+                  onChange={(e) => setProdDiscountPct(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                />
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  placeholder="TOTAL STOCK"
+                  value={prodStock}
+                  onChange={(e) => setProdStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                />
+                <select
+                  value={prodCatId}
+                  onChange={(e) => setProdCatId(e.target.value)}
+                  className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
+                >
+                  <option value="">SELECT CATEGORY (OPTIONAL)</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
+                  ))}
+                </select>
+                <div className="bg-paper-sunk border border-rule px-3 py-1.5 text-ink font-semibold flex items-center overflow-hidden text-ellipsis whitespace-nowrap">
+                  🏪 {profile.store_name}
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <div>
-                  <Eyebrow className="text-ash block mb-1">PRODUCT NAME *</Eyebrow>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Speed Runner Pro"
-                    value={prodName}
-                    onChange={(e) => setProdName(e.target.value)}
-                    className="w-full bg-paper border border-rule px-3 py-2 text-ink"
-                  />
-                </div>
-                <div>
-                  <Eyebrow className="text-ash block mb-1">UNIQUE SKU *</Eyebrow>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. SKU-SRP-001"
-                    value={prodSku}
-                    onChange={(e) => setProdSku(e.target.value)}
-                    className="w-full bg-paper border border-rule px-3 py-2 text-ink uppercase"
-                  />
-                </div>
-                <div>
-                  <Eyebrow className="text-ash block mb-1">PRICE ($) *</Eyebrow>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={prodPrice}
-                    onChange={(e) => setProdPrice(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-paper border border-rule px-3 py-2 text-ink"
-                  />
-                </div>
-                <div>
-                  <Eyebrow className="text-ash block mb-1">TOTAL STOCK *</Eyebrow>
-                  <input
-                    type="number"
-                    required
-                    value={prodStock}
-                    onChange={(e) => setProdStock(parseInt(e.target.value) || 0)}
-                    className="w-full bg-paper border border-rule px-3 py-2 text-ink"
-                  />
-                </div>
-                <div>
-                  <Eyebrow className="text-ash block mb-1">DISCOUNT %</Eyebrow>
-                  <input
-                    type="number"
-                    min="0"
-                    max="99"
-                    value={prodDiscountPct}
-                    onChange={(e) => setProdDiscountPct(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-paper border border-rule px-3 py-2 text-ink"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Eyebrow className="text-ash block mb-1">PRODUCT DESCRIPTION</Eyebrow>
-                <textarea
-                  rows={2}
-                  placeholder="Detailed product features, dimensions, specifications..."
+              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+                <input
+                  type="text"
+                  placeholder="OPTIONAL DESCRIPTION / PRODUCT DETAILS"
                   value={prodDesc}
                   onChange={(e) => setProdDesc(e.target.value)}
-                  className="w-full bg-paper border border-rule px-3 py-2 text-ink resize-none"
+                  className="w-full sm:flex-1 bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
-              </div>
-
-              <div className="flex justify-end">
                 <button
                   type="submit"
                   disabled={isCreatingProduct}
-                  className="px-6 py-2.5 bg-ink text-paper font-semibold hover:bg-graphite transition-colors uppercase cursor-pointer"
+                  className="w-full sm:w-auto bg-ink text-paper px-6 py-1.5 hover:bg-graphite uppercase whitespace-nowrap cursor-pointer"
                 >
-                  {isCreatingProduct ? 'CREATING...' : 'PUBLISH STORE PRODUCT →'}
+                  {isCreatingProduct ? 'ISSUING...' : '+ CREATE PRODUCT'}
                 </button>
               </div>
             </form>
 
             {/* Vendor Products Table */}
-            <div className="border border-rule bg-paper p-6 space-y-4">
-              <h3 className="font-serif text-2xl text-ink">Active Merchant Catalog ({vendorProducts.length})</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-paper-sunk border-b border-rule text-ash">
-                      <th className="py-2.5 px-3">PRODUCT</th>
-                      <th className="py-2.5 px-3">SKU</th>
-                      <th className="py-2.5 px-3">PRICE / DISCOUNT</th>
-                      <th className="py-2.5 px-3">AVAIL / TOTAL STOCK</th>
-                      <th className="py-2.5 px-3">VARIANTS</th>
-                      <th className="py-2.5 px-3">STATUS</th>
-                      <th className="py-2.5 px-3 text-right">ACTION</th>
+            <div className="border border-rule bg-paper overflow-x-auto">
+              <table className="w-full text-left font-mono text-xs">
+                <thead>
+                  <tr className="bg-paper-sunk border-b border-rule text-ash">
+                    <th className="py-2.5 px-3">TITLE</th>
+                    <th className="py-2.5 px-3">SKU</th>
+                    <th className="py-2.5 px-3">CATEGORY</th>
+                    <th className="py-2.5 px-3">VENDOR</th>
+                    <th className="py-2.5 px-3">VARIANTS</th>
+                    <th className="py-2.5 px-3">PRICE</th>
+                    <th className="py-2.5 px-3">DISCOUNT</th>
+                    <th className="py-2.5 px-3">REDIS STOCK</th>
+                    <th className="py-2.5 px-3">DB STOCK</th>
+                    <th className="py-2.5 px-3 text-right">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rule/40">
+                  {vendorProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="py-8 text-center text-ash font-mono">
+                        No products listed under your merchant store yet.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {vendorProducts.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="py-8 text-center text-ash font-mono">
-                          No products listed under your merchant store yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      vendorProducts.map((p) => (
-                        <React.Fragment key={p.id}>
-                          <tr className="border-b border-rule/50 hover:bg-paper-sunk/40">
-                            <td className="py-3 px-3 font-semibold text-ink">{p.name}</td>
-                            <td className="py-3 px-3 text-ash font-mono">{p.sku}</td>
-                            <td className="py-3 px-3 font-semibold text-ink">
-                              ${p.price.toFixed(2)}
-                              {p.discount_percentage > 0 && (
-                                <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-signal/10 text-signal font-semibold">
-                                  -{p.discount_percentage}% OFF
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-3 px-3 font-mono">
-                              <span className="text-gain font-semibold">{p.available_stock}</span> / {p.total_stock}
-                            </td>
-                            <td className="py-3 px-3 font-mono">
+                  ) : (
+                    vendorProducts.map((p) => (
+                      <React.Fragment key={p.id}>
+                        <tr className="hover:bg-paper-sunk/40">
+                          <td className="py-2.5 px-3 font-sans font-medium text-ink">{p.name}</td>
+                          <td className="py-2.5 px-3 text-ash">{p.sku}</td>
+                          <td className="py-2.5 px-3">
+                            <span className="bg-paper-sunk px-2 py-0.5 border border-rule text-ink font-semibold uppercase">
+                              {typeof p.category === 'object' ? p.category?.name?.toUpperCase() : (categories.find(c => c.id === (p.category_id || p.category))?.name?.toUpperCase() || 'GENERAL')}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-ash">
+                            <span className="bg-paper-sunk px-2 py-0.5 border border-rule text-ink font-semibold">
+                              {profile.store_name}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-ash">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedProdId(expandedProdId === p.id ? null : p.id)}
+                              className="underline text-signal hover:text-ink font-semibold"
+                            >
+                              {p.variants?.length || 0} VARIANTS {expandedProdId === p.id ? '▲' : '▼'}
+                            </button>
+                          </td>
+                          <td className="py-2.5 px-3 text-ink">
+                            <Numeric value={Number(p.price)} format="price" zeroPadInt={3} />
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold">
+                            {p.discount_percentage > 0 ? (
+                              <span className="bg-signal text-paper px-1.5 py-0.5 text-[10px]">SAVE {p.discount_percentage}% OFF</span>
+                            ) : (
+                              <span className="text-ash">— NONE</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-gain font-semibold">{p.available_stock ?? p.total_stock} UNITS</td>
+                          <td className="py-2.5 px-3 text-ash">{p.total_stock} UNITS</td>
+                          <td className="py-2.5 px-3 text-right space-x-2">
+                            <button
+                              onClick={() => handleOpenEditProduct(p)}
+                              className="underline text-signal hover:text-ink font-semibold"
+                            >
+                              [ EDIT STOCK ]
+                            </button>
+                            {p.is_active && (
                               <button
-                                onClick={() => setExpandedProdId(expandedProdId === p.id ? null : p.id)}
-                                className="px-2 py-1 text-[11px] border border-rule bg-paper-sunk hover:bg-paper font-semibold"
+                                onClick={() => handleDeactivateVendorProduct(p.id)}
+                                className="underline text-loss hover:text-ink"
                               >
-                                {p.variants && p.variants.length > 0 ? `⚙ ${p.variants.length} VARIANTS` : '+ ADD VARIANTS'}
+                                [ DEACTIVATE ]
                               </button>
-                            </td>
-                            <td className="py-3 px-3">
-                              <span className={`px-2 py-0.5 text-[10px] font-semibold ${p.is_active ? 'bg-gain/20 text-gain' : 'bg-loss/20 text-loss'}`}>
-                                {p.is_active ? 'ACTIVE' : 'DEACTIVATED'}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 text-right space-x-2">
-                              {p.is_active && (
-                                <button
-                                  onClick={() => handleDeactivateVendorProduct(p.id)}
-                                  className="px-2.5 py-1 text-[11px] font-semibold bg-loss/10 text-loss hover:bg-loss hover:text-paper transition-colors"
-                                >
-                                  DEACTIVATE
-                                </button>
-                              )}
+                            )}
+                          </td>
+                        </tr>
+
+                        {/* Expanded Variant Manager Drawer */}
+                        {expandedProdId === p.id && (
+                          <tr className="bg-paper-sunk/30">
+                            <td colSpan={10} className="py-3 px-3">
+                              <div className="border border-rule bg-paper p-3 space-y-3">
+                                <div className="flex items-center justify-between text-[11px] font-mono text-ash uppercase border-b border-rule pb-2">
+                                  <span>SKU Variant Details for "{p.name}"</span>
+                                  <span>{p.variants?.length || 0} records</span>
+                                </div>
+
+                                {p.variants && p.variants.length > 0 ? (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    {p.variants.map((variant: any) => (
+                                      <div key={variant.id} className="border border-rule px-3 py-2 bg-paper-sunk flex items-center justify-between gap-3">
+                                        <div>
+                                          <p className="font-semibold text-ink">{variant.name}</p>
+                                          <p className="text-[11px] text-ash font-mono">SKU: {variant.sku}</p>
+                                          <p className="text-[11px] text-ash font-mono">COLOR: {variant.color || 'N/A'} · SIZE: {variant.size || 'N/A'}</p>
+                                        </div>
+                                        <div className="text-right font-mono text-[11px]">
+                                          <p className="text-ink font-semibold">{variant.available_stock} / {variant.total_stock} STOCK</p>
+                                          <p className="text-gain">${Number(variant.price || 0).toFixed(2)}</p>
+                                          <button
+                                            onClick={() => handleDeleteVariant(p.id, variant.id)}
+                                            className="text-loss hover:underline text-[10px] mt-1 block ml-auto"
+                                          >
+                                            [ REMOVE ]
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-ash font-mono text-xs">No variants added yet.</p>
+                                )}
+
+                                {/* Add Variant Form */}
+                                <form onSubmit={(e) => handleCreateVariant(p.id, e)} className="border-t border-rule pt-3 space-y-3">
+                                  <Eyebrow className="text-ash block">ADD NEW SKU VARIANT (SIZE / COLOR / STOCK)</Eyebrow>
+                                  <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+                                    <input
+                                      type="text"
+                                      required
+                                      placeholder="Variant SKU (e.g. FL-L-BLK)"
+                                      value={varSku}
+                                      onChange={(e) => setVarSku(e.target.value)}
+                                      className="bg-paper border border-rule px-2 py-1.5 text-ink uppercase"
+                                    />
+                                    <input
+                                      type="text"
+                                      required
+                                      placeholder="Variant Name"
+                                      value={varName}
+                                      onChange={(e) => setVarName(e.target.value)}
+                                      className="bg-paper border border-rule px-2 py-1.5 text-ink"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Size (L, XL)"
+                                      value={varSize}
+                                      onChange={(e) => setVarSize(e.target.value)}
+                                      className="bg-paper border border-rule px-2 py-1.5 text-ink"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Color (Black)"
+                                      value={varColor}
+                                      onChange={(e) => setVarColor(e.target.value)}
+                                      className="bg-paper border border-rule px-2 py-1.5 text-ink"
+                                    />
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      placeholder={`Price ($${p.price})`}
+                                      value={varPrice || ''}
+                                      onChange={(e) => setVarPrice(parseFloat(e.target.value) || 0)}
+                                      className="bg-paper border border-rule px-2 py-1.5 text-ink"
+                                    />
+                                    <input
+                                      type="number"
+                                      required
+                                      placeholder="Stock Qty"
+                                      value={varStock}
+                                      onChange={(e) => setVarStock(parseInt(e.target.value) || 0)}
+                                      className="bg-paper border border-rule px-2 py-1.5 text-ink"
+                                    />
+                                  </div>
+                                  <div className="flex justify-end">
+                                    <button
+                                      type="submit"
+                                      disabled={isCreatingVar}
+                                      className="px-4 py-1.5 bg-signal text-paper font-semibold hover:bg-signal/90 transition-colors uppercase text-[11px]"
+                                    >
+                                      {isCreatingVar ? 'ADDING...' : '+ ADD SKU VARIANT'}
+                                    </button>
+                                  </div>
+                                </form>
+                              </div>
                             </td>
                           </tr>
-
-                          {/* Expanded Variant Manager Drawer */}
-                          {expandedProdId === p.id && (
-                            <tr className="bg-paper-sunk/60 border-b border-rule">
-                              <td colSpan={7} className="p-4 space-y-4">
-                                <div className="border border-rule bg-paper p-4 space-y-3">
-                                  <h4 className="font-serif text-lg text-ink">Manage SKU Variants for "{p.name}"</h4>
-                                  
-                                  {/* Variant List Table */}
-                                  {p.variants && p.variants.length > 0 ? (
-                                    <table className="w-full text-left font-mono text-[11px] border border-rule">
-                                      <thead>
-                                        <tr className="bg-paper-sunk border-b border-rule text-ash">
-                                          <th className="py-1.5 px-2">VARIANT SKU</th>
-                                          <th className="py-1.5 px-2">NAME</th>
-                                          <th className="py-1.5 px-2">SIZE</th>
-                                          <th className="py-1.5 px-2">COLOR</th>
-                                          <th className="py-1.5 px-2">PRICE</th>
-                                          <th className="py-1.5 px-2">STOCK</th>
-                                          <th className="py-1.5 px-2 text-right">ACTION</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {p.variants.map((v: any) => (
-                                          <tr key={v.id} className="border-b border-rule/30">
-                                            <td className="py-1.5 px-2 font-mono font-semibold">{v.sku}</td>
-                                            <td className="py-1.5 px-2">{v.name}</td>
-                                            <td className="py-1.5 px-2 text-ash">{v.size || '—'}</td>
-                                            <td className="py-1.5 px-2 text-ash">{v.color || '—'}</td>
-                                            <td className="py-1.5 px-2 font-semibold">${v.price.toFixed(2)}</td>
-                                            <td className="py-1.5 px-2">{v.available_stock} / {v.total_stock}</td>
-                                            <td className="py-1.5 px-2 text-right">
-                                              <button
-                                                onClick={() => handleDeleteVariant(p.id, v.id)}
-                                                className="text-loss hover:underline text-[10px]"
-                                              >
-                                                [REMOVE]
-                                              </button>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  ) : (
-                                    <p className="text-ash text-[11px]">No variants added yet for this product.</p>
-                                  )}
-
-                                  {/* Add Variant Form */}
-                                  <form onSubmit={(e) => handleCreateVariant(p.id, e)} className="border-t border-rule pt-3 space-y-3">
-                                    <Eyebrow className="text-ash block">ADD NEW VARIANT (SIZE / COLOR / SKU)</Eyebrow>
-                                    <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-                                      <input
-                                        type="text"
-                                        required
-                                        placeholder="Variant SKU (e.g. SRP-L-BLK)"
-                                        value={varSku}
-                                        onChange={(e) => setVarSku(e.target.value)}
-                                        className="bg-paper border border-rule px-2 py-1.5 text-ink uppercase"
-                                      />
-                                      <input
-                                        type="text"
-                                        required
-                                        placeholder="Variant Name (e.g. Large Black)"
-                                        value={varName}
-                                        onChange={(e) => setVarName(e.target.value)}
-                                        className="bg-paper border border-rule px-2 py-1.5 text-ink"
-                                      />
-                                      <input
-                                        type="text"
-                                        placeholder="Size (e.g. L, XL, 42)"
-                                        value={varSize}
-                                        onChange={(e) => setVarSize(e.target.value)}
-                                        className="bg-paper border border-rule px-2 py-1.5 text-ink"
-                                      />
-                                      <input
-                                        type="text"
-                                        placeholder="Color (e.g. Black)"
-                                        value={varColor}
-                                        onChange={(e) => setVarColor(e.target.value)}
-                                        className="bg-paper border border-rule px-2 py-1.5 text-ink"
-                                      />
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder={`Price ($${p.price})`}
-                                        value={varPrice || ''}
-                                        onChange={(e) => setVarPrice(parseFloat(e.target.value) || 0)}
-                                        className="bg-paper border border-rule px-2 py-1.5 text-ink"
-                                      />
-                                      <input
-                                        type="number"
-                                        required
-                                        placeholder="Stock Qty"
-                                        value={varStock}
-                                        onChange={(e) => setVarStock(parseInt(e.target.value) || 0)}
-                                        className="bg-paper border border-rule px-2 py-1.5 text-ink"
-                                      />
-                                    </div>
-                                    <div className="flex justify-end">
-                                      <button
-                                        type="submit"
-                                        disabled={isCreatingVar}
-                                        className="px-4 py-1.5 bg-signal text-paper font-semibold hover:bg-signal/90 transition-colors uppercase text-[11px]"
-                                      >
-                                        {isCreatingVar ? 'ADDING...' : '+ ADD SKU VARIANT'}
-                                      </button>
-                                    </div>
-                                  </form>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                        )}
+                      </React.Fragment>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
+
+            {/* Vendor Edit Stock Modal */}
+            {editProduct && (
+              <div className="fixed inset-0 bg-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-paper border border-rule max-w-lg w-full p-6 space-y-4 font-mono text-xs">
+                  <div className="flex justify-between items-center border-b border-rule pb-3">
+                    <h3 className="font-serif text-xl text-ink">Edit Merchant Product — {editProduct.sku}</h3>
+                    <button onClick={() => setEditProduct(null)} className="text-ash hover:text-ink text-sm">✕</button>
+                  </div>
+                  <form onSubmit={handleSaveEditProduct} className="space-y-4">
+                    <div>
+                      <Eyebrow className="text-ash block mb-1">PRODUCT TITLE</Eyebrow>
+                      <input
+                        type="text"
+                        required
+                        value={editProdName}
+                        onChange={(e) => setEditProdName(e.target.value)}
+                        className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Eyebrow className="text-ash block mb-1">PRICE ($)</Eyebrow>
+                        <input
+                          type="number"
+                          step="0.01"
+                          required
+                          value={editProdPrice}
+                          onChange={(e) => setEditProdPrice(parseFloat(e.target.value) || 0)}
+                          className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink"
+                        />
+                      </div>
+                      <div>
+                        <Eyebrow className="text-ash block mb-1">TOTAL STOCK</Eyebrow>
+                        <input
+                          type="number"
+                          required
+                          value={editProdStock}
+                          onChange={(e) => setEditProdStock(parseInt(e.target.value) || 0)}
+                          className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Eyebrow className="text-ash block mb-1">DISCOUNT %</Eyebrow>
+                        <input
+                          type="number"
+                          min="0"
+                          max="99"
+                          value={editProdDiscountPct}
+                          onChange={(e) => setEditProdDiscountPct(parseFloat(e.target.value) || 0)}
+                          className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink"
+                        />
+                      </div>
+                      <div>
+                        <Eyebrow className="text-ash block mb-1">CATEGORY</Eyebrow>
+                        <select
+                          value={editProdCatId}
+                          onChange={(e) => setEditProdCatId(e.target.value)}
+                          className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink"
+                        >
+                          <option value="">GENERAL</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex justify-end space-x-3 border-t border-rule pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setEditProduct(null)}
+                        className="px-4 py-2 border border-rule text-ash hover:text-ink uppercase"
+                      >
+                        CANCEL
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isUpdatingProduct}
+                        className="px-5 py-2 bg-ink text-paper font-semibold hover:bg-graphite uppercase"
+                      >
+                        {isUpdatingProduct ? 'SAVING...' : 'SAVE CHANGES →'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
           </div>
         )}
 
