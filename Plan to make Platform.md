@@ -220,30 +220,32 @@ The existing RBAC engine is extended with 4 dedicated roles:
 
 ---
 
-## 🚀 Phased 4-Sprint Implementation Plan
+## 🚀 Phased 5-Phase Implementation Plan
 
-### Phase 1: Core Ticket Management (Sprint 1)
-* DB migrations for `tickets` and `ticket_messages` tables.
-* Implement `models/ticket.py` and `models/ticket_message.py`.
-* Implement `services/ticket_service.py` for CRUD lifecycle and assignments.
-* Implement REST endpoints in `api/v1/support.py` protected by RBAC middleware.
+### Phase 1: Multi-Vendor Marketplace Foundation & Catalog Parity
+* `seller_id`, `seller_name`, `seller_slug` in `Product.to_dict()`.
+* Vendor CRUD & variant management endpoints (`POST/GET/PUT/DELETE /api/v1/vendor/products`, `POST/DELETE /variants`).
+* Vendor Portal product form (`ISSUE NEW STORE PRODUCT RECORD`, category selector, discount % input, `[ EDIT STOCK ]` modal, `N VARIANTS` drawer).
 
-### Phase 2: Asynchronous Event Engine & Email Service (Sprint 2)
-* Configure Celery task handlers in `workers/ai_tasks.py`.
-* Establish Redis message triggers on ticket lifecycle events.
-* Integrate email worker (SMTP/SES) for confirmation emails and agent notifications.
+### Phase 2: Multi-Seller Order Splitting & Escrow Financial Engine
+* Order splitting into vendor `SubOrder` records and `ESCROW_HOLD` entries in `ledger_entries`.
+* Celery Beat schedule (`release_matured_escrow_task`) running daily at 02:00 UTC for 7-day maturity holds.
+* Multi-seller line item grouping in Cart & Checkout UI.
 
-### Phase 3: AI Intelligence Suite (Sprint 3)
-* Implement `services/ai_service.py` using LLM SDKs (OpenAI / Anthropic).
-* Build automated sentiment extraction, priority scoring, auto-tagging, and summarization tasks.
-* Store AI inferences inside `ticket_ai` table.
-* Implement duplicate ticket detection via vector similarity.
+### Phase 3: Core Support Module & Ticket Management (`backend/app/customer_support/`)
+* DB migrations and SQLAlchemy models (`Ticket`, `TicketMessage`, `TicketAI`).
+* Core ticket service (`ticket_service.py`) & REST API routes (`backend/app/customer_support/api/v1/support.py`).
+* RBAC role permissions (`Support Agent`, `Support Manager`, `AI Reviewer`).
 
-### Phase 4: Knowledge Base RAG & Support Dashboard (Sprint 4)
-* Setup vector store ingestion pipeline for system documentation, FAQs, and vendor policies.
-* Implement context-retrieval RAG chain for AI draft response synthesis.
-* Build support analytics dashboard (`/dashboard/support`).
-* Implement SLA breach alerting routines.
+### Phase 4: Asynchronous Event Engine & Email Workers
+* Configure Celery task handlers in `backend/app/customer_support/workers/ai_tasks.py`.
+* Establish Redis event pub/sub triggers on `ticket.created`.
+* Integrated email notification workers for customers and support agents.
+
+### Phase 5: AI Intelligence Suite, RAG Knowledge Base & Support Dashboard
+* Implement `backend/app/customer_support/services/ai_service.py` (LLM summarization, sentiment detection, priority scoring).
+* Vector store RAG chain searching platform docs/FAQs to generate suggested draft responses (`/suggest-reply`).
+* Build support metrics dashboard (`/dashboard/support`) and SLA breach alerting.
 
 ---
 
