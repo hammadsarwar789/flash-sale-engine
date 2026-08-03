@@ -1,7 +1,13 @@
 from flask import request, jsonify, g
 from flask_smorest import Blueprint
+from marshmallow import ValidationError
 from app.api.decorators import jwt_required, admin_required
 from app.customer_support.services.ticket_service import ticket_service
+from app.customer_support.schemas.ticket_schema import (
+    CreateTicketSchema,
+    UpdateStatusSchema,
+    ReplyTicketSchema,
+)
 from app.models.user import User
 from app.core.extensions import db
 
@@ -12,32 +18,30 @@ support_ticket_bp = Blueprint(
     description="Customer Support Ticket Management & AI Assistance API"
 )
 
+create_ticket_schema = CreateTicketSchema()
+update_status_schema = UpdateStatusSchema()
+reply_ticket_schema = ReplyTicketSchema()
+
 
 @support_ticket_bp.route("", methods=["POST"])
 @jwt_required
 def create_ticket():
-    """Submit a new customer support ticket."""
-    data = request.get_json() or {}
-    subject = data.get("subject", "").strip()
-    message = data.get("message", "").strip()
-    category = data.get("category", "GENERAL").strip()
-    priority = data.get("priority", "MEDIUM").strip()
-    order_id = data.get("order_id")
-    vendor_id = data.get("vendor_id")
-    attachments = data.get("attachments", [])
-
-    if not subject or not message:
-        return jsonify({"error": "Bad Request", "message": "subject and message are required."}), 400
+    """Submit a new customer support ticket with Marshmallow input validation."""
+    json_data = request.get_json() or {}
+    try:
+        data = create_ticket_schema.load(json_data)
+    except ValidationError as err:
+        return jsonify({"error": "Validation Error", "messages": err.messages}), 400
 
     ticket = ticket_service.create_ticket(
         customer_id=g.current_user_id,
-        subject=subject,
-        message=message,
-        category=category,
-        priority=priority,
-        order_id=order_id,
-        vendor_id=vendor_id,
-        attachments=attachments
+        subject=data["subject"].strip(),
+        message=data["message"].strip(),
+        category=data.get("category", "GENERAL").strip(),
+        priority=data.get("priority", "MEDIUM").strip(),
+        order_id=data.get("order_id"),
+        vendor_id=data.get("vendor_id"),
+        attachments=data.get("attachments", [])
     )
 
     return jsonify({
@@ -93,12 +97,11 @@ def add_reply(ticket_id: str):
     user = db.session.query(User).filter_by(id=g.current_user_id).first()
     role = user.role if user else "customer"
 
-    data = request.get_json() or {}
-    message = data.get("message", "").strip()
-    attachments = data.get("attachments", [])
-
-    if not message:
-        return jsonify({"error": "Bad Request", "message": "message content is required."}), 400
+    json_data = request.get_json() or {}
+    try:
+        data = reply_ticket_schema.load(json_data)
+    except ValidationError as err:
+        return jsonify({"error": "Validation Error", "messages": err.messages}), 400
 
     detail = ticket_service.get_ticket_detail(ticket_id=ticket_id, user_id=g.current_user_id, user_role=role)
     if not detail:
@@ -109,8 +112,8 @@ def add_reply(ticket_id: str):
         ticket_id=ticket_id,
         sender_id=g.current_user_id,
         sender_type=sender_type,
-        message=message,
-        attachments=attachments
+        message=data["message"].strip(),
+        attachments=data.get("attachments", [])
     )
 
     return jsonify({
@@ -143,20 +146,20 @@ def assign_ticket_agent(ticket_id: str):
 @support_ticket_bp.route("/<string:ticket_id>/status", methods=["PUT"])
 @jwt_required
 def update_status(ticket_id: str):
-    """Update ticket status (OPEN, IN_PROGRESS, WAITING_CUSTOMER, RESOLVED, CLOSED)."""
+    """Update ticket status with strict role-gated RBAC enforcement."""
     user = db.session.query(User).filter_by(id=g.current_user_id).first()
     role = user.role if user else "customer"
 
-    detail = ticket_service.get_ticket_detail(ticket_id=ticket_id, user_id=g.current_user_id, user_role=role)
-    if not detail:
-        return jsonify({"error": "Not Found", "message": "Ticket not found or access denied."}), 404
+    json_data = request.get_json() or {}
+    try:
+        data = update_status_schema.load(json_data)
+    except ValidationError as err:
+        return jsonify({"error": "Validation Error", "messages": err.messages}), 400
 
-    data = request.get_json() or {}
-    status = data.get("status", "").upper()
-
-    ticket = ticket_service.update_status(ticket_id=ticket_id, new_status=status)
-    if not ticket:
-        return jsonify({"error": "Bad Request", "message": "Invalid status value."}), 400
+    ticket, err_msg = ticket_service.update_status(ticket_id=ticket_id, new_status=data["status"], user_role=role)
+    if err_msg:
+        status_code = 403 if "Forbidden" in err_msg else 400
+        return jsonify({"error": "Permission Error" if status_code == 403 else "Bad Request", "message": err_msg}), status_code
 
     return jsonify({
         "message": f"Ticket status updated to '{ticket.status}'.",

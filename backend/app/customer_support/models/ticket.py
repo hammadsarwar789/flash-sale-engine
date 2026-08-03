@@ -4,9 +4,15 @@ from app.core.extensions import db
 
 
 class Ticket(db.Model):
-    """Customer Support Ticket model."""
+    """Customer Support Ticket model with composite indexing & message counting."""
 
     __tablename__ = "tickets"
+
+    __table_args__ = (
+        db.Index("idx_tickets_customer_status", "customer_id", "status"),
+        db.Index("idx_tickets_agent_status", "assigned_agent_id", "status"),
+        db.Index("idx_tickets_status_updated", "status", "updated_at"),
+    )
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     ticket_number = db.Column(db.String(32), unique=True, nullable=False, index=True)
@@ -20,6 +26,7 @@ class Ticket(db.Model):
     status = db.Column(db.String(30), nullable=False, default="OPEN", index=True)      # OPEN, IN_PROGRESS, WAITING_CUSTOMER, RESOLVED, CLOSED
     
     assigned_agent_id = db.Column(db.String(36), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    message_count = db.Column(db.Integer, nullable=False, default=1)
 
     created_at = db.Column(
         db.DateTime(timezone=True),
@@ -36,8 +43,8 @@ class Ticket(db.Model):
     # Relationships
     customer = db.relationship("User", foreign_keys=[customer_id])
     assigned_agent = db.relationship("User", foreign_keys=[assigned_agent_id])
-    messages = db.relationship("TicketMessage", back_populates="ticket", cascade="all, delete-orphan", order_by="TicketMessage.created_at.asc()")
-    ai_metadata = db.relationship("TicketAI", back_populates="ticket", uselist=False, cascade="all, delete-orphan")
+    messages = db.relationship("TicketMessage", back_populates="ticket", cascade="all, delete-orphan", order_by="TicketMessage.created_at.asc()", lazy="selectin")
+    ai_metadata = db.relationship("TicketAI", back_populates="ticket", uselist=False, cascade="all, delete-orphan", lazy="selectin")
 
     def to_dict(self):
         return {
@@ -54,7 +61,7 @@ class Ticket(db.Model):
             "status": self.status,
             "assigned_agent_id": self.assigned_agent_id,
             "assigned_agent_name": self.assigned_agent.full_name if self.assigned_agent else None,
-            "message_count": len(self.messages) if self.messages else 0,
+            "message_count": self.message_count if self.message_count is not None else 1,
             "ai_metadata": self.ai_metadata.to_dict() if self.ai_metadata else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
@@ -69,6 +76,7 @@ class TicketAI(db.Model):
     ticket_id = db.Column(db.String(36), db.ForeignKey("tickets.id", ondelete="CASCADE"), primary_key=True)
     summary = db.Column(db.Text, nullable=True)
     sentiment = db.Column(db.String(32), nullable=True)  # NEUTRAL, FRUSTRATED, URGENT, POSITIVE
+    ai_suggested_priority = db.Column(db.String(20), nullable=True)  # Suggested AI priority level without overwriting manual priority
     suggested_reply = db.Column(db.Text, nullable=True)
     confidence = db.Column(db.Float, nullable=True, default=0.0)
     predicted_category = db.Column(db.String(64), nullable=True)
@@ -86,6 +94,7 @@ class TicketAI(db.Model):
             "ticket_id": self.ticket_id,
             "summary": self.summary,
             "sentiment": self.sentiment,
+            "ai_suggested_priority": self.ai_suggested_priority,
             "suggested_reply": self.suggested_reply,
             "confidence": self.confidence,
             "predicted_category": self.predicted_category,

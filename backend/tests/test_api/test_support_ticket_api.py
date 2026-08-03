@@ -86,7 +86,7 @@ def test_support_dashboard_metrics(client, admin_token):
 
 
 def test_ai_summarization_and_rag_suggested_reply(client, user_token, admin_token):
-    """Test AI summarization & RAG pipeline response generation."""
+    """Test AI summarization & Cosine Similarity RAG response generation."""
     headers = {"Authorization": f"Bearer {user_token}"}
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,5 +104,31 @@ def test_ai_summarization_and_rag_suggested_reply(client, user_token, admin_toke
     rag_data = rag_res.get_json()
     assert "suggested_reply" in rag_data
     assert "confidence" in rag_data
+    assert "vector_similarity_score" in rag_data
     assert len(rag_data["source_documents"]) > 0
 
+
+def test_marshmallow_validation_and_domain_rbac_enforcement(client, user_token, admin_token):
+    """Test Marshmallow input validation and domain RBAC state transitions."""
+    headers = {"Authorization": f"Bearer {user_token}"}
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # 1. Invalid Marshmallow Request (subject too short)
+    invalid_res = client.post("/api/v1/support/tickets", json={"subject": "Hi", "message": "Short"}, headers=headers)
+    assert invalid_res.status_code == 400
+    assert "Validation Error" in invalid_res.get_json()["error"]
+
+    # 2. Valid Ticket Creation
+    valid_res = client.post("/api/v1/support/tickets", json={"subject": "Valid Subject Text", "message": "Detailed description of customer complaint."}, headers=headers)
+    assert valid_res.status_code == 201
+    ticket_id = valid_res.get_json()["ticket"]["id"]
+
+    # 3. Domain RBAC Enforcement: Customer attempting to mark RESOLVED -> 403 Forbidden
+    rbac_fail = client.put(f"/api/v1/support/tickets/{ticket_id}/status", json={"status": "RESOLVED"}, headers=headers)
+    assert rbac_fail.status_code == 403
+    assert "Permission Error" in rbac_fail.get_json()["error"]
+
+    # 4. Domain RBAC Enforcement: Customer cancelling own ticket to CLOSED -> 200 OK
+    rbac_pass = client.put(f"/api/v1/support/tickets/{ticket_id}/status", json={"status": "CLOSED"}, headers=headers)
+    assert rbac_pass.status_code == 200
+    assert rbac_pass.get_json()["ticket"]["status"] == "CLOSED"

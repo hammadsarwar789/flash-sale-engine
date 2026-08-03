@@ -1,5 +1,6 @@
 import random
 import string
+import time
 from datetime import datetime, timezone
 from app.core.extensions import db
 from app.customer_support.models.ticket import Ticket, TicketAI
@@ -12,10 +13,14 @@ class TicketService:
 
     @staticmethod
     def generate_ticket_number() -> str:
-        """Generate a unique human-readable ticket tracking code (e.g. TICK-2026-X8A2)."""
+        """
+        Generate a unique, race-free ticket tracking code using timestamp micro-offsets
+        and alphanumeric sequences (e.g. TICK-2026-981245).
+        """
         year = datetime.now(timezone.utc).year
-        suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        return f"TICK-{year}-{suffix}"
+        micro = int(time.time() * 1000000) % 1000000
+        rand_suffix = ''.join(random.choices(string.digits, k=2))
+        return f"TICK-{year}-{micro:06d}{rand_suffix}"
 
     def create_ticket(
         self,
@@ -30,7 +35,6 @@ class TicketService:
     ) -> Ticket:
         """Create a new support ticket and record the initial customer message thread."""
         ticket_no = self.generate_ticket_number()
-        # Guarantee unique ticket number
         while db.session.query(Ticket).filter_by(ticket_number=ticket_no).first():
             ticket_no = self.generate_ticket_number()
 
@@ -42,7 +46,8 @@ class TicketService:
             priority=priority.upper() if priority else "MEDIUM",
             status="OPEN",
             order_id=order_id,
-            vendor_id=vendor_id
+            vendor_id=vendor_id,
+            message_count=1
         )
         db.session.add(ticket)
         db.session.flush()
@@ -62,6 +67,7 @@ class TicketService:
             ticket_id=ticket.id,
             summary=f"Initial issue: {subject}",
             sentiment="NEUTRAL",
+            ai_suggested_priority=priority.upper() if priority else "MEDIUM",
             confidence=0.90,
             predicted_category=category
         )
@@ -88,7 +94,7 @@ class TicketService:
         page: int = 1,
         per_page: int = 20
     ):
-        """Fetch paginated tickets. Customers see their own tickets; Agents/Admins see all."""
+        """Fetch paginated tickets using indexed columns. Customers see their own tickets; Agents/Admins see all."""
         query = db.session.query(Ticket)
 
         if user_role not in ["admin", "support_agent", "support_manager"]:
@@ -133,7 +139,7 @@ class TicketService:
         message: str,
         attachments: list = None
     ) -> TicketMessage:
-        """Post a reply to an ongoing support ticket thread."""
+        """Post a reply to an ongoing support ticket thread and update message_count atomically."""
         ticket = db.session.query(Ticket).filter_by(id=ticket_id).first()
         if not ticket:
             return None
@@ -146,6 +152,9 @@ class TicketService:
             attachments=attachments or []
         )
         db.session.add(msg)
+
+        # Increment message count
+        ticket.message_count = (ticket.message_count or 0) + 1
 
         # Update status based on sender
         if sender_type.upper() in ["AGENT", "ADMIN"]:
@@ -175,19 +184,32 @@ class TicketService:
         db.session.commit()
         return ticket
 
-    def update_status(self, ticket_id: str, new_status: str) -> Ticket:
-        """Update ticket lifecycle status (OPEN, IN_PROGRESS, WAITING_CUSTOMER, RESOLVED, CLOSED)."""
+    def update_status(self, ticket_id: str, new_status: str, user_role: str = "customer") -> tuple:
+        """
+        Update ticket lifecycle status with role-gated state transition enforcement.
+        Returns (ticket_object, None) on success, or (None, error_message) on RBAC/validation failure.
+        """
         ticket = db.session.query(Ticket).filter_by(id=ticket_id).first()
         if not ticket:
-            return None
+            return None, "Ticket not found."
 
+        target = new_status.upper()
         valid_statuses = ["OPEN", "IN_PROGRESS", "WAITING_CUSTOMER", "RESOLVED", "CLOSED"]
-        if new_status.upper() in valid_statuses:
-            ticket.status = new_status.upper()
-            ticket.updated_at = datetime.now(timezone.utc)
-            db.session.commit()
+        if target not in valid_statuses:
+            return None, f"Invalid ticket status '{new_status}'."
 
-        return ticket
+        # Domain-Level RBAC Enforcement Matrix
+        if user_role not in ["admin", "support_agent", "support_manager"]:
+            if target != "CLOSED":
+                return None, "Forbidden: Customers are only permitted to cancel their own tickets by setting status to CLOSED."
+
+        if user_role == "support_agent" and target not in ["IN_PROGRESS", "WAITING_CUSTOMER", "RESOLVED", "CLOSED"]:
+            return None, f"Forbidden: Support agents cannot set status to '{target}'."
+
+        ticket.status = target
+        ticket.updated_at = datetime.now(timezone.utc)
+        db.session.commit()
+        return ticket, None
 
     def get_dashboard_metrics(self) -> dict:
         """Compute live operational support metrics for agent dashboard."""

@@ -30,14 +30,11 @@ def process_new_ticket_task(ticket_id: str) -> dict:
     if any(k in text_upper for k in ["URGENT", "BROKEN", "DAMAGED", "WRONG", "ANGRY", "REFUND", "FRAUD"]):
         sentiment = "FRUSTRATED" if "REFUND" in text_upper or "DAMAGED" in text_upper else "URGENT"
 
-    priority = ticket.priority
+    suggested_priority = ticket.priority
     if "FRAUD" in text_upper or "STOLEN" in text_upper or "OVERCHARGE" in text_upper:
-        priority = "CRITICAL"
-        ticket.priority = "CRITICAL"
+        suggested_priority = "CRITICAL"
     elif "REFUND" in text_upper or "EXCHANGE" in text_upper:
-        priority = "HIGH"
-        if ticket.priority == "LOW":
-            ticket.priority = "HIGH"
+        suggested_priority = "HIGH"
 
     # AI Summary & Response Recommendation Synthesis
     summary_text = f"Customer issue regarding '{ticket.subject}'. Category: {ticket.category}. Primary keywords detected: {sentiment}."
@@ -45,7 +42,7 @@ def process_new_ticket_task(ticket_id: str) -> dict:
     suggested_reply = (
         f"Hello {ticket.customer.full_name if ticket.customer else 'Valued Customer'},\n\n"
         f"We have received your request concerning '{ticket.subject}'. "
-        f"Our support team has prioritized this as [{priority}] priority. "
+        f"Our support team has prioritized this as [{suggested_priority}] priority. "
         f"A support specialist will assist you shortly."
     )
 
@@ -56,6 +53,7 @@ def process_new_ticket_task(ticket_id: str) -> dict:
 
     ai_meta.summary = summary_text
     ai_meta.sentiment = sentiment
+    ai_meta.ai_suggested_priority = suggested_priority
     ai_meta.suggested_reply = suggested_reply
     ai_meta.confidence = 0.94
     ai_meta.predicted_category = ticket.category
