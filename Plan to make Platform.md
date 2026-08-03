@@ -232,20 +232,21 @@ The existing RBAC engine is extended with 4 dedicated roles:
 * Celery Beat schedule (`release_matured_escrow_task`) running daily at 02:00 UTC for 7-day maturity holds.
 * Multi-seller line item grouping in Cart & Checkout UI.
 
-### Phase 3: Core Support Module & Ticket Management (`backend/app/customer_support/`)
+### Phase 3: Core Support Module & Ticket Management (`backend/app/customer_support/`) [COMPLETED ✅]
 * DB migrations and SQLAlchemy models (`Ticket`, `TicketMessage`, `TicketAI`).
 * Core ticket service (`ticket_service.py`) & REST API routes (`backend/app/customer_support/api/v1/support.py`).
 * RBAC role permissions (`Support Agent`, `Support Manager`, `AI Reviewer`).
 
-### Phase 4: Asynchronous Event Engine & Email Workers
+### Phase 4: Asynchronous Event Engine & Email Workers [COMPLETED ✅]
 * Configure Celery task handlers in `backend/app/customer_support/workers/ai_tasks.py`.
 * Establish Redis event pub/sub triggers on `ticket.created`.
 * Integrated email notification workers for customers and support agents.
 
-### Phase 5: AI Intelligence Suite, RAG Knowledge Base & Support Dashboard
-* Implement `backend/app/customer_support/services/ai_service.py` (LLM summarization, sentiment detection, priority scoring).
-* Vector store RAG chain searching platform docs/FAQs to generate suggested draft responses (`/suggest-reply`).
-* Build support metrics dashboard (`/dashboard/support`) and SLA breach alerting.
+### Phase 5: Support System Architecture Upgrades (Performance, Security, Concurrency & Vector RAG) [IN PROGRESS ⚡]
+* **Phase 5.1 (Database & Performance Optimization)**: `message_count` column, removal of N+1 lazy loading queries, composite indexes (`customer_id + status`, `assigned_agent_id + status`, `status + updated_at`).
+* **Phase 5.2 (Marshmallow & Strict RBAC)**: Request schemas (`CreateTicketSchema`, `UpdateStatusSchema`), role-gated state transitions (Customers restricted from setting `RESOLVED`).
+* **Phase 5.3 (Service Concurrency & AI Safety)**: Race-free ticket number sequence, `ai_suggested_priority` column in `TicketAI`.
+* **Phase 5.4 (Production RAG & Vector Embeddings)**: Cosine similarity vector search over platform policy documentation.
 
 ---
 
