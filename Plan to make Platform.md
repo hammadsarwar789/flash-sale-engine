@@ -249,6 +249,12 @@ The existing RBAC engine is extended with 4 dedicated roles:
 * **Phase 5.4 (Production RAG & Vector Embeddings)**: Cosine similarity vector search over platform policy documentation.
 * **Phase 5.5 (Purchaser Validation, AI Auto-Responder, Vendor Routing & Vendor/Admin RBAC)**: Restrict ticket creation to purchasing customers, auto-reply via RAG AI for policy queries, route order/product tickets to seller `vendor_id`, enforce vendor store isolation vs admin global oversight.
 
+### Phase 6: Production Infrastructure Extensions [IN PROGRESS ⚡]
+* **Logistics Webhook Handler**: Idempotent HTTP webhook endpoint (`POST /api/v1/webhooks/courier/update`) tracking reverse courier parcels and emitting `OutboxEvent` notifications.
+* **Warehouse Quality Inspection**: `InspectionService` processing stock restock/exchange release and balancing `REFUND` ledger reversals.
+* **Escrow Financial Reversal**: `reconcile_returned_escrow(sub_order_id)` task cancelling pending escrow holds.
+* **Vendor SLA Enforcement (Celery Beat)**: Hourly `enforce_vendor_inspection_sla()` task auto-approving returns stuck at `ARRIVED_AT_WAREHOUSE` past 48 hours.
+
 ---
 
 ## 🧪 Verification & Testing Strategy
