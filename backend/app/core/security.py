@@ -29,7 +29,7 @@ def create_access_token(
     user_id: str,
     role: str,
     secret_key: str,
-    expires_minutes: int = 60,
+    expires_minutes: int = 10080,  # 7 Days default TTL
     context: Optional[Dict[str, Any]] = None,
 ) -> str:
     """Generate JWT access token with scoped RBAC claims."""
@@ -44,10 +44,11 @@ def create_access_token(
     return jwt.encode(payload, secret_key, algorithm="HS256")
 
 
-def decode_access_token(token: str, secret_key: str) -> Optional[Dict[str, Any]]:
+def decode_access_token(token: str, secret_key: str, verify_exp: bool = True) -> Optional[Dict[str, Any]]:
     """Decode and validate JWT access token."""
     try:
-        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        options = {"verify_exp": verify_exp}
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"], options=options)
         return payload
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None

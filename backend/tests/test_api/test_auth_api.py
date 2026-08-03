@@ -27,3 +27,15 @@ def test_login_user_success(client, test_user):
     data = response.get_json()
     assert "access_token" in data
     assert data["token_type"] == "Bearer"
+
+
+def test_refresh_token_success(client, user_token):
+    """Test refreshing JWT access token."""
+    response = client.post(
+        "/api/v1/auth/refresh",
+        headers={"Authorization": f"Bearer {user_token}"}
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "access_token" in data
+    assert data["token_type"] == "Bearer"
