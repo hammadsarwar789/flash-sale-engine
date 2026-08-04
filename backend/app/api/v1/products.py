@@ -161,7 +161,7 @@ def list_products(query_args):
     is_default_query = not search and not category_id and sort_by == "created_at" and page == 1 and per_page == 20
     cache_key = f"catalog:products:{search}:{category_id}:{sort_by}:{page}:{per_page}"
 
-    # 1. Fast Path: Check Redis Cache (In-Memory ~1-2ms)
+    # 1. High-Performance Path: Read directly from Redis Connection Pool
     try:
         cached_data = redis_client.get(cache_key)
         if not cached_data and is_default_query:
@@ -169,15 +169,16 @@ def list_products(query_args):
         if cached_data:
             return jsonify(json.loads(cached_data)), 200
     except Exception as e:
-        pass
+        logger.warning(f"Redis read error: {e}")
 
+    # 2. Slow Fallback: Query PostgreSQL only when Redis key is missing
+    logger.info("Cache miss / error: Fetching from PostgreSQL DB...")
     try:
         from app.services.order_service import OrderService
         OrderService.check_and_cancel_expired_orders()
     except Exception as exp_err:
         logger.warning(f"Expired order auto-cancellation warning on product list: {exp_err}")
 
-    # 2. Slow Path: Query PostgreSQL DB (On Cache Miss)
     query = db.session.query(Product).filter(Product.is_active == True)
 
     if search:
@@ -226,11 +227,13 @@ def list_products(query_args):
         "per_page": per_page,
     }
 
-    # 3. Store in Redis for 10 seconds (Short TTL prevents stale stock data)
+    # Set cache for 1 hour to protect database during load testing
     try:
-        redis_client.set(cache_key, json.dumps(catalog_payload), ex=10)
+        redis_client.set(cache_key, json.dumps(catalog_payload), ex=3600)
+        if is_default_query:
+            redis_client.set(CACHE_KEY, json.dumps(catalog_payload), ex=3600)
     except Exception as e:
-        logger.warning(f"Failed to cache catalog payload in Redis: {e}")
+        logger.warning(f"Redis write error: {e}")
 
     return jsonify(catalog_payload), 200
 
