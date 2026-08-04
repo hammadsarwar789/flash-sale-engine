@@ -13,20 +13,32 @@ migrate: Migrate = Migrate()
 # OpenAPI / REST Documentation Engine (Flask-Smorest)
 smorest_api: Api = Api()
 
-# Global Redis client placeholder
-redis_client: redis.Redis = redis.Redis(decode_responses=True, protocol=2)
+# Global thread-safe Redis connection pool
+redis_pool = redis.ConnectionPool(
+    host="localhost",
+    port=6379,
+    db=0,
+    max_connections=200,      # Allows ample sockets for 64 WSGI threads
+    socket_timeout=2.0,       # Fast fail timeout
+    decode_responses=True,    # Automatic string decoding
+    protocol=2,               # Force RESP2 for compatibility with legacy Windows Redis builds
+)
+redis_client: redis.Redis = redis.Redis(connection_pool=redis_pool)
 
 
 def init_redis(app) -> redis.Redis:
-    """Initialize Redis connection instance with app configuration."""
-    global redis_client
-    redis_client = redis.Redis(
-        host=app.config["REDIS_HOST"],
-        port=app.config["REDIS_PORT"],
-        db=app.config["REDIS_DB"],
+    """Initialize Redis connection pool instance with app configuration."""
+    global redis_pool, redis_client
+    redis_pool = redis.ConnectionPool(
+        host=app.config.get("REDIS_HOST", "localhost"),
+        port=int(app.config.get("REDIS_PORT", 6379)),
+        db=int(app.config.get("REDIS_DB", 0)),
+        max_connections=200,
+        socket_timeout=2.0,
         decode_responses=True,
-        protocol=2,  # Force RESP2 for compatibility with legacy Windows Redis builds
+        protocol=2,
     )
+    redis_client = redis.Redis(connection_pool=redis_pool)
     return redis_client
 
 

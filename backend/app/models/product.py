@@ -18,10 +18,10 @@ class Product(db.Model):
     description = db.Column(db.Text, nullable=True)
     images = db.Column(db.JSON, nullable=True, default=list)
     total_stock = db.Column(db.Integer, nullable=False)
-    available_stock = db.Column(db.Integer, nullable=False)
+    available_stock = db.Column(db.Integer, nullable=False, index=True)
     price = db.Column(db.Numeric(12, 2), nullable=False)
     discount_percentage = db.Column(db.Float, nullable=False, default=0.0)
-    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
     version = db.Column(db.Integer, nullable=False, default=1)
 
     created_at = db.Column(

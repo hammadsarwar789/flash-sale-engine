@@ -20,6 +20,15 @@ class BaseConfig:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
 
+    # SQLAlchemy Connection Pool Configuration
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_size": 30,          # Keeps 30 persistent connections ready
+        "max_overflow": 50,       # Allows spikes up to 80 simultaneous connections
+        "pool_timeout": 30,       # Wait up to 30s for a free connection before timing out
+        "pool_recycle": 1800,     # Recycle connections every 30 minutes to prevent stales
+        "pool_pre_ping": True,    # Verify connection health before executing queries
+    }
+
     # Redis Configuration
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))

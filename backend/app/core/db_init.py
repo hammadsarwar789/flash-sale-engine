@@ -53,6 +53,11 @@ def sync_database_schema():
                 conn.execute(text("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS message_count INTEGER NOT NULL DEFAULT 1;"))
                 conn.execute(text("ALTER TABLE ticket_ai ADD COLUMN IF NOT EXISTS ai_suggested_priority VARCHAR(20);"))
 
+                # 6. Ensure high-performance indexes for bottleneck removal
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_products_available_stock ON products (available_stock);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_products_is_active ON products (is_active);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders (user_id);"))
+
         # Create any new tables
         db.create_all()
         ensure_default_outlets()

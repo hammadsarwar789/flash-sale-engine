@@ -1,3 +1,4 @@
+import json
 import logging
 from flask import jsonify, request
 from flask_smorest import Blueprint
@@ -103,29 +104,53 @@ def delete_category(category_id):
 
 # --- Product Endpoints ---
 
+def clear_catalog_cache():
+    """Helper to invalidate all cached catalog response keys in Redis."""
+    try:
+        keys = redis_client.keys("catalog:products:*")
+        if keys:
+            redis_client.delete(*keys)
+    except Exception as e:
+        logger.warning(f"Failed to clear Redis catalog cache: {e}")
+
+
 @products_bp.route("", methods=["GET"])
 @products_bp.arguments(ProductQuerySchema, location="query")
 @products_bp.response(200, ProductResponseSchema(many=True))
 def list_products(query_args):
-    """Retrieve active products with search, category filtering, sorting, and pagination."""
+    """Retrieve active products with search, category filtering, sorting, and pagination (Redis Cache-Aside)."""
+    search = query_args.get("search", "")
+    category_id = query_args.get("category_id", "")
+    sort_by = query_args.get("sort_by", "created_at")
+    page = query_args.get("page", 1)
+    per_page = query_args.get("per_page", 20)
+
+    cache_key = f"catalog:products:{search}:{category_id}:{sort_by}:{page}:{per_page}"
+
+    # 1. Fast Path: Check Redis Cache (In-Memory ~1-2ms)
+    try:
+        cached_data = redis_client.get(cache_key)
+        if cached_data:
+            return jsonify(json.loads(cached_data)), 200
+    except Exception as e:
+        logger.warning(f"Redis catalog read error, falling back to PostgreSQL: {e}")
+
     try:
         from app.services.order_service import OrderService
         OrderService.check_and_cancel_expired_orders()
     except Exception as exp_err:
         logger.warning(f"Expired order auto-cancellation warning on product list: {exp_err}")
 
+    # 2. Slow Path: Query PostgreSQL DB (On Cache Miss)
     query = db.session.query(Product).filter(Product.is_active == True)
 
-    search = query_args.get("search")
     if search:
         search_pattern = f"%{search}%"
         query = query.filter(
             (Product.name.ilike(search_pattern)) | (Product.description.ilike(search_pattern)) | (Product.sku.ilike(search_pattern))
         )
 
-    category_id = query_args.get("category_id")
     if category_id:
-        # Try to resolve category by UUID first, then by slug or name
         category = db.session.query(Category).filter_by(id=category_id).first()
         if not category:
             category = db.session.query(Category).filter(
@@ -136,7 +161,6 @@ def list_products(query_args):
         else:
             query = query.filter(Product.category_id == category_id)
 
-    sort_by = query_args.get("sort_by", "created_at")
     if sort_by == "price_asc":
         query = query.order_by(Product.price.asc())
     elif sort_by == "price_desc":
@@ -144,8 +168,6 @@ def list_products(query_args):
     else:
         query = query.order_by(Product.created_at.desc())
 
-    page = query_args.get("page", 1)
-    per_page = query_args.get("per_page", 20)
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
     result = []
@@ -160,13 +182,21 @@ def list_products(query_args):
             logger.warning(f"Redis cache lookup bypassed for product {p.id}: {e}")
         result.append(p_dict)
 
-    return jsonify({
+    catalog_payload = {
         "items": result,
         "total": pagination.total,
         "page": pagination.page,
         "pages": pagination.pages,
         "per_page": per_page,
-    }), 200
+    }
+
+    # 3. Store in Redis for 10 seconds (Short TTL prevents stale stock data)
+    try:
+        redis_client.set(cache_key, json.dumps(catalog_payload), ex=10)
+    except Exception as e:
+        logger.warning(f"Failed to cache catalog payload in Redis: {e}")
+
+    return jsonify(catalog_payload), 200
 
 
 @products_bp.route("/<string:product_id>", methods=["GET"])
@@ -449,3 +479,23 @@ def sync_product_stock(product_id):
             ),
             503,
         )
+# Temporary load-test endpoint (No @jwt_required)
+@products_bp.route('/test-load', methods=['GET'])
+def test_load():
+    cache_key = "catalog:products:test_load"
+    try:
+        cached_data = redis_client.get(cache_key)
+        if cached_data:
+            return jsonify(json.loads(cached_data)), 200
+    except Exception as e:
+        logger.warning(f"Redis lookup error on test-load: {e}")
+
+    products = Product.query.limit(10).all()
+    payload = [{"id": p.id, "stock": p.available_stock} for p in products]
+
+    try:
+        redis_client.set(cache_key, json.dumps(payload), ex=10)
+    except Exception as e:
+        logger.warning(f"Failed to cache test-load payload: {e}")
+
+    return jsonify(payload), 200
