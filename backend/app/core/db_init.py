@@ -215,5 +215,12 @@ def ensure_default_products_and_variants():
             v3 = ProductVariant(product_id=p1.id, sku="SKU-TACTICAL-01-RED-S", name="Signal Red / Small", color="Signal Red", size="S", price=189.99, total_stock=20, available_stock=20)
             db.session.add_all([v1, v2, v3])
             db.session.commit()
+
+        # Warm Redis product catalog cache for instant high-scale reads
+        try:
+            from app.api.v1.products import warm_product_cache
+            warm_product_cache()
+        except Exception:
+            pass
     except Exception as e:
         logger.warning(f"Default products seed warning: {e}")

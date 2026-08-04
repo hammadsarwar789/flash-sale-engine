@@ -12,9 +12,19 @@ def app():
     app = create_app("testing")
     with app.app_context():
         db.create_all()
+        try:
+            from app.api.v1.products import clear_catalog_cache
+            clear_catalog_cache()
+        except Exception:
+            pass
         yield app
         db.session.remove()
         db.drop_all()
+        try:
+            from app.api.v1.products import clear_catalog_cache
+            clear_catalog_cache()
+        except Exception:
+            pass
 
 
 @pytest.fixture
@@ -74,6 +84,12 @@ def admin_token(app, test_admin):
 @pytest.fixture
 def test_product(app):
     """Create test product record with stock of 10."""
+    try:
+        from app.api.v1.products import clear_catalog_cache
+        clear_catalog_cache()
+    except Exception:
+        pass
+
     product = Product(
         name="Flash Sale iPhone 15",
         sku="IPHONE15-FLASH",
@@ -84,4 +100,11 @@ def test_product(app):
     )
     db.session.add(product)
     db.session.commit()
+
+    try:
+        from app.api.v1.products import clear_catalog_cache
+        clear_catalog_cache()
+    except Exception:
+        pass
+
     return product

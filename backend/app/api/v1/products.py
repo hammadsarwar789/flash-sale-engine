@@ -104,6 +104,39 @@ def delete_category(category_id):
 
 # --- Product Endpoints ---
 
+CACHE_KEY = "catalog:products:all"
+
+
+def warm_product_cache():
+    """Explicitly warm Redis product cache from DB with a 1-hour TTL to prevent Thundering Herd / Cache Stampede."""
+    try:
+        products = db.session.query(Product).filter(Product.is_active == True).limit(50).all()
+        items_payload = [p.to_dict() for p in products]
+        full_catalog = {
+            "items": items_payload,
+            "total": len(items_payload),
+            "page": 1,
+            "pages": 1,
+            "per_page": 20,
+        }
+        raw_list_payload = [{"id": str(p.id), "name": p.name, "price": float(p.price), "stock": p.available_stock} for p in products]
+
+        # 1. Warm catalog:products:all key (1-hour TTL) with structured dict
+        redis_client.set(CACHE_KEY, json.dumps(full_catalog), ex=3600)
+        redis_client.set("catalog:products:raw_list", json.dumps(raw_list_payload), ex=3600)
+
+        # 2. Warm list_products default query key & test_load key
+        redis_client.set("catalog:products::::1:20", json.dumps(full_catalog), ex=3600)
+        redis_client.set("catalog:products:test_load", json.dumps(raw_list_payload), ex=3600)
+
+        logger.info("Redis Product Cache Warmed Successfully!")
+        print("[CACHE WARMUP] Redis Product Cache Warmed Successfully!")
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to warm Redis product cache: {e}")
+        return False
+
+
 def clear_catalog_cache():
     """Helper to invalidate all cached catalog response keys in Redis."""
     try:
@@ -118,22 +151,25 @@ def clear_catalog_cache():
 @products_bp.arguments(ProductQuerySchema, location="query")
 @products_bp.response(200, ProductResponseSchema(many=True))
 def list_products(query_args):
-    """Retrieve active products with search, category filtering, sorting, and pagination (Redis Cache-Aside)."""
+    """Retrieve active products with search, category filtering, sorting, and pagination (Strict Redis Read / Fast Path)."""
     search = query_args.get("search", "")
     category_id = query_args.get("category_id", "")
     sort_by = query_args.get("sort_by", "created_at")
     page = query_args.get("page", 1)
     per_page = query_args.get("per_page", 20)
 
+    is_default_query = not search and not category_id and sort_by == "created_at" and page == 1 and per_page == 20
     cache_key = f"catalog:products:{search}:{category_id}:{sort_by}:{page}:{per_page}"
 
     # 1. Fast Path: Check Redis Cache (In-Memory ~1-2ms)
     try:
         cached_data = redis_client.get(cache_key)
+        if not cached_data and is_default_query:
+            cached_data = redis_client.get(CACHE_KEY)
         if cached_data:
             return jsonify(json.loads(cached_data)), 200
     except Exception as e:
-        logger.warning(f"Redis catalog read error, falling back to PostgreSQL: {e}")
+        pass
 
     try:
         from app.services.order_service import OrderService
@@ -285,6 +321,7 @@ def create_product(product_data):
         db.session.add(variant)
 
     db.session.commit()
+    clear_catalog_cache()
 
     try:
         InventoryService.warmup_product_stock(product.id)
@@ -346,6 +383,7 @@ def update_product(product_data, product_id):
             db.session.add(variant)
 
     db.session.commit()
+    clear_catalog_cache()
     try:
         InventoryService.warmup_product_stock(product.id)
     except Exception as e:
@@ -374,6 +412,7 @@ def delete_product(product_id):
 
     product.is_active = False
     db.session.commit()
+    clear_catalog_cache()
     return jsonify({"message": f"Product '{product_id}' deactivated successfully"}), 200
 
 
