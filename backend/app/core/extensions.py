@@ -36,7 +36,7 @@ def init_redis(app) -> redis.Redis:
         max_connections=200,
         socket_timeout=2.0,
         decode_responses=True,
-        protocol=2,
+        protocol=app.config.get("REDIS_PROTOCOL", 2),
     )
     redis_client = redis.Redis(connection_pool=redis_pool)
     return redis_client
