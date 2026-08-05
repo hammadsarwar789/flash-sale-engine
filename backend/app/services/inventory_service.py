@@ -124,24 +124,28 @@ class InventoryService:
 
     @classmethod
     def _db_reserve_fallback(cls, product_id: str, quantity: int, variant_id: str = None) -> Tuple[bool, str, int]:
-        """Fallback stock check against PostgreSQL Product / ProductVariant table."""
+        """Fallback stock check & deduction with row-level pessimistic locking against PostgreSQL Product / ProductVariant table."""
         from app.models.product_variant import ProductVariant
         if variant_id:
-            variant = db.session.query(ProductVariant).filter_by(id=variant_id, product_id=product_id).first()
+            variant = db.session.query(ProductVariant).filter_by(id=variant_id, product_id=product_id).with_for_update().first()
             if not variant:
                 return False, "Product variant does not exist", 0
             if variant.available_stock < quantity:
                 return False, f"Insufficient inventory for variant '{variant.name}'", 0
-            return True, "Inventory successfully reserved (PostgreSQL Direct Mode)", variant.available_stock - quantity
+            variant.available_stock -= quantity
+            db.session.flush()
+            return True, "Inventory successfully reserved (PostgreSQL Direct Mode)", variant.available_stock
 
-        product = db.session.query(Product).filter_by(id=product_id, is_active=True).first()
+        product = db.session.query(Product).filter_by(id=product_id, is_active=True).with_for_update().first()
         if not product:
             return False, "Product does not exist or is inactive", 0
 
         if product.available_stock < quantity:
             return False, "Insufficient inventory available", 0
 
-        return True, "Inventory successfully reserved (PostgreSQL Direct Mode)", product.available_stock - quantity
+        product.available_stock -= quantity
+        db.session.flush()
+        return True, "Inventory successfully reserved (PostgreSQL Direct Mode)", product.available_stock
 
     @classmethod
     def release_stock(cls, product_id: str, quantity: int, variant_id: str = None) -> bool:
@@ -205,14 +209,17 @@ class InventoryService:
                 pid, vid, qty = item[0], None, item[1]
 
             if vid:
-                variant = db.session.query(ProductVariant).filter_by(id=vid, product_id=pid).first()
+                variant = db.session.query(ProductVariant).filter_by(id=vid, product_id=pid).with_for_update().first()
                 if not variant or variant.available_stock < qty:
                     return False, f"Insufficient inventory for variant {vid}"
+                variant.available_stock -= qty
             else:
-                product = db.session.query(Product).filter_by(id=pid, is_active=True).first()
+                product = db.session.query(Product).filter_by(id=pid, is_active=True).with_for_update().first()
                 if not product or product.available_stock < qty:
                     return False, f"Insufficient inventory for product {pid}"
+                product.available_stock -= qty
 
+        db.session.flush()
         return True, "Inventory successfully reserved (PostgreSQL Direct Mode)"
 
     @classmethod
@@ -243,20 +250,24 @@ class InventoryService:
 
     @classmethod
     def warmup_product_stock(cls, product_id: str) -> bool:
-        """Warm up Redis stock cache for PostgreSQL Product record and its variants."""
+        """Warm up Redis stock cache for PostgreSQL Product record and its variants, taking active holds into account."""
         try:
             product = db.session.query(Product).filter_by(id=product_id, is_active=True).first()
             if not product:
                 return False
 
             stock_key, hold_key = cls._get_keys(product_id)
-            redis_client.set(stock_key, product.available_stock)
+            current_hold = int(redis_client.get(hold_key) or 0)
+            net_stock = max(0, product.available_stock - current_hold)
+            redis_client.set(stock_key, net_stock)
             if not redis_client.exists(hold_key):
                 redis_client.set(hold_key, 0)
 
             for variant in product.variants:
                 v_s_key, v_h_key = cls._get_keys(product_id, variant.id)
-                redis_client.set(v_s_key, variant.available_stock)
+                v_hold = int(redis_client.get(v_h_key) or 0)
+                v_net = max(0, variant.available_stock - v_hold)
+                redis_client.set(v_s_key, v_net)
                 if not redis_client.exists(v_h_key):
                     redis_client.set(v_h_key, 0)
 

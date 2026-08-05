@@ -32,9 +32,19 @@ class OrderService:
         if not product:
             return False, "Product does not exist or is inactive", None, None
 
+        from app.core.extensions import redis_client
+        lock_acquired = False
+        try:
+            lock_acquired = redis_client.set(f"lock:idempotency:{idempotency_key}", "1", nx=True, ex=30)
+        except Exception:
+            lock_acquired = True
+
         existing_order = db.session.query(Order).filter_by(idempotency_key=idempotency_key).first()
         if existing_order:
             return True, "Order already created (Idempotent)", existing_order, None
+
+        if not lock_acquired:
+            return False, "Concurrent reservation in progress for this idempotency key. Please retry.", None, None
 
         unit_price = product.price
         total_amount = unit_price * quantity
