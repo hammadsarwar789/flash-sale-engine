@@ -7,6 +7,9 @@ class ReturnRequest(db.Model):
     """Model tracking reverse logistics, return inspection, and replacement exchanges."""
 
     __tablename__ = "return_requests"
+    __table_args__ = (
+        db.Index("idx_return_req_status_updated", "status", "updated_at"),
+    )
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     order_id = db.Column(db.String(36), db.ForeignKey("orders.id"), nullable=False, index=True)

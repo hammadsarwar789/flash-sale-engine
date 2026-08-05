@@ -196,10 +196,16 @@ def get_order_status(order_id):
 @orders_bp.response(200, OrderResponseSchema(many=True))
 def list_user_orders():
     """Retrieve list of orders for the authenticated user."""
+    from sqlalchemy.orm import joinedload
     user_id = g.current_user_id
     OrderService.check_and_cancel_expired_orders(user_id=user_id)
     orders = (
         db.session.query(Order)
+        .options(
+            joinedload(Order.user),
+            joinedload(Order.product),
+            joinedload(Order.shipping_address),
+        )
         .filter_by(user_id=user_id)
         .order_by(Order.created_at.desc())
         .all()

@@ -13,6 +13,9 @@ class OutboxEvent(db.Model):
     """Transactional Outbox Pattern event model."""
 
     __tablename__ = "outbox_events"
+    __table_args__ = (
+        db.Index("idx_outbox_status_created", "status", "created_at"),
+    )
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     aggregate_type = db.Column(db.String(64), nullable=False, index=True)

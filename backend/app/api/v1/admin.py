@@ -139,8 +139,13 @@ def delete_user(user_id):
 def list_admin_orders():
     """Retrieve all orders with optional status filtering (Admin)."""
     from flask import request
+    from sqlalchemy.orm import joinedload
     status = request.args.get("status")
-    query = db.session.query(Order)
+    query = db.session.query(Order).options(
+        joinedload(Order.user),
+        joinedload(Order.product),
+        joinedload(Order.shipping_address),
+    )
     if status:
         query = query.filter_by(status=status)
     orders = query.order_by(Order.created_at.desc()).all()
