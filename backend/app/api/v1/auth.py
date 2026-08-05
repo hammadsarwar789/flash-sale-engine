@@ -78,7 +78,6 @@ def register(user_data):
             request_type=request_type,
             target_outlet_id=target_outlet_id,
             payload={
-                "password": user_data["password"],
                 "full_name": user_data.get("full_name"),
                 "company_name": user_data.get("company_name"),
             },

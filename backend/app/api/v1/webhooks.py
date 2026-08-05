@@ -20,7 +20,10 @@ def stripe_webhook():
     endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
     event = None
-    if endpoint_secret and sig_header:
+    if endpoint_secret:
+        if not sig_header:
+            logger.error("Stripe Webhook missing Stripe-Signature header")
+            return jsonify({"error": "Missing Stripe-Signature header"}), 400
         try:
             import stripe
             event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
@@ -28,7 +31,11 @@ def stripe_webhook():
             logger.error(f"Stripe Webhook signature verification failed: {e}")
             return jsonify({"error": "Invalid signature"}), 400
     else:
-        # Development fallback parsing when webhook secret is omitted
+        if os.getenv("FLASK_ENV") == "production":
+            logger.error("STRIPE_WEBHOOK_SECRET unconfigured in production")
+            return jsonify({"error": "Stripe webhook secret unconfigured in production"}), 400
+
+        # Development fallback parsing when webhook secret is omitted in non-prod environment
         try:
             event = request.get_json() or {}
         except Exception:

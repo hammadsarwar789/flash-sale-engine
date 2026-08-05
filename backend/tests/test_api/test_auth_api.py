@@ -39,3 +39,24 @@ def test_refresh_token_success(client, user_token):
     data = response.get_json()
     assert "access_token" in data
     assert data["token_type"] == "Bearer"
+
+
+def test_register_staff_onboarding_no_plaintext_password(client):
+    """Test that staff onboarding approval request payload does not store plaintext password."""
+    from app.core.extensions import db
+    from app.models.approval import RegistrationRequest
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "staff_applicant@example.com",
+            "password": "SuperSecretPassword123!",
+            "full_name": "Staff Applicant",
+            "request_type": "STAFF_ONBOARDING",
+        },
+    )
+    assert response.status_code == 201
+    with client.application.app_context():
+        req = db.session.query(RegistrationRequest).filter_by(applicant_email="staff_applicant@example.com").first()
+        assert req is not None
+        assert "password" not in req.payload
+

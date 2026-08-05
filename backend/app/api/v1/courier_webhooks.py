@@ -16,6 +16,18 @@ def handle_courier_status_update():
     Maps carrier events (PICKED_UP -> IN_TRANSIT, DELIVERED_TO_WAREHOUSE -> ARRIVED_AT_WAREHOUSE)
     and writes OutboxEvent records for real-time customer notifications.
     """
+    import os
+    import hmac
+
+    secret = os.getenv("COURIER_WEBHOOK_SECRET")
+    sig_header = request.headers.get("X-Courier-Signature") or request.headers.get("X-Courier-Secret")
+
+    if secret:
+        if not sig_header or not hmac.compare_digest(sig_header, secret):
+            return jsonify({"error": "Unauthorized", "message": "Invalid or missing courier webhook signature"}), 401
+    elif os.getenv("FLASK_ENV") == "production":
+        return jsonify({"error": "Unauthorized", "message": "Courier webhook secret unconfigured in production"}), 401
+
     payload = request.get_json() or {}
     ticket_id = payload.get("courier_ticket_id")
     event_status = payload.get("status")  # e.g., 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED_TO_WAREHOUSE'
