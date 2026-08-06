@@ -1,6 +1,5 @@
 import concurrent.futures
 import pytest
-from app.core.extensions import redis_client, db
 from app.services.inventory_service import InventoryService
 
 
@@ -9,12 +8,14 @@ def test_concurrency_zero_overselling(app, test_product):
     Simulate 20 concurrent threads trying to reserve stock of 1 item each.
     Guarantees exactly initial_stock succeed and remaining fail with zero stock overselling.
     """
-    try:
-        redis_client.ping()
-    except Exception:
-        pytest.skip("Local Redis server is not running; skipping live Redis concurrency test.")
-
     with app.app_context():
+        from app.core.extensions import redis_client
+
+        try:
+            redis_client.ping()
+        except Exception:
+            pytest.skip("Local Redis server is not running; skipping live Redis concurrency test.")
+
         initial_stock = test_product.available_stock
         stock_key = f"product:{test_product.id}:stock"
         hold_key = f"product:{test_product.id}:hold"
@@ -42,8 +43,9 @@ def test_concurrency_zero_overselling(app, test_product):
         assert successful_reservations == initial_stock
         assert failed_reservations == 20 - initial_stock
 
-        final_stock = int(redis_client.get(stock_key))
-        final_hold = int(redis_client.get(hold_key))
+        raw_stock = redis_client.get(stock_key)
+        raw_hold = redis_client.get(hold_key)
 
-        assert final_stock == 0
-        assert final_hold == initial_stock
+        assert raw_stock is not None, f"Expected stock_key '{stock_key}' in Redis"
+        assert int(raw_stock) == 0
+        assert int(raw_hold) == initial_stock
