@@ -18,7 +18,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }
   const defaultImg =
     product.images && product.images.length > 0
       ? product.images[0]
-      : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80';
+      : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80';
+
+  const img400 = defaultImg.includes('unsplash.com')
+    ? defaultImg.replace(/w=\d+/, 'w=400')
+    : defaultImg;
+  const img800 = defaultImg.includes('unsplash.com')
+    ? defaultImg.replace(/w=\d+/, 'w=800')
+    : defaultImg;
 
   // Compute monospace block character stock representation (8 characters total)
   const maxStockReference = 50;
@@ -53,15 +60,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }
         )}
       </div>
 
-      {/* Image Well (Square 1:1) */}
+      {/* Image Well (Square 1:1) with Responsive Image Optimization */}
       <div className="relative aspect-square w-full bg-paper-sunk border border-rule my-4 overflow-hidden">
         <img
-          src={defaultImg}
+          src={img400}
+          srcSet={`${img400} 400w, ${img800} 800w`}
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
+          loading="lazy"
+          decoding="async"
           alt={product.name}
+          width="400"
+          height="400"
           className="w-full h-full object-cover object-center"
           onError={(e) => {
             (e.target as HTMLImageElement).src =
-              'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80';
+              'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80';
           }}
         />
 
@@ -71,11 +84,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }
         </div>
       </div>
 
-      {/* Product Meta */}
+      {/* Product Meta (Sequential H2 Heading) */}
       <div className="space-y-1">
-        <h3 className="font-sans text-[18px] leading-[24px] font-medium text-ink line-clamp-1">
+        <h2 className="font-sans text-[18px] leading-[24px] font-medium text-ink line-clamp-1">
           {product.name}
-        </h3>
+        </h2>
         <Eyebrow className="text-ash block">
           {typeof product.category === 'string' ? product.category : product.category?.name || 'CATALOG'}
         </Eyebrow>

@@ -435,8 +435,11 @@ export const VendorPortalPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
+                    <label htmlFor="payout-method-select" className="sr-only">Payout Method</label>
                     <Eyebrow className="text-ash block mb-1">PAYOUT METHOD</Eyebrow>
                     <select
+                      id="payout-method-select"
+                      aria-label="Merchant payout method"
                       value={payoutMethod}
                       onChange={(e) => setPayoutMethod(e.target.value)}
                       className="w-full bg-paper border border-rule px-3 py-2 text-ink focus:outline-none"
@@ -640,7 +643,10 @@ export const VendorPortalPage: React.FC = () => {
                   onChange={(e) => setProdStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
+                <label htmlFor="vendor-cat-select" className="sr-only">Product Category</label>
                 <select
+                  id="vendor-cat-select"
+                  aria-label="Select product category"
                   value={prodCatId}
                   onChange={(e) => setProdCatId(e.target.value)}
                   className="bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"

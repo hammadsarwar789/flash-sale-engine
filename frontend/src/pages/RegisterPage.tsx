@@ -92,8 +92,11 @@ export const RegisterPage: React.FC = () => {
             <>
               <div className="space-y-4 font-mono text-xs">
                 <div>
+                  <label htmlFor="account-type-select" className="sr-only">Account Type</label>
                   <Eyebrow className="text-ash mb-1 block">ACCOUNT TYPE</Eyebrow>
                   <select
+                    id="account-type-select"
+                    aria-label="Account Type"
                     value={accountType}
                     onChange={(e) => setAccountType(e.target.value as any)}
                     className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-xs text-ink uppercase focus:outline-none rounded-none"
@@ -107,8 +110,11 @@ export const RegisterPage: React.FC = () => {
 
                 {(accountType === 'STAFF' || accountType === 'MANAGER') && (
                   <div>
+                    <label htmlFor="target-outlet-select" className="sr-only">Target Store Branch</label>
                     <Eyebrow className="text-ash mb-1 block">TARGET STORE / BRANCH</Eyebrow>
                     <select
+                      id="target-outlet-select"
+                      aria-label="Target Store / Branch"
                       value={targetOutletId}
                       onChange={(e) => setTargetOutletId(e.target.value)}
                       className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-xs font-mono text-ink uppercase focus:outline-none rounded-none"

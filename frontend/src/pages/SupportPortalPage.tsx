@@ -241,7 +241,10 @@ export const SupportPortalPage: React.FC = () => {
               <div className="flex justify-between items-center border-b border-rule pb-2">
                 <h3 className="font-serif text-lg text-ink">Support Queue</h3>
                 <div className="flex space-x-2">
+                  <label htmlFor="status-filter-select" className="sr-only">Filter by status</label>
                   <select
+                    id="status-filter-select"
+                    aria-label="Filter tickets by status"
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="bg-paper-sunk border border-rule px-2 py-1 text-[11px]"
@@ -253,7 +256,10 @@ export const SupportPortalPage: React.FC = () => {
                     <option value="RESOLVED">RESOLVED</option>
                     <option value="CLOSED">CLOSED</option>
                   </select>
+                  <label htmlFor="priority-filter-select" className="sr-only">Filter by priority</label>
                   <select
+                    id="priority-filter-select"
+                    aria-label="Filter tickets by priority"
                     value={priorityFilter}
                     onChange={(e) => setPriorityFilter(e.target.value)}
                     className="bg-paper-sunk border border-rule px-2 py-1 text-[11px]"

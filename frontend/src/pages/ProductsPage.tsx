@@ -110,8 +110,13 @@ export const ProductsPage: React.FC = () => {
 
         {/* Sort Select Dropdown */}
         <div className="flex items-center space-x-2 font-mono text-xs">
+          <label htmlFor="sort-select" className="sr-only">
+            Sort products
+          </label>
           <Eyebrow className="text-ash">SORT</Eyebrow>
           <select
+            id="sort-select"
+            aria-label="Sort products"
             value={sortBy}
             onChange={(e) => {
               setSortBy(e.target.value);
@@ -144,7 +149,7 @@ export const ProductsPage: React.FC = () => {
         </div>
       ) : products.length === 0 ? (
         <div className="py-20 text-center space-y-3 border border-rule bg-paper rounded-none">
-          <h3 className="font-serif text-2xl text-ink">No items on floor</h3>
+          <h2 className="font-serif text-2xl text-ink">No items on floor</h2>
           <p className="text-ash text-xs font-mono">Try adjusting search parameters or category filter.</p>
         </div>
       ) : (
