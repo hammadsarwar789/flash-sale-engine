@@ -1,0 +1,13 @@
+# public/robots.txt
+User-agent: *
+Allow: /
+Allow: /products/
+
+# Block administrative and user session paths
+Disallow: /admin/
+Disallow: /vendor/
+Disallow: /checkout/
+Disallow: /cart/
+Disallow: /api/
+
+Sitemap: https://yourdomain.com/sitemap.xml

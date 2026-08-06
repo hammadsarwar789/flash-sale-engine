@@ -93,6 +93,47 @@ export const ProductDetailPage: React.FC = () => {
     }
   }, [variants, selectedVariant]);
 
+  useEffect(() => {
+    if (!product) return;
+
+    // Dynamic Page Title & Meta Description
+    document.title = `${product.name} | Flash Sale Engine`;
+
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.setAttribute('name', 'description');
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute('content', product.description || `Buy ${product.name} on Flash Sale Engine.`);
+
+    // Dynamic JSON-LD Structured Data
+    const schemaData = {
+      '@context': 'https://schema.org/',
+      '@type': 'Product',
+      'name': product.name,
+      'image': images,
+      'description': product.description || product.name,
+      'sku': selectedVariant?.sku || product.sku,
+      'offers': {
+        '@type': 'Offer',
+        'priceCurrency': 'USD',
+        'price': activePrice,
+        'availability': activeStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      },
+    };
+
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.id = 'product-schema';
+    script.text = JSON.stringify(schemaData);
+    document.head.appendChild(script);
+
+    return () => {
+      document.getElementById('product-schema')?.remove();
+    };
+  }, [product, selectedVariant, activePrice, activeStock, images]);
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -145,6 +186,11 @@ export const ProductDetailPage: React.FC = () => {
               <img
                 src={img}
                 alt={`${product.name} View ${idx + 1}`}
+                fetchPriority={idx === 0 ? 'high' : 'auto'}
+                loading={idx === 0 ? 'eager' : 'lazy'}
+                decoding={idx === 0 ? 'sync' : 'async'}
+                width="800"
+                height="800"
                 className="w-full h-full object-cover object-center"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src =
@@ -245,6 +291,7 @@ export const ProductDetailPage: React.FC = () => {
               <div className="flex items-center border border-rule bg-paper-sunk">
                 <button
                   type="button"
+                  aria-label="Decrease quantity"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   className="w-10 h-10 text-ink hover:bg-paper font-mono text-sm border-r border-rule flex items-center justify-center"
                 >
@@ -253,6 +300,7 @@ export const ProductDetailPage: React.FC = () => {
                 <Numeric value={quantity} format="integer" zeroPadInt={2} className="w-12 text-center text-sm font-semibold text-ink" />
                 <button
                   type="button"
+                  aria-label="Increase quantity"
                   onClick={() => setQuantity(quantity + 1)}
                   className="w-10 h-10 text-ink hover:bg-paper font-mono text-sm border-l border-rule flex items-center justify-center"
                 >
@@ -262,10 +310,11 @@ export const ProductDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Primary Signal CTA Button (Single Signal Button on Page) */}
+          {/* Primary Signal CTA Button */}
           <div className="space-y-3 pt-4 border-t border-rule">
             <button
               onClick={handleAddToCart}
+              aria-label={`Add ${product.name} to cart`}
               disabled={isOut || isAddingToCart}
               className="w-full h-14 bg-signal text-signal-ink font-sans text-sm font-semibold uppercase tracking-widest transition-opacity hover:opacity-90 disabled:opacity-50 rounded-none border border-signal"
             >
@@ -274,9 +323,10 @@ export const ProductDetailPage: React.FC = () => {
 
             <div className="text-center font-mono text-xs text-ash">─── or ───</div>
 
-            {/* Secondary CTA: Text-only underlined */}
+            {/* Secondary CTA: Wishlist */}
             <button
               type="button"
+              aria-label={isWishlisted ? "Remove product from wishlist" : "Add product to wishlist"}
               onClick={handleWishlistToggle}
               className="w-full text-center font-mono text-xs text-ink underline hover:text-signal uppercase"
             >
