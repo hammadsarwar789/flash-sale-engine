@@ -19,7 +19,7 @@ redis_pool = redis.ConnectionPool(
     port=6379,
     db=0,
     max_connections=200,      # Allows ample sockets for 64 WSGI threads
-    socket_timeout=2.0,       # Fast fail timeout
+    socket_timeout=5.0,       # Resilient timeout for concurrent threads
     decode_responses=True,    # Automatic string decoding
     protocol=2,               # Force RESP2 for compatibility with legacy Windows Redis builds
 )

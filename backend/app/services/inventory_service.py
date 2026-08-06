@@ -102,8 +102,7 @@ class InventoryService:
         stock_key, hold_key = cls._get_keys(product_id, variant_id)
 
         try:
-            script = redis_client.register_script(LUA_RESERVE_STOCK)
-            result = script(keys=[stock_key, hold_key], args=[quantity])
+            result = redis_client.eval(LUA_RESERVE_STOCK, 2, stock_key, hold_key, quantity)
 
             if result == -2:
                 # Key not found in Redis, perform auto-warmup from DB
@@ -111,7 +110,7 @@ class InventoryService:
                 if not success:
                     return cls._db_reserve_fallback(product_id, quantity, variant_id)
 
-                result = script(keys=[stock_key, hold_key], args=[quantity])
+                result = redis_client.eval(LUA_RESERVE_STOCK, 2, stock_key, hold_key, quantity)
 
             if result == -1:
                 return False, "Insufficient inventory available", 0
@@ -152,8 +151,7 @@ class InventoryService:
         """Atomically release held stock back to available stock in Redis."""
         stock_key, hold_key = cls._get_keys(product_id, variant_id)
         try:
-            script = redis_client.register_script(LUA_RELEASE_STOCK)
-            script(keys=[stock_key, hold_key], args=[quantity])
+            redis_client.eval(LUA_RELEASE_STOCK, 2, stock_key, hold_key, quantity)
             return True
         except Exception as e:
             logger.warning(f"Redis stock release bypassed for product {product_id} variant {variant_id}: {e}")
