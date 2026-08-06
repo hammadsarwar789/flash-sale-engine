@@ -1,3 +1,4 @@
+![CI Status](https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME/actions/workflows/ci.yml/badge.svg)
 # ⚡ High-Scale Flash Sale Engine & Multi-Vendor Marketplace Platform
 
 A production-grade, full-stack distributed e-commerce platform, multi-vendor marketplace, and high-concurrency inventory reservation engine. Designed around **Frontend Design Specification v2 ("Trading Floor Editorial")** using **React 18 + Vite + TypeScript** and backed by an event-driven **Flask + PostgreSQL + Redis + RabbitMQ + Celery** microservice architecture.
