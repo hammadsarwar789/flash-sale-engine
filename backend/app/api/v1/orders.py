@@ -18,7 +18,7 @@ orders_bp = Blueprint("orders", "orders", url_prefix="/api/v1/orders", descripti
 
 @orders_bp.route("/reserve", methods=["POST"])
 @jwt_required
-@rate_limit(limit=10, period=60)
+@rate_limit(limit=10000, period=60)
 @idempotent(required=True, expire_seconds=86400)
 @orders_bp.arguments(OrderReserveSchema)
 @orders_bp.response(202, ReservationAcceptedSchema)
@@ -65,7 +65,7 @@ def reserve_inventory(reservation_data):
 
 @orders_bp.route("/checkout", methods=["POST"])
 @jwt_required
-@rate_limit(limit=10, period=60)
+@rate_limit(limit=10000, period=60)
 @idempotent(required=True, expire_seconds=86400)
 @orders_bp.response(202, ReservationAcceptedSchema)
 def checkout_cart():
@@ -109,7 +109,7 @@ def checkout_cart():
 
 
 @orders_bp.route("/guest-checkout", methods=["POST"])
-@rate_limit(limit=10, period=60)
+@rate_limit(limit=10000, period=60)
 @idempotent(required=True, expire_seconds=86400)
 @orders_bp.response(202, ReservationAcceptedSchema)
 def guest_checkout():

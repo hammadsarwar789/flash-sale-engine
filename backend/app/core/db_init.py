@@ -216,10 +216,34 @@ def ensure_default_products_and_variants():
             db.session.add_all([v1, v2, v3])
             db.session.commit()
 
+        # Ensure Locust load testing product prod_phone_01 exists with ample stock
+        phone_prod = db.session.query(Product).filter_by(id="prod_phone_01").first()
+        if not phone_prod:
+            phone_prod = Product(
+                id="prod_phone_01",
+                name="Flash Sale Phone Ultra 15",
+                sku="SKU-PHONE-ULTRA-01",
+                description="High-performance flagship smartphone for concurrency benchmarking.",
+                total_stock=50000,
+                available_stock=50000,
+                price=999.99,
+                is_active=True,
+                images=["https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80"]
+            )
+            db.session.add(phone_prod)
+            db.session.commit()
+        elif phone_prod.available_stock < 1000:
+            phone_prod.available_stock = 50000
+            phone_prod.total_stock = 50000
+            phone_prod.is_active = True
+            db.session.commit()
+
         # Warm Redis product catalog cache for instant high-scale reads
         try:
             from app.api.v1.products import warm_product_cache
+            from app.services.inventory_service import InventoryService
             warm_product_cache()
+            InventoryService.warmup_product_stock("prod_phone_01")
         except Exception:
             pass
     except Exception as e:
