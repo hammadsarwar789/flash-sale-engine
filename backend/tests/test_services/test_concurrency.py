@@ -1,7 +1,7 @@
 import concurrent.futures
 import pytest
 from app.services.inventory_service import InventoryService
-from app.core.extensions import redis_client
+from app.core.extensions import redis_client, db
 
 
 def test_concurrency_zero_overselling(app, test_product):
