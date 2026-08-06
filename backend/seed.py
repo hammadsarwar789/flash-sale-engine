@@ -193,6 +193,7 @@ def seed_database():
         MultiOutletService.adjust_stock("out_lhr_01", "SKU-1001", 75)
         MultiOutletService.adjust_stock("out_lhr_01", "IPHONE-15-PRO-MAX", 30)
 
+
         db.session.commit()
         logger.info("Database seeding & Multi-Outlet branch initialization completed!")
 
