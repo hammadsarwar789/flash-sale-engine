@@ -16,6 +16,10 @@ def test_concurrency_zero_overselling(app, test_product):
         pytest.skip("Local Redis server is not running; skipping live Redis concurrency test.")
 
     with app.app_context():
+        # Sync DB product stock to match the test target of 5 available stock
+        test_product.available_stock = 5
+        db.session.commit()
+
         # Setup Redis stock for testing
         InventoryService.warmup_product_stock(test_product.id)
 
