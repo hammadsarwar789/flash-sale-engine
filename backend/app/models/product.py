@@ -24,6 +24,15 @@ class Product(db.Model):
     is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
     version = db.Column(db.Integer, nullable=False, default=1)
 
+    # Shopify Two-Way Synchronization Mapping Fields
+    shopify_product_id = db.Column(db.String(64), nullable=True, index=True)
+    shopify_variant_id = db.Column(db.String(64), nullable=True)
+    shopify_inventory_item_id = db.Column(db.String(64), nullable=True)
+    shopify_location_id = db.Column(db.String(64), nullable=True)
+    sync_status = db.Column(db.String(20), nullable=False, default="PENDING")
+    last_synced_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    last_sync_error = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
@@ -70,6 +79,13 @@ class Product(db.Model):
             "sale_price": round(float(self.price) * (1 - float(self.discount_percentage or 0.0) / 100.0), 2) if (self.discount_percentage or 0.0) > 0 else float(self.price),
             "is_active": self.is_active,
             "version": self.version,
+            "shopify_product_id": self.shopify_product_id,
+            "shopify_variant_id": self.shopify_variant_id,
+            "shopify_inventory_item_id": self.shopify_inventory_item_id,
+            "shopify_location_id": self.shopify_location_id,
+            "sync_status": self.sync_status,
+            "last_synced_at": self.last_synced_at.isoformat() if self.last_synced_at else None,
+            "last_sync_error": self.last_sync_error,
             "variants": [v.to_dict() for v in self.variants] if self.variants else [],
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

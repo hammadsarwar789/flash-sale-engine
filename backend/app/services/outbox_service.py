@@ -53,6 +53,26 @@ class OutboxService:
                     declare=[exchange],
                 )
                 logger.info(f"Published outbox event {event.id} to RabbitMQ topic '{routing_key}'")
+
+                # Dispatch Shopify Integration Async Tasks based on event type
+                try:
+                    from app.workers.shopify_tasks import (
+                        sync_product_to_shopify_task,
+                        delete_product_from_shopify_task,
+                        sync_inventory_to_shopify_task,
+                    )
+                    if event.event_type in ["PRODUCT_CREATED", "PRODUCT_UPDATED"]:
+                        sync_product_to_shopify_task.delay(event.aggregate_id)
+                    elif event.event_type == "PRODUCT_DELETED" and isinstance(event.payload, dict):
+                        sh_id = event.payload.get("shopify_product_id")
+                        if sh_id:
+                            delete_product_from_shopify_task.delay(sh_id)
+                    elif event.event_type == "STOCK_UPDATED" and isinstance(event.payload, dict):
+                        avail = event.payload.get("available_stock", 0)
+                        sync_inventory_to_shopify_task.delay(event.aggregate_id, avail)
+                except Exception as task_err:
+                    logger.warning(f"Could not dispatch Shopify worker task for event {event.id}: {task_err}")
+
                 return True
 
         except Exception as e:

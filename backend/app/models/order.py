@@ -36,6 +36,11 @@ class Order(db.Model):
     idempotency_key = db.Column(db.String(255), unique=True, nullable=False, index=True)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
 
+    # Shopify Two-Way Synchronization Origin Fields
+    source = db.Column(db.String(20), nullable=False, default="WEB", index=True)
+    shopify_order_id = db.Column(db.String(64), unique=True, nullable=True, index=True)
+    shopify_order_number = db.Column(db.String(32), nullable=True)
+
     created_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
@@ -76,6 +81,9 @@ class Order(db.Model):
             "total_amount": float(self.total_amount),
             "idempotency_key": self.idempotency_key,
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "source": self.source,
+            "shopify_order_id": self.shopify_order_id,
+            "shopify_order_number": self.shopify_order_number,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "items": [item.to_dict() for item in self.items] if self.items else [],
         }

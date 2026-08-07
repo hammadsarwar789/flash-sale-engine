@@ -18,6 +18,10 @@ class ProductVariant(db.Model):
     total_stock = db.Column(db.Integer, nullable=False, default=0)
     available_stock = db.Column(db.Integer, nullable=False, default=0)
 
+    # Shopify Two-Way Synchronization Fields
+    shopify_variant_id = db.Column(db.String(64), nullable=True, index=True)
+    shopify_inventory_item_id = db.Column(db.String(64), nullable=True)
+
     created_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
@@ -37,4 +41,6 @@ class ProductVariant(db.Model):
             "price": float(self.price),
             "total_stock": self.total_stock,
             "available_stock": self.available_stock,
+            "shopify_variant_id": self.shopify_variant_id,
+            "shopify_inventory_item_id": self.shopify_inventory_item_id,
         }
