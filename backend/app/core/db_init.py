@@ -32,8 +32,19 @@ def sync_database_schema():
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT;"))
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;"))
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percentage DOUBLE PRECISION DEFAULT 0.0;"))
+                conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS shopify_product_id VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS shopify_variant_id VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS shopify_inventory_item_id VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS shopify_location_id VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS sync_status VARCHAR(20) NOT NULL DEFAULT 'PENDING';"))
+                conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMP WITH TIME ZONE;"))
+                conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS last_sync_error TEXT;"))
 
-                # 3. Update existing 'orders' table
+                # 3. Update existing 'product_variants' table
+                conn.execute(text("ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS shopify_variant_id VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS shopify_inventory_item_id VARCHAR(64);"))
+
+                # 4. Update existing 'orders' table
                 conn.execute(text("ALTER TABLE orders ALTER COLUMN product_id DROP NOT NULL;"))
                 conn.execute(text("ALTER TABLE orders ALTER COLUMN quantity DROP NOT NULL;"))
                 conn.execute(text("ALTER TABLE orders ALTER COLUMN unit_price DROP NOT NULL;"))
@@ -44,19 +55,24 @@ def sync_database_schema():
                 conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(128);"))
                 conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS carrier VARCHAR(64);"))
                 conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_intent_id VARCHAR(255);"))
+                conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS source VARCHAR(20) NOT NULL DEFAULT 'WEB';"))
+                conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shopify_order_id VARCHAR(64);"))
+                conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shopify_order_number VARCHAR(32);"))
 
-                # 4. Update 'cart_items' & 'order_items' for variant_id and sub_order_id
+                # 5. Update 'cart_items' & 'order_items' for variant_id and sub_order_id
                 conn.execute(text("ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS sub_order_id VARCHAR(36);"))
-                # 5. Update 'tickets' & 'ticket_ai' for customer support module
+                # 6. Update 'tickets' & 'ticket_ai' for customer support module
                 conn.execute(text("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS message_count INTEGER NOT NULL DEFAULT 1;"))
                 conn.execute(text("ALTER TABLE ticket_ai ADD COLUMN IF NOT EXISTS ai_suggested_priority VARCHAR(20);"))
 
-                # 6. Ensure high-performance indexes for bottleneck removal
+                # 7. Ensure high-performance indexes for bottleneck removal
                 conn.execute(text("CREATE INDEX IF NOT EXISTS idx_products_available_stock ON products (available_stock);"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS idx_products_is_active ON products (is_active);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_products_shopify_id ON products (shopify_product_id);"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders (user_id);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_orders_shopify_id ON orders (shopify_order_id);"))
 
         # Create any new tables
         db.create_all()
