@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { Eyebrow } from '../components/ui/Eyebrow';
 import { Numeric } from '../components/ui/Numeric';
 import { StatusDot } from '../components/ui/StatusDot';
+import { ShopifyToggle } from '../components/ShopifyToggle';
+import { ShopifyOrdersBox } from '../components/ShopifyOrdersBox';
 
 export const AdminPage: React.FC = () => {
   const { user, logout } = useAuth();
@@ -253,6 +255,27 @@ export const AdminPage: React.FC = () => {
       loadAdminData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to sync stock cache.');
+    }
+  };
+
+  const handleShopifyToggle = async (productId: string, newValue: boolean) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/v1/products/${productId}/shopify-listing`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_listed_on_shopify: newValue }),
+      });
+      if (res.ok) {
+        const updatedProduct = await res.json();
+        setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, ...updatedProduct } : p)));
+        setSuccessMsg(`Shopify publishing status updated for product #${productId}.`);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to toggle Shopify publishing status.');
     }
   };
 
@@ -822,6 +845,7 @@ export const AdminPage: React.FC = () => {
                     <th className="py-2.5 px-3">VARIANTS</th>
                     <th className="py-2.5 px-3">PRICE</th>
                     <th className="py-2.5 px-3">DISCOUNT</th>
+                    <th className="py-2.5 px-3">SHOPIFY SYNC</th>
                     <th className="py-2.5 px-3">REDIS STOCK</th>
                     <th className="py-2.5 px-3">DB STOCK</th>
                     <th className="py-2.5 px-3 text-right">ACTIONS</th>
@@ -859,6 +883,14 @@ export const AdminPage: React.FC = () => {
                         ) : (
                           <span className="text-ash">— NONE</span>
                         )}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <ShopifyToggle
+                          productId={p.id}
+                          isListed={Boolean((p as any).is_listed_on_shopify)}
+                          syncStatus={(p as any).shopify_sync_status || (p as any).sync_status || 'UNPUBLISHED'}
+                          onToggle={handleShopifyToggle}
+                        />
                       </td>
                       <td className="py-2.5 px-3 text-gain font-semibold">{p.available_stock ?? p.total_stock} UNITS</td>
                       <td className="py-2.5 px-3 text-ash">{p.total_stock} UNITS</td>
@@ -919,6 +951,7 @@ export const AdminPage: React.FC = () => {
         {/* TAB 3: ORDERS FULFILLMENT */}
         {activeTab === 'orders' && (
           <div className="space-y-6">
+            <ShopifyOrdersBox />
             <div className="border-b border-rule pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h2 className="font-serif text-3xl text-ink">Fulfillment Ledger</h2>

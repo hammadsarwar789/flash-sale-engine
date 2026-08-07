@@ -5,6 +5,7 @@ import { Order } from '../types/api';
 import { StatusDot } from '../components/ui/StatusDot';
 import { Numeric } from '../components/ui/Numeric';
 import { Eyebrow } from '../components/ui/Eyebrow';
+import { ShopifyOrdersBox } from '../components/ShopifyOrdersBox';
 
 export const OrdersPage: React.FC = () => {
   const { orders, isLoading } = useOrders();
@@ -33,24 +34,15 @@ export const OrdersPage: React.FC = () => {
     );
   }
 
-  if (orders.length === 0) {
-    return (
-      <div className="py-20 text-center space-y-4 border border-rule bg-paper">
-        <h1 className="font-serif text-4xl text-ink">No orders recorded</h1>
-        <p className="font-mono text-xs text-ash">You have not completed any order reservations on this floor yet.</p>
-        <Link to="/products" className="inline-block bg-ink text-paper font-mono text-xs uppercase px-6 py-2">
-          ← Go to Catalog Floor
-        </Link>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="border-b border-rule pb-4">
         <h1 className="font-serif text-[48px] text-ink font-normal leading-none">Order Ledger.</h1>
         <p className="font-mono text-xs text-ash mt-1">Real-time fulfillment tracking and transactional outbox stream logs.</p>
       </div>
+
+      {/* Dedicated Shopify Sales Channel Box */}
+      <ShopifyOrdersBox />
 
       {/* Dense Table Layout */}
       <div className="border border-rule bg-paper overflow-x-auto">

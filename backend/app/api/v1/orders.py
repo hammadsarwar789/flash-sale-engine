@@ -193,24 +193,27 @@ def get_order_status(order_id):
 
 @orders_bp.route("", methods=["GET"])
 @jwt_required
-@orders_bp.response(200, OrderResponseSchema(many=True))
 def list_user_orders():
-    """Retrieve list of orders for the authenticated user."""
+    """Retrieve list of orders, supporting optional filtering by origin_source (SHOPIFY or WEB)."""
     from sqlalchemy.orm import joinedload
     user_id = g.current_user_id
-    OrderService.check_and_cancel_expired_orders(user_id=user_id)
-    orders = (
-        db.session.query(Order)
-        .options(
-            joinedload(Order.user),
-            joinedload(Order.product),
-            joinedload(Order.shipping_address),
-        )
-        .filter_by(user_id=user_id)
-        .order_by(Order.created_at.desc())
-        .all()
+    source_filter = request.args.get("origin_source") or request.args.get("source")
+
+    OrderService.check_and_cancel_expired_orders(user_id=user_id if not source_filter else None)
+
+    query = db.session.query(Order).options(
+        joinedload(Order.user),
+        joinedload(Order.product),
+        joinedload(Order.shipping_address),
     )
-    return [o.to_dict() for o in orders], 200
+
+    if source_filter:
+        query = query.filter(Order.source == source_filter.upper())
+    else:
+        query = query.filter_by(user_id=user_id)
+
+    orders = query.order_by(Order.created_at.desc()).all()
+    return jsonify({"orders": [o.to_dict() for o in orders]}), 200
 
 
 @orders_bp.route("/<string:order_id>/pay", methods=["POST"])

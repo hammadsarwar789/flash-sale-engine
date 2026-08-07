@@ -4,6 +4,8 @@ import { Numeric } from '../components/ui/Numeric';
 import { vendorApi, SellerProfile, VendorSubOrder, VendorFinanceSummary } from '../api/vendor';
 import { productsApi } from '../api/products';
 import { Category } from '../types/api';
+import { ShopifyToggle } from '../components/ShopifyToggle';
+import { ShopifyOrdersBox } from '../components/ShopifyOrdersBox';
 
 export const VendorPortalPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'sub-orders' | 'products' | 'finance' | 'onboarding'>('overview');
@@ -129,6 +131,27 @@ export const VendorPortalPage: React.FC = () => {
       setSubOrders(updatedOrders);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to update sub-order status.');
+    }
+  };
+
+  const handleShopifyToggle = async (productId: string, newValue: boolean) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/v1/products/${productId}/shopify-listing`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_listed_on_shopify: newValue }),
+      });
+      if (res.ok) {
+        const updatedProduct = await res.json();
+        setVendorProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, ...updatedProduct } : p)));
+        setSuccessMsg(`Shopify publishing status updated for product #${productId}.`);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to toggle Shopify publishing status.');
     }
   };
 
@@ -516,8 +539,10 @@ export const VendorPortalPage: React.FC = () => {
 
         {/* TAB 2: SUB-ORDERS & FULFILLMENT */}
         {hasAccount && profile?.status === 'APPROVED' && activeTab === 'sub-orders' && (
-          <div className="border border-rule bg-paper overflow-x-auto font-mono text-xs">
-            <table className="w-full text-left">
+          <div className="space-y-6">
+            <ShopifyOrdersBox />
+            <div className="border border-rule bg-paper overflow-x-auto font-mono text-xs">
+              <table className="w-full text-left">
               <thead>
                 <tr className="bg-paper-sunk border-b border-rule text-ash">
                   <th className="py-3 px-4">SUB-ORDER ID</th>
@@ -587,6 +612,7 @@ export const VendorPortalPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+        </div>
         )}
 
         {/* TAB: STORE PRODUCTS CATALOG */}
@@ -691,6 +717,7 @@ export const VendorPortalPage: React.FC = () => {
                     <th className="py-2.5 px-3">VARIANTS</th>
                     <th className="py-2.5 px-3">PRICE</th>
                     <th className="py-2.5 px-3">DISCOUNT</th>
+                    <th className="py-2.5 px-3">SHOPIFY SYNC</th>
                     <th className="py-2.5 px-3">REDIS STOCK</th>
                     <th className="py-2.5 px-3">DB STOCK</th>
                     <th className="py-2.5 px-3 text-right">ACTIONS</th>
@@ -699,7 +726,7 @@ export const VendorPortalPage: React.FC = () => {
                 <tbody className="divide-y divide-rule/40">
                   {vendorProducts.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="py-8 text-center text-ash font-mono">
+                      <td colSpan={11} className="py-8 text-center text-ash font-mono">
                         No products listed under your merchant store yet.
                       </td>
                     </tr>
@@ -737,6 +764,14 @@ export const VendorPortalPage: React.FC = () => {
                             ) : (
                               <span className="text-ash">— NONE</span>
                             )}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <ShopifyToggle
+                              productId={p.id}
+                              isListed={Boolean((p as any).is_listed_on_shopify)}
+                              syncStatus={(p as any).shopify_sync_status || (p as any).sync_status || 'UNPUBLISHED'}
+                              onToggle={handleShopifyToggle}
+                            />
                           </td>
                           <td className="py-2.5 px-3 text-gain font-semibold">{p.available_stock ?? p.total_stock} UNITS</td>
                           <td className="py-2.5 px-3 text-ash">{p.total_stock} UNITS</td>

@@ -82,6 +82,7 @@ class Order(db.Model):
             "idempotency_key": self.idempotency_key,
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "source": self.source,
+            "origin_source": self.source,
             "shopify_order_id": self.shopify_order_id,
             "shopify_order_number": self.shopify_order_number,
             "created_at": self.created_at.isoformat() if self.created_at else None,
