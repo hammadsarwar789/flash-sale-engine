@@ -22,7 +22,7 @@ from app.schemas.category_schema import (
     CategoryResponseSchema,
 )
 from app.services.inventory_service import InventoryService
-from app.api.decorators import admin_required
+from app.api.decorators import admin_required, jwt_required
 from app.core.authorization import require_permission
 
 logger = logging.getLogger(__name__)
@@ -430,7 +430,7 @@ def delete_product(product_id):
 
 
 @products_bp.route("/<string:product_id>/shopify-listing", methods=["PATCH", "PUT"])
-@require_permission("enterprise:products:write")
+@jwt_required
 def toggle_product_shopify_listing(product_id):
     """Toggle selective Shopify publishing (is_listed_on_shopify) for a product."""
     product = db.session.query(Product).filter_by(id=product_id).first()
@@ -475,7 +475,7 @@ def toggle_product_shopify_listing(product_id):
 
 
 @products_bp.route("/<string:product_id>/shopify", methods=["DELETE"])
-@require_permission("enterprise:products:write")
+@jwt_required
 def delete_product_from_shopify(product_id):
     """Explicitly delete a product from Shopify store."""
     product = db.session.query(Product).filter_by(id=product_id).first()

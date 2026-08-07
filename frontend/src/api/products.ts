@@ -46,4 +46,17 @@ export const productsApi = {
   async getProductReviews(productId: string): Promise<Review[]> {
     return apiFetch<Review[]>(`/products/${productId}/reviews`);
   },
+
+  async toggleShopifyListing(productId: string, isListed: boolean): Promise<Product> {
+    return apiFetch<Product>(`/products/${productId}/shopify-listing`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_listed_on_shopify: isListed }),
+    });
+  },
+
+  async deleteProductFromShopify(productId: string): Promise<any> {
+    return apiFetch<any>(`/products/${productId}/shopify`, {
+      method: 'DELETE',
+    });
+  },
 };

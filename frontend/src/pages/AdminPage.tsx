@@ -260,20 +260,9 @@ export const AdminPage: React.FC = () => {
 
   const handleShopifyToggle = async (productId: string, newValue: boolean) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/v1/products/${productId}/shopify-listing`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ is_listed_on_shopify: newValue }),
-      });
-      if (res.ok) {
-        const updatedProduct = await res.json();
-        setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, ...updatedProduct } : p)));
-        setSuccessMsg(`Shopify publishing status updated for product #${productId}.`);
-      }
+      const updatedProduct = await productsApi.toggleShopifyListing(productId, newValue);
+      setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, ...updatedProduct } : p)));
+      setSuccessMsg(`Shopify publishing status updated for product #${productId}.`);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to toggle Shopify publishing status.');
     }
