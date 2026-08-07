@@ -8,6 +8,9 @@ interface Props {
 }
 
 export const ShopifyToggle: React.FC<Props> = ({ productId, isListed, syncStatus = 'UNPUBLISHED', onToggle }) => {
+  const isCurrentlySynced = syncStatus.toUpperCase() === 'SYNCED';
+  const isChecked = isListed || isCurrentlySynced;
+
   const getBadgeStyle = (status: string) => {
     switch (status.toUpperCase()) {
       case 'SYNCED':
@@ -22,28 +25,50 @@ export const ShopifyToggle: React.FC<Props> = ({ productId, isListed, syncStatus
   };
 
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontFamily: 'monospace' }}>
-      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '6px', userSelect: 'none' }}>
-        <input
-          type="checkbox"
-          checked={isListed}
-          onChange={(e) => onToggle(productId, e.target.checked)}
-          style={{ accentColor: '#10b981', cursor: 'pointer' }}
-        />
-        <span style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Publish to Shopify</span>
-      </label>
-      <span
-        style={{
-          fontSize: '10px',
-          fontWeight: 700,
-          padding: '2px 6px',
-          borderRadius: '4px',
-          letterSpacing: '0.05em',
-          ...getBadgeStyle(syncStatus),
-        }}
-      >
-        [{syncStatus.toUpperCase()}]
-      </span>
+    <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '4px', fontFamily: 'monospace' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '6px', userSelect: 'none' }}>
+          <input
+            type="checkbox"
+            checked={isChecked}
+            onChange={(e) => onToggle(productId, e.target.checked)}
+            style={{ accentColor: '#10b981', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Publish to Shopify</span>
+        </label>
+        <span
+          style={{
+            fontSize: '10px',
+            fontWeight: 700,
+            padding: '2px 6px',
+            borderRadius: '4px',
+            letterSpacing: '0.05em',
+            ...getBadgeStyle(syncStatus),
+          }}
+        >
+          [{syncStatus.toUpperCase()}]
+        </span>
+      </div>
+
+      {isChecked && (
+        <button
+          type="button"
+          onClick={() => onToggle(productId, false)}
+          style={{
+            fontSize: '10px',
+            color: '#dc2626',
+            background: 'none',
+            border: 'none',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            textAlign: 'left',
+            padding: 0,
+            fontFamily: 'monospace',
+          }}
+        >
+          ❌ Delete from Shopify
+        </button>
+      )}
     </div>
   );
 };

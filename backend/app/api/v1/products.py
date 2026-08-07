@@ -398,7 +398,7 @@ def update_product(product_data, product_id):
 @products_bp.route("/<string:product_id>", methods=["DELETE"])
 @require_permission("enterprise:products:write")
 def delete_product(product_id):
-    """Deactivate/Delete product (Admin)."""
+    """Deactivate/Delete product from Flash Sale Engine and remove from Shopify if published."""
     product = db.session.query(Product).filter_by(id=product_id).first()
     if not product:
         return (
@@ -413,10 +413,20 @@ def delete_product(product_id):
             404,
         )
 
+    if product.shopify_product_id:
+        from app.integrations.shopify.sync import ShopifySyncService
+        try:
+            ShopifySyncService.delete_product(product.shopify_product_id)
+        except Exception as err:
+            logger.warning(f"Error removing product {product.id} from Shopify on delete: {err}")
+        product.shopify_product_id = None
+
     product.is_active = False
+    product.is_listed_on_shopify = False
+    product.sync_status = "UNPUBLISHED"
     db.session.commit()
     clear_catalog_cache()
-    return jsonify({"message": f"Product '{product_id}' deactivated successfully"}), 200
+    return jsonify({"message": f"Product '{product_id}' deactivated and unlisted from Shopify"}), 200
 
 
 @products_bp.route("/<string:product_id>/shopify-listing", methods=["PATCH", "PUT"])
@@ -430,42 +440,65 @@ def toggle_product_shopify_listing(product_id):
     data = request.get_json() or {}
     is_listed = bool(data.get("is_listed_on_shopify", data.get("is_listed", False)))
 
-    old_status = product.is_listed_on_shopify
     product.is_listed_on_shopify = is_listed
 
-    if is_listed and not old_status:
-        # User explicitly enabled Shopify listing -> Trigger Outbox Sync
+    if is_listed:
+        # Publish / Sync to Shopify immediately
         product.sync_status = "PENDING"
-        from app.models.outbox import OutboxEvent, OutboxStatus
-        outbox = OutboxEvent(
-            aggregate_type="PRODUCT",
-            aggregate_id=str(product.id),
-            event_type="PRODUCT_CREATED",
-            payload={"product_id": str(product.id)},
-            status=OutboxStatus.PENDING,
-        )
-        db.session.add(outbox)
+        db.session.commit()
 
+        from app.integrations.shopify.sync import ShopifySyncService
         try:
-            from app.workers.shopify_tasks import sync_product_to_shopify_task
-            sync_product_to_shopify_task.delay(product.id)
-        except Exception as task_err:
-            logger.warning(f"Could not dispatch async shopify task: {task_err}")
-
-    elif not is_listed and old_status:
-        # User unlisted item -> Remove from Shopify store
-        product.sync_status = "UNPUBLISHED"
+            ShopifySyncService.sync_product(product.id)
+        except Exception as err:
+            logger.error(f"Immediate Shopify sync failed for {product.id}: {err}")
+            product.sync_status = "FAILED"
+            product.last_sync_error = str(err)
+            db.session.commit()
+    else:
+        # Unlist & Delete from Shopify store
         if product.shopify_product_id:
+            from app.integrations.shopify.sync import ShopifySyncService
             try:
-                from app.workers.shopify_tasks import delete_product_from_shopify_task
-                delete_product_from_shopify_task.delay(product.shopify_product_id)
-            except Exception as task_err:
-                logger.warning(f"Could not dispatch shopify delete task: {task_err}")
+                ShopifySyncService.delete_product(product.shopify_product_id)
+            except Exception as err:
+                logger.warning(f"Shopify delete error for {product.shopify_product_id}: {err}")
             product.shopify_product_id = None
+            product.shopify_variant_id = None
+            product.shopify_inventory_item_id = None
 
-    db.session.commit()
+        product.sync_status = "UNPUBLISHED"
+        db.session.commit()
+
     clear_catalog_cache()
     return jsonify(product.to_dict()), 200
+
+
+@products_bp.route("/<string:product_id>/shopify", methods=["DELETE"])
+@require_permission("enterprise:products:write")
+def delete_product_from_shopify(product_id):
+    """Explicitly delete a product from Shopify store."""
+    product = db.session.query(Product).filter_by(id=product_id).first()
+    if not product:
+        return jsonify({"message": f"Product '{product_id}' not found"}), 404
+
+    if product.shopify_product_id:
+        from app.integrations.shopify.sync import ShopifySyncService
+        try:
+            ShopifySyncService.delete_product(product.shopify_product_id)
+        except Exception as err:
+            logger.error(f"Failed to delete product from Shopify: {err}")
+            return jsonify({"error": "Shopify Error", "message": str(err)}), 400
+
+    product.shopify_product_id = None
+    product.shopify_variant_id = None
+    product.shopify_inventory_item_id = None
+    product.is_listed_on_shopify = False
+    product.sync_status = "UNPUBLISHED"
+    db.session.commit()
+    clear_catalog_cache()
+
+    return jsonify({"message": "Product deleted from Shopify successfully", "product": product.to_dict()}), 200
 
 
 # --- Variant Endpoints ---
