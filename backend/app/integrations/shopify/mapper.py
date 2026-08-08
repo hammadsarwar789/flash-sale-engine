@@ -10,13 +10,24 @@ class ShopifyMapper:
     def product_to_shopify_payload(product: Product) -> Dict[str, Any]:
         """Convert local Product and ProductVariant models into Shopify Product REST JSON."""
         variants_data: List[Dict[str, Any]] = []
+        discount_pct = float(getattr(product, 'discount_percentage', 0.0) or 0.0)
 
         if product.variants and len(product.variants) > 0:
             for v in product.variants:
+                regular_price = float(v.price)
+                if discount_pct > 0:
+                    sale_price = round(regular_price * (1.0 - (discount_pct / 100.0)), 2)
+                    final_price = str(sale_price)
+                    compare_price = str(regular_price)
+                else:
+                    final_price = str(regular_price)
+                    compare_price = None
+
                 v_dto = {
                     "option1": v.name or v.sku,
                     "sku": v.sku,
-                    "price": str(float(v.price)),
+                    "price": final_price,
+                    "compare_at_price": compare_price,
                     "inventory_management": "shopify",
                     "inventory_quantity": max(0, v.available_stock),
                 }
@@ -31,10 +42,20 @@ class ShopifyMapper:
                 variants_data.append(v_dto)
         else:
             # Single default variant
+            regular_price = float(product.price)
+            if discount_pct > 0:
+                sale_price = round(regular_price * (1.0 - (discount_pct / 100.0)), 2)
+                final_price = str(sale_price)
+                compare_price = str(regular_price)
+            else:
+                final_price = str(regular_price)
+                compare_price = None
+
             variants_data.append({
                 "title": "Default Title",
                 "sku": product.sku,
-                "price": str(float(product.price)),
+                "price": final_price,
+                "compare_at_price": compare_price,
                 "inventory_management": "shopify",
                 "inventory_quantity": max(0, product.available_stock),
             })

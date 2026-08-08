@@ -34,15 +34,21 @@ def test_shopify_hmac_verification_valid_and_invalid():
 
 
 def test_product_to_shopify_mapper(app, test_product):
-    """Test mapping local Product model into Shopify REST payload DTO."""
+    """Test mapping local Product model into Shopify REST payload DTO including compare_at_price."""
     with app.app_context():
         product = db.session.get(Product, test_product.id) or test_product
+        product.discount_percentage = 17.0
+        db.session.commit()
+
         payload = ShopifyMapper.product_to_shopify_payload(product)
 
         assert payload["title"] == product.name
         assert "variants" in payload
         assert len(payload["variants"]) > 0
-        assert payload["variants"][0]["price"] == str(float(product.price))
+        
+        # Verify regular price ($999.99) is compare_at_price and sale price ($829.99) is price
+        assert payload["variants"][0]["compare_at_price"] == str(float(product.price))
+        assert payload["variants"][0]["price"] == "829.99"
         assert payload["variants"][0]["inventory_management"] == "shopify"
 
 
