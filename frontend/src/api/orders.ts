@@ -45,8 +45,10 @@ export const ordersApi = {
     });
   },
 
-  async listUserOrders(): Promise<Order[]> {
-    return apiFetch<Order[]>('/orders');
+  async listUserOrders(originSource?: string): Promise<Order[]> {
+    const endpoint = originSource ? `/orders?origin_source=${encodeURIComponent(originSource)}` : '/orders';
+    const res = await apiFetch<any>(endpoint);
+    return Array.isArray(res) ? res : (res?.orders || []);
   },
 
   async getOrder(order_id: string): Promise<Order> {

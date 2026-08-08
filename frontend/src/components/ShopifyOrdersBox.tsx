@@ -20,17 +20,9 @@ export const ShopifyOrdersBox: React.FC = () => {
 
   const fetchShopifyOrders = () => {
     setLoading(true);
-    const token = localStorage.getItem('token');
-    fetch('/api/v1/orders?origin_source=SHOPIFY', {
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : '',
-        'Content-Type': 'application/json',
-      },
-    })
-      .then((res) => res.json())
+    ordersApi.listUserOrders('SHOPIFY')
       .then((data) => {
-        const orderList = Array.isArray(data) ? data : (data.orders || []);
-        setShopifyOrders(orderList);
+        setShopifyOrders(data as Order[]);
         setLoading(false);
       })
       .catch((err) => {
