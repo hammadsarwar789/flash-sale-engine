@@ -90,6 +90,10 @@ def test_product(app):
     except Exception:
         pass
 
+    existing = db.session.query(Product).filter_by(sku="IPHONE15-FLASH").first()
+    if existing:
+        return existing
+
     product = Product(
         name="Flash Sale iPhone 15",
         sku="IPHONE15-FLASH",

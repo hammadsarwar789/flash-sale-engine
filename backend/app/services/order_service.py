@@ -100,6 +100,7 @@ class OrderService:
             product.available_stock = max(0, product.available_stock - quantity)
 
             db.session.commit()
+            InventoryService.notify_stock_change(product_id)
             logger.info(f"Successfully created single-item order {order.id} and outbox event {outbox_event.id}")
             return True, "Reservation created successfully", order, outbox_event
 
@@ -247,6 +248,8 @@ class OrderService:
             db.session.add(outbox_event)
 
             db.session.commit()
+            for item_data in order_line_items_data:
+                InventoryService.notify_stock_change(item_data["product"].id)
             logger.info(f"Successfully checked out order {order.id} with {len(created_items)} items")
             return True, "Order successfully checked out", order, outbox_event
 
@@ -415,6 +418,8 @@ class OrderService:
             db.session.add(outbox_event)
 
             db.session.commit()
+            for item_data in order_line_items_data:
+                InventoryService.notify_stock_change(item_data["product"].id)
             logger.info(f"Successfully created guest order {order.id} for {guest_email}")
             return True, "Guest order successfully checked out", order, outbox_event
 

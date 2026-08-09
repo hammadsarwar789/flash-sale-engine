@@ -355,5 +355,26 @@ class InventoryService:
         except Exception:
             pass
 
+        cls.notify_stock_change(product_id)
         return True
+
+    @classmethod
+    def notify_stock_change(cls, product_id: str):
+        """Clear catalog cache and sync inventory level to Shopify if product is listed on Shopify."""
+        try:
+            redis_client.delete("catalog:default")
+        except Exception as cache_err:
+            logger.warning(f"Failed to clear catalog cache: {cache_err}")
+
+        try:
+            product = db.session.get(Product, product_id)
+            if product and (product.shopify_inventory_item_id or product.is_listed_on_shopify):
+                try:
+                    from app.workers.shopify_tasks import sync_inventory_to_shopify_task
+                    sync_inventory_to_shopify_task.delay(product.id, product.available_stock)
+                except Exception:
+                    from app.integrations.shopify.sync import ShopifySyncService
+                    ShopifySyncService.sync_inventory(product.id, product.available_stock)
+        except Exception as shopify_err:
+            logger.warning(f"Failed to sync stock change to Shopify for product {product_id}: {shopify_err}")
 

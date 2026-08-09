@@ -6,4 +6,4 @@ app = create_app(config_name)
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=app.config["DEBUG"])
+    app.run(host="0.0.0.0", port=port, debug=app.config["DEBUG"],use_reloader=False)

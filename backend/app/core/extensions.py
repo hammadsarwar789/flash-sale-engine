@@ -18,10 +18,11 @@ redis_pool = redis.ConnectionPool(
     host="localhost",
     port=6379,
     db=0,
-    max_connections=200,      # Allows ample sockets for 64 WSGI threads
-    socket_timeout=5.0,       # Resilient timeout for concurrent threads
-    decode_responses=True,    # Automatic string decoding
-    protocol=2,               # Force RESP2 for compatibility with legacy Windows Redis builds
+    max_connections=200,          # Allows ample sockets for 64 WSGI threads
+    socket_timeout=1.5,           # Strict timeout for fast-fail on network issues
+    socket_connect_timeout=1.5,   # Strict TCP connect timeout
+    decode_responses=True,        # Automatic string decoding
+    protocol=2,                   # Force RESP2 for compatibility with legacy Windows Redis builds
 )
 redis_client: redis.Redis = redis.Redis(connection_pool=redis_pool)
 
@@ -34,7 +35,8 @@ def init_redis(app) -> redis.Redis:
         port=int(app.config.get("REDIS_PORT", 6379)),
         db=int(app.config.get("REDIS_DB", 0)),
         max_connections=200,
-        socket_timeout=2.0,
+        socket_timeout=1.5,
+        socket_connect_timeout=1.5,
         decode_responses=True,
         protocol=app.config.get("REDIS_PROTOCOL", 2),
     )
