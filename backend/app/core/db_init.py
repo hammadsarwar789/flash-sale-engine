@@ -18,10 +18,15 @@ def sync_database_schema():
         schema_already_updated = False
         try:
             with db.engine.connect() as check_conn:
-                check_conn.execute(text("SET statement_timeout = '2000ms';"))
+                # FIX: "SET LOCAL" (not "SET") scopes the timeout to this connection's
+                # own transaction only. It's discarded automatically when the txn ends,
+                # so it can never leak onto this physical connection once it's returned
+                # to the pool and reused by db.create_all() / db.session later.
+                check_conn.execute(text("SET LOCAL statement_timeout = '2000ms';"))
                 check_res = check_conn.execute(
                     text("SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='is_email_verified';")
                 ).fetchone()
+                check_conn.rollback()  # explicitly end the txn before the connection goes back to the pool
                 if check_res:
                     schema_already_updated = True
         except Exception as check_err:
@@ -101,6 +106,10 @@ def sync_database_schema():
 
             with db.engine.connect() as conn:
                 try:
+                    # NOTE: this one stays session-scoped ("SET", not "SET LOCAL") on
+                    # purpose — each statement below commits individually, and SET LOCAL
+                    # would only survive the first commit. We clean it up explicitly
+                    # below instead, right before the connection goes back to the pool.
                     conn.execute(text("SET lock_timeout = '2s';"))
                 except Exception:
                     pass
@@ -111,6 +120,14 @@ def sync_database_schema():
                     except Exception as err:
                         conn.rollback()
                         logger.debug(f"[DB SYNC DEFERRED] {stmt[:40]}... ({err})")
+
+                # FIX: reset the session-level lock_timeout before this connection is
+                # released back to the pool, so it doesn't affect whatever borrows it next.
+                try:
+                    conn.execute(text("RESET lock_timeout;"))
+                    conn.commit()
+                except Exception:
+                    pass
 
         _run_initial_seeds()
         logger.info("Database schema synchronized successfully.")
@@ -124,7 +141,7 @@ def _run_initial_seeds():
     """Executes initial domain seed routines safely with isolated transaction management."""
     # Ensure any active aborted transaction from DDL migration is cleared first
     try:
-        db.session.rollback()
+        db.session.remove()
     except Exception:
         pass
 
@@ -133,12 +150,33 @@ def _run_initial_seeds():
     except Exception as err:
         logger.warning(f"Table creation warning: {err}")
         db.session.rollback()
+        db.session.remove()
+        # FIX: nuclear option. If create_all() failed mid-statement, whatever pooled
+        # connection it used may have gone back to the pool in a bad/aborted state.
+        # dispose() closes and discards EVERY connection currently in the pool, so
+        # every checkout after this point (including db.session's) opens a brand-new
+        # physical connection instead of risking reuse of a poisoned one. This is what
+        # actually breaks the "every seed helper fails the same way" cascade.
+        try:
+            db.engine.dispose()
+        except Exception:
+            pass
 
+    # FIX: db.session.remove() (not just rollback()) between each helper — this tears
+    # down the session and its connection entirely, forcing a genuinely fresh checkout
+    # for the next helper rather than trusting rollback() to repair a connection that
+    # may be broken below the ORM's visibility.
     ensure_default_outlets()
+    db.session.remove()
+
     ensure_default_permissions_and_roles()
+    db.session.remove()
+
     ensure_default_admin()
+    db.session.remove()
+
     ensure_default_products_and_variants()
-    
+
     try:
         db.session.remove()
     except Exception:
@@ -147,7 +185,7 @@ def _run_initial_seeds():
 
 def ensure_default_outlets():
     """Ensure default enterprise tenant and store branches exist."""
-    db.session.rollback()  # Reset transaction state to prevent InFailedSqlTransaction
+    db.session.remove()  # fresh session/connection, not just a rollback on the current one
     try:
         from app.models.tenant import Tenant, Outlet
         tenant = db.session.query(Tenant).filter_by(id="ten_default").first()
@@ -174,7 +212,7 @@ def ensure_default_outlets():
 
 def ensure_default_permissions_and_roles():
     """Ensure standard system permissions and default roles exist."""
-    db.session.rollback()  # Reset transaction state
+    db.session.remove()
     try:
         from app.models.rbac import Permission, Role
 
@@ -223,7 +261,7 @@ def ensure_default_permissions_and_roles():
 
 def ensure_default_admin():
     """Ensure default enterprise admin account exists with active credentials."""
-    db.session.rollback()  # Reset transaction state
+    db.session.remove()
     try:
         from flask import current_app
         from app.models.user import User
@@ -260,11 +298,11 @@ def ensure_default_admin():
 
 def ensure_default_products_and_variants():
     """Ensure sample products and variants exist for catalog display."""
-    db.session.rollback()  # Reset transaction state
+    db.session.remove()
     try:
         from app.models.product import Product
         from app.models.product_variant import ProductVariant
-        
+
         prod_count = db.session.query(Product).count()
         if prod_count == 0:
             p1 = Product(

@@ -24,9 +24,10 @@ class BaseConfig:
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_size": 30,          # Keeps 30 persistent connections ready
         "max_overflow": 50,       # Allows spikes up to 80 simultaneous connections
-        "pool_timeout": 30,       # Wait up to 30s for a free connection before timing out
+        "pool_timeout": 10,       # Fail fast if pool is exhausted
         "pool_recycle": 1800,     # Recycle connections every 30 minutes to prevent stales
         "pool_pre_ping": True,    # Verify connection health before executing queries
+        "connect_args": {"connect_timeout": 10},  # Cap new connection attempt timeout
     }
 
     # Redis Configuration
