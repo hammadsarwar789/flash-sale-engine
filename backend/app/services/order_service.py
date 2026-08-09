@@ -230,12 +230,24 @@ class OrderService:
                 db.session.add(order_item)
                 created_items.append(order_item)
 
-                # Deduct DB available stock
+                # Deduct DB available stock via central adjust_stock service
+                from app.services.inventory_sync import adjust_stock
                 if item_data["variant"]:
-                    item_data["variant"].available_stock = max(0, item_data["variant"].available_stock - item_data["quantity"])
+                    adjust_stock(
+                        variant_id=item_data["variant"].id,
+                        delta=-item_data["quantity"],
+                        reason="WEB_ORDER_PLACED",
+                        source="WEB",
+                        reference_id=order.id,
+                    )
                 else:
-                    prod = item_data["product"]
-                    prod.available_stock = max(0, prod.available_stock - item_data["quantity"])
+                    adjust_stock(
+                        product_id=item_data["product"].id,
+                        delta=-item_data["quantity"],
+                        reason="WEB_ORDER_PLACED",
+                        source="WEB",
+                        reference_id=order.id,
+                    )
 
             # Clear user cart
             db.session.query(CartItem).filter_by(user_id=user_id).delete()
@@ -404,11 +416,23 @@ class OrderService:
                 db.session.add(order_item)
                 created_items.append(order_item)
 
+                from app.services.inventory_sync import adjust_stock
                 if item_data["variant"]:
-                    item_data["variant"].available_stock = max(0, item_data["variant"].available_stock - item_data["quantity"])
+                    adjust_stock(
+                        variant_id=item_data["variant"].id,
+                        delta=-item_data["quantity"],
+                        reason="WEB_ORDER_PLACED",
+                        source="WEB",
+                        reference_id=order.id,
+                    )
                 else:
-                    prod = item_data["product"]
-                    prod.available_stock = max(0, prod.available_stock - item_data["quantity"])
+                    adjust_stock(
+                        product_id=item_data["product"].id,
+                        delta=-item_data["quantity"],
+                        reason="WEB_ORDER_PLACED",
+                        source="WEB",
+                        reference_id=order.id,
+                    )
 
             outbox_payload = {
                 "order_id": order.id,

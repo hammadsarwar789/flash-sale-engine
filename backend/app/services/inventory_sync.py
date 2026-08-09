@@ -44,9 +44,9 @@ def adjust_stock(
 ) -> int:
     """
     Atomically adjust stock for a product or variant in Postgres, mirror it
-    to Redis, and — if this change didn't originate from Shopify — enqueue
-    an outbox event so a background worker pushes the new quantity to
-    Shopify's Admin API.
+    to Redis, synchronize parent product aggregate stock, and — if this change
+    didn't originate from Shopify — enqueue an outbox event so a background
+    worker pushes the new quantity to Shopify's Admin API.
 
     Args:
         product_id / variant_id: exactly one must be supplied.
@@ -61,7 +61,7 @@ def adjust_stock(
             outbox event for traceability.
 
     Returns:
-        The new available_stock value.
+        The new available_stock value for the targeted product or variant.
 
     Raises:
         InventoryAdjustmentError if the target doesn't exist or the
@@ -73,8 +73,7 @@ def adjust_stock(
     model = ProductVariant if variant_id else Product
     target_id = variant_id or product_id
 
-    # Row-level lock — prevents a lost-update race if two adjustments land
-    # on the same SKU at once. Specify of=model so PostgreSQL doesn't fail on joined eager relationships.
+    # Row-level lock — prevents a lost-update race if two adjustments land on the same SKU.
     row = db.session.query(model).filter_by(id=target_id).with_for_update(of=model).first()
     if row is None:
         raise InventoryAdjustmentError(f"{model.__name__} {target_id} not found")
@@ -90,8 +89,19 @@ def adjust_stock(
     row.available_stock = new_qty
     db.session.add(row)
 
-    # Resolve parent product (for shopify_* fields)
-    product = row if model is Product else db.session.query(Product).filter_by(id=row.product_id).first()
+    # Resolve parent product & synchronize parent Product.available_stock from all variants
+    if model is ProductVariant:
+        product = db.session.query(Product).filter_by(id=row.product_id).with_for_update(of=Product).first()
+        if product:
+            all_variants = db.session.query(ProductVariant).filter_by(product_id=product.id).all()
+            total_var_stock = sum(
+                new_qty if v.id == row.id else int(v.available_stock or 0)
+                for v in all_variants
+            )
+            product.available_stock = total_var_stock
+            db.session.add(product)
+    else:
+        product = row
 
     should_push_to_shopify = (
         source not in _SHOPIFY_ORIGIN_SOURCES
@@ -126,11 +136,20 @@ def adjust_stock(
 
     db.session.commit()
 
-    # Mirror new stock to Redis and clear catalog cache
+    # Mirror new stock to Redis with standardized key formats
     try:
-        redis_key = f"stock:{'variant' if variant_id else 'product'}:{target_id}"
-        redis_client.set(redis_key, new_qty)
+        if variant_id:
+            redis_client.set(f"variant:{variant_id}:stock", new_qty)
+            if product:
+                redis_client.set(f"product:{product.id}:stock", product.available_stock)
+        else:
+            redis_client.set(f"product:{product.id}:stock", new_qty)
+
+        # Invalidate all catalog cache keys
         redis_client.delete("catalog:default")
+        keys = redis_client.keys("catalog:products:*")
+        if keys:
+            redis_client.delete(*keys)
     except Exception as redis_err:
         logger.warning(f"Redis stock mirror failed for key {target_id}: {redis_err}")
 
