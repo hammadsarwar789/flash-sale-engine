@@ -123,11 +123,22 @@ def _run_initial_seeds():
     try:
         if "postgres" in db.engine.name.lower():
             try:
-                db.session.execute(text("SET statement_timeout = '3000ms';"))
-                db.session.execute(text("SET lock_timeout = '2000ms';"))
+                db.session.execute(text("SET statement_timeout = '1500ms';"))
+                db.session.execute(text("SET lock_timeout = '1500ms';"))
             except Exception:
                 pass
+
         db.create_all()
+
+        # Fast check: If users already exist, seed data is present. Skip seed execution.
+        from app.models.user import User
+        try:
+            if db.session.query(User.id).first() is not None:
+                logger.info("Database seeds already initialized. Skipping seed routines.")
+                return
+        except Exception:
+            pass
+
         ensure_default_outlets()
         ensure_default_permissions_and_roles()
         ensure_default_admin()
@@ -155,13 +166,11 @@ def ensure_default_permissions_and_roles():
             ("enterprise:coupons:manage", "coupons", "Generate and manage promo coupons"),
         ]
 
-        for code, module, desc in system_permissions:
-            perm = db.session.query(Permission).filter_by(code=code).first()
-            if not perm:
-                perm = Permission(code=code, module=module, description=desc)
-                db.session.add(perm)
-
-        db.session.commit()
+        existing_codes = {p.code for p in db.session.query(Permission.code).all()}
+        new_perms = [Permission(code=code, module=module, description=desc) for code, module, desc in system_permissions if code not in existing_codes]
+        if new_perms:
+            db.session.add_all(new_perms)
+            db.session.commit()
 
         # Seed default Super Admin and Manager roles if missing
         admin_role = db.session.query(Role).filter_by(tenant_id="ten_default", name="Super Administrator").first()
