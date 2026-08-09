@@ -27,7 +27,6 @@ class BaseConfig:
         "pool_timeout": 10,       # Fail fast if pool is exhausted
         "pool_recycle": 1800,     # Recycle connections every 30 minutes to prevent stales
         "pool_pre_ping": True,    # Verify connection health before executing queries
-        "connect_args": {"connect_timeout": 10},  # Cap new connection attempt timeout
     }
 
     # Redis Configuration
