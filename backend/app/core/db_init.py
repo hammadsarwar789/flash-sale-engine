@@ -1,7 +1,6 @@
 import logging
 from sqlalchemy import text
 from app.core.extensions import db
-from app.models.return_request import ReturnRequest
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +14,7 @@ def sync_database_schema():
         engine_name = db.engine.name.lower()
         logger.info(f"Synchronizing database schema for engine '{engine_name}'...")
 
+        # 1. Fast, non-blocking check with strict execution timeout
         schema_already_updated = False
         try:
             with db.engine.connect() as check_conn:
@@ -27,11 +27,13 @@ def sync_database_schema():
         except Exception as check_err:
             logger.debug(f"Schema status check deferred: {check_err}")
 
+        # 2. Skip DDL migration statements if schema is already up to date
         if schema_already_updated:
             logger.info("Database schema already up to date. Executing seeds...")
             _run_initial_seeds()
             return
 
+        # 3. Apply PostgreSQL-specific migrations with lock timeouts
         if "postgres" in engine_name:
             statements = [
                 # 1. Update existing 'users' & 'registration_requests' tables
@@ -119,83 +121,33 @@ def sync_database_schema():
 
 
 def _run_initial_seeds():
-    """Executes database table creation and initial domain seed routines safely."""
+    """Executes initial domain seed routines safely with isolated transaction management."""
+    # Ensure any active aborted transaction from DDL migration is cleared first
     try:
-        if "postgres" in db.engine.name.lower():
-            try:
-                db.session.execute(text("SET statement_timeout = '1500ms';"))
-                db.session.execute(text("SET lock_timeout = '1500ms';"))
-            except Exception:
-                pass
+        db.session.rollback()
+    except Exception:
+        pass
 
+    try:
         db.create_all()
-
-        # Fast check: If users already exist, seed data is present. Skip seed execution.
-        from app.models.user import User
-        try:
-            if db.session.query(User.id).first() is not None:
-                logger.info("Database seeds already initialized. Skipping seed routines.")
-                return
-        except Exception:
-            pass
-
-        ensure_default_outlets()
-        ensure_default_permissions_and_roles()
-        ensure_default_admin()
-        ensure_default_products_and_variants()
     except Exception as err:
-        logger.warning(f"Seed routine fallback warning: {err}")
-    finally:
-        db.session.remove()
+        logger.warning(f"Table creation warning: {err}")
+        db.session.rollback()
 
-
-def ensure_default_permissions_and_roles():
-    """Ensure standard system permissions and default roles exist in database."""
+    ensure_default_outlets()
+    ensure_default_permissions_and_roles()
+    ensure_default_admin()
+    ensure_default_products_and_variants()
+    
     try:
-        from app.models.rbac import Permission, Role
-
-        system_permissions = [
-            ("outlet:stock:read", "inventory", "Read outlet inventory stock levels"),
-            ("outlet:stock:write", "inventory", "Adjust and transfer outlet stock"),
-            ("outlet:staff:approve", "approvals", "Approve or reject staff onboarding requests"),
-            ("enterprise:roles:read", "rbac", "Read dynamic roles and permission matrix"),
-            ("enterprise:roles:write", "rbac", "Create and modify dynamic custom roles"),
-            ("enterprise:roles:assign", "rbac", "Assign roles to user accounts"),
-            ("enterprise:orders:manage", "orders", "Fulfill orders, update status, and process refunds"),
-            ("enterprise:products:manage", "catalog", "Create, edit, and delete catalog products"),
-            ("enterprise:coupons:manage", "coupons", "Generate and manage promo coupons"),
-        ]
-
-        existing_codes = {p.code for p in db.session.query(Permission.code).all()}
-        new_perms = [Permission(code=code, module=module, description=desc) for code, module, desc in system_permissions if code not in existing_codes]
-        if new_perms:
-            db.session.add_all(new_perms)
-            db.session.commit()
-
-        # Seed default Super Admin and Manager roles if missing
-        admin_role = db.session.query(Role).filter_by(tenant_id="ten_default", name="Super Administrator").first()
-        if not admin_role:
-            all_perms = db.session.query(Permission).all()
-            admin_role = Role(tenant_id="ten_default", name="Super Administrator", description="Full enterprise administrative privilege access")
-            admin_role.permissions = all_perms
-            db.session.add(admin_role)
-
-        mgr_role = db.session.query(Role).filter_by(tenant_id="ten_default", name="Store Manager").first()
-        if not mgr_role:
-            mgr_perms = db.session.query(Permission).filter(Permission.code.in_([
-                "outlet:stock:read", "outlet:stock:write", "outlet:staff:approve", "enterprise:orders:manage"
-            ])).all()
-            mgr_role = Role(tenant_id="ten_default", name="Store Manager", description="Store branch operational management")
-            mgr_role.permissions = mgr_perms
-            db.session.add(mgr_role)
-
-        db.session.commit()
-    except Exception as e:
-        logger.warning(f"Permissions/Roles initialization warning: {e}")
+        db.session.remove()
+    except Exception:
+        pass
 
 
 def ensure_default_outlets():
-    """Ensure default enterprise tenant and two store branches (Flash Engine FSD & LHR) exist."""
+    """Ensure default enterprise tenant and store branches exist."""
+    db.session.rollback()  # Reset transaction state to prevent InFailedSqlTransaction
     try:
         from app.models.tenant import Tenant, Outlet
         tenant = db.session.query(Tenant).filter_by(id="ten_default").first()
@@ -216,11 +168,62 @@ def ensure_default_outlets():
 
         db.session.commit()
     except Exception as e:
+        db.session.rollback()
         logger.warning(f"Default outlets initialization warning: {e}")
+
+
+def ensure_default_permissions_and_roles():
+    """Ensure standard system permissions and default roles exist."""
+    db.session.rollback()  # Reset transaction state
+    try:
+        from app.models.rbac import Permission, Role
+
+        system_permissions = [
+            ("outlet:stock:read", "inventory", "Read outlet inventory stock levels"),
+            ("outlet:stock:write", "inventory", "Adjust and transfer outlet stock"),
+            ("outlet:staff:approve", "approvals", "Approve or reject staff onboarding requests"),
+            ("enterprise:roles:read", "rbac", "Read dynamic roles and permission matrix"),
+            ("enterprise:roles:write", "rbac", "Create and modify dynamic custom roles"),
+            ("enterprise:roles:assign", "rbac", "Assign roles to user accounts"),
+            ("enterprise:orders:manage", "orders", "Fulfill orders, update status, and process refunds"),
+            ("enterprise:products:manage", "catalog", "Create, edit, and delete catalog products"),
+            ("enterprise:coupons:manage", "coupons", "Generate and manage promo coupons"),
+        ]
+
+        for code, module, desc in system_permissions:
+            perm = db.session.query(Permission).filter_by(code=code).first()
+            if not perm:
+                perm = Permission(code=code, module=module, description=desc)
+                db.session.add(perm)
+
+        db.session.commit()
+
+        # Seed default Super Admin and Manager roles if missing
+        admin_role = db.session.query(Role).filter_by(tenant_id="ten_default", name="Super Administrator").first()
+        if not admin_role:
+            all_perms = db.session.query(Permission).all()
+            admin_role = Role(tenant_id="ten_default", name="Super Administrator", description="Full enterprise administrative privilege access")
+            admin_role.permissions = all_perms
+            db.session.add(admin_role)
+
+        mgr_role = db.session.query(Role).filter_by(tenant_id="ten_default", name="Store Manager").first()
+        if not mgr_role:
+            mgr_perms = db.session.query(Permission).filter(Permission.code.in_([
+                "outlet:stock:read", "outlet:stock:write", "outlet:staff:approve", "enterprise:orders:manage"
+            ])).all()
+            mgr_role = Role(tenant_id="ten_default", name="Store Manager", description="Store branch operational management")
+            mgr_role.permissions = mgr_perms
+            db.session.add(mgr_role)
+
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.warning(f"Permissions/Roles initialization warning: {e}")
 
 
 def ensure_default_admin():
     """Ensure default enterprise admin account exists with active credentials."""
+    db.session.rollback()  # Reset transaction state
     try:
         from flask import current_app
         from app.models.user import User
@@ -251,12 +254,13 @@ def ensure_default_admin():
             admin.is_active = True
             db.session.commit()
     except Exception as e:
+        db.session.rollback()
         logger.warning(f"Default admin initialization warning: {e}")
 
 
 def ensure_default_products_and_variants():
-    """Ensure sample products and variants (Color & Size) exist for realistic catalog display."""
-    db.session.rollback()
+    """Ensure sample products and variants exist for catalog display."""
+    db.session.rollback()  # Reset transaction state
     try:
         from app.models.product import Product
         from app.models.product_variant import ProductVariant
@@ -284,6 +288,7 @@ def ensure_default_products_and_variants():
             v3 = ProductVariant(product_id=p1.id, sku="SKU-TACTICAL-01-RED-S", name="Signal Red / Small", color="Signal Red", size="S", price=189.99, total_stock=20, available_stock=20)
             db.session.add_all([v1, v2, v3])
             db.session.commit()
+
     except Exception as e:
         db.session.rollback()
         logger.warning(f"Default products seed warning: {e}")
