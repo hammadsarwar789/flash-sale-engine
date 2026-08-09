@@ -362,6 +362,12 @@ def update_product(product_data, product_id):
         if not vendor:
             return jsonify({"message": f"Vendor '{vendor_id}' not found"}), 404
 
+    new_stock = product_data.get("available_stock")
+    stock_delta = None
+    if new_stock is not None:
+        stock_delta = new_stock - (product.available_stock or 0)
+        product_data.pop("available_stock", None)
+
     for field, val in product_data.items():
         if field == "vendor_id":
             continue
@@ -387,6 +393,19 @@ def update_product(product_data, product_id):
 
     db.session.commit()
     clear_catalog_cache()
+
+    if stock_delta is not None and stock_delta != 0:
+        try:
+            from app.services.inventory_sync import adjust_stock
+            adjust_stock(
+                product_id=product.id,
+                delta=stock_delta,
+                reason="ADMIN_STOCK_EDIT",
+                source="ADMIN",
+            )
+        except Exception as stock_err:
+            logger.warning(f"Admin stock edit sync warning: {stock_err}")
+
     try:
         InventoryService.warmup_product_stock(product.id)
     except Exception as e:

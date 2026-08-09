@@ -46,10 +46,12 @@ def init_redis(app) -> redis.Redis:
 
 def make_celery(app=None) -> Celery:
     """Create and configure Celery instance bound to Flask context."""
+    broker_uri = app.config.get("broker_url") if app else "amqp://guest:guest@localhost:5672//"
+    result_uri = app.config.get("result_backend") if app else "redis://localhost:6379/1"
     celery_app = Celery(
         app.import_name if app else "flash_sale_engine",
-        broker=app.config["CELERY_BROKER_URL"] if app else "amqp://guest:guest@localhost:5672//",
-        backend=app.config["CELERY_RESULT_BACKEND"] if app else "redis://localhost:6379/1",
+        broker=broker_uri,
+        backend=result_uri,
     )
 
     if app:
@@ -61,6 +63,10 @@ def make_celery(app=None) -> Celery:
             "release-matured-escrow-daily": {
                 "task": "app.workers.tasks.release_matured_escrow_task",
                 "schedule": crontab(hour=2, minute=0),  # Daily at 02:00 UTC
+            },
+            "drain-outbox-events": {
+                "task": "app.workers.shopify_tasks.process_outbox_events",
+                "schedule": 30.0,  # Every 30 seconds
             },
         }
 

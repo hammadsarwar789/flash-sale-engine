@@ -40,10 +40,8 @@ class BaseConfig:
 
     # RabbitMQ & Celery Configuration
     RABBITMQ_URL: str = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672//")
-    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", RABBITMQ_URL)
-    CELERY_RESULT_BACKEND: str = os.getenv(
-        "CELERY_RESULT_BACKEND", "redis://localhost:6379/1"
-    )
+    broker_url: str = os.getenv("CELERY_BROKER_URL", RABBITMQ_URL)
+    result_backend: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 
     # JWT Authentication
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "default-dev-secret-key-12345"))

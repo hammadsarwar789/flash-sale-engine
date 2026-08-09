@@ -111,13 +111,6 @@ def shopify_order_created_webhook():
 
         redis_client.set(idempotency_key, "COMPLETED", ex=86400)
 
-        # Flow 6: Trigger stock sync back to Shopify so both stores show updated inventory
-        try:
-            from app.workers.shopify_tasks import sync_inventory_to_shopify_task
-            sync_inventory_to_shopify_task.delay(product.id, product.available_stock)
-        except Exception as task_err:
-            logger.warning(f"Could not dispatch inventory sync task: {task_err}")
-
         logger.info(f"Processed Shopify Order Webhook {shopify_order_id} -> Created local Order {order.id}")
         return jsonify({
             "status": "success",
@@ -146,14 +139,17 @@ def shopify_order_cancelled_webhook():
             order.status = OrderStatus.CANCELLED
             db.session.commit()
             if order.product_id:
-                prod = db.session.get(Product, order.product_id)
-                if prod:
-                    InventoryService.release_stock(prod.id, order.quantity or 1)
-                    try:
-                        from app.workers.shopify_tasks import sync_inventory_to_shopify_task
-                        sync_inventory_to_shopify_task.delay(prod.id, prod.available_stock)
-                    except Exception:
-                        pass
+                try:
+                    from app.services.inventory_sync import adjust_stock
+                    adjust_stock(
+                        product_id=order.product_id,
+                        delta=+(order.quantity or 1),
+                        reason="SHOPIFY_ORDER_CANCELLED",
+                        source="SHOPIFY",
+                        reference_id=order.id,
+                    )
+                except Exception as stock_err:
+                    logger.warning(f"Could not adjust stock on Shopify order cancellation: {stock_err}")
 
         return jsonify({"status": "success", "message": "Shopify order cancellation synced"}), 200
     except Exception as ex:
@@ -177,14 +173,17 @@ def shopify_refund_created_webhook():
             order.status = OrderStatus.REFUNDED
             db.session.commit()
             if order.product_id:
-                prod = db.session.get(Product, order.product_id)
-                if prod:
-                    InventoryService.release_stock(prod.id, order.quantity or 1)
-                    try:
-                        from app.workers.shopify_tasks import sync_inventory_to_shopify_task
-                        sync_inventory_to_shopify_task.delay(prod.id, prod.available_stock)
-                    except Exception:
-                        pass
+                try:
+                    from app.services.inventory_sync import adjust_stock
+                    adjust_stock(
+                        product_id=order.product_id,
+                        delta=+(order.quantity or 1),
+                        reason="SHOPIFY_ORDER_REFUNDED",
+                        source="SHOPIFY",
+                        reference_id=order.id,
+                    )
+                except Exception as stock_err:
+                    logger.warning(f"Could not adjust stock on Shopify refund: {stock_err}")
 
         return jsonify({"status": "success", "message": "Shopify refund synced"}), 200
     except Exception as ex:
@@ -211,11 +210,19 @@ def shopify_inventory_update_webhook():
             ).first()
 
             if product:
-                product.available_stock = max(0, available_qty)
-                db.session.commit()
-                # Update Redis in-memory stock
-                redis_client.set(f"product:{product.id}:stock", product.available_stock)
-                logger.info(f"Synced Shopify inventory update for product {product.id} to {product.available_stock}.")
+                delta = available_qty - (product.available_stock or 0)
+                if delta != 0:
+                    try:
+                        from app.services.inventory_sync import adjust_stock
+                        adjust_stock(
+                            product_id=product.id,
+                            delta=delta,
+                            reason="SHOPIFY_INVENTORY_UPDATE",
+                            source="SHOPIFY",
+                            reference_id=inventory_item_id,
+                        )
+                    except Exception as stock_err:
+                        logger.warning(f"Could not adjust stock on Shopify inventory update: {stock_err}")
 
         return jsonify({"status": "success", "message": "Shopify inventory update processed"}), 200
     except Exception as ex:

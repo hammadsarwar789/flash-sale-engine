@@ -322,59 +322,45 @@ class InventoryService:
     @classmethod
     def restock(cls, product_id: str, quantity: int = 1) -> bool:
         """Restock SQL database available_stock and Redis stock cache upon item return."""
-        product = db.session.query(Product).filter_by(id=product_id).first()
-        if not product:
-            return False
-
-        product.available_stock += quantity
-        db.session.commit()
-
+        from app.services.inventory_sync import adjust_stock, InventoryAdjustmentError
         try:
-            stock_key, _ = cls._get_keys(product_id)
-            if redis_client.exists(stock_key):
-                redis_client.incrby(stock_key, quantity)
-        except Exception:
-            pass
-
-        return True
+            adjust_stock(
+                product_id=product_id,
+                delta=+quantity,
+                reason="WEB_ORDER_REFUNDED",
+                source="WEB",
+            )
+            return True
+        except InventoryAdjustmentError as err:
+            logger.warning(f"Restock failed for product {product_id}: {err}")
+            return False
 
     @classmethod
     def confirm_stock_deduction(cls, product_id: str, quantity: int = 1) -> bool:
         """Confirm stock deduction for an exchange item release in DB and Redis."""
-        product = db.session.query(Product).filter_by(id=product_id).first()
-        if not product or product.available_stock < quantity:
-            return False
-
-        product.available_stock -= quantity
-        db.session.commit()
-
+        from app.services.inventory_sync import adjust_stock, InventoryAdjustmentError
         try:
-            stock_key, _ = cls._get_keys(product_id)
-            if redis_client.exists(stock_key):
-                redis_client.decrby(stock_key, quantity)
-        except Exception:
-            pass
-
-        cls.notify_stock_change(product_id)
-        return True
+            adjust_stock(
+                product_id=product_id,
+                delta=-quantity,
+                reason="WEB_ORDER_PLACED",
+                source="WEB",
+            )
+            return True
+        except InventoryAdjustmentError as err:
+            logger.warning(f"Confirm stock deduction failed for product {product_id}: {err}")
+            return False
 
     @classmethod
     def notify_stock_change(cls, product_id: str):
-        """Clear catalog cache and sync inventory level to Shopify if product is listed on Shopify."""
+        """Clear catalog cache and trigger outbox drain task for Shopify sync."""
         try:
             redis_client.delete("catalog:default")
         except Exception as cache_err:
             logger.warning(f"Failed to clear catalog cache: {cache_err}")
 
         try:
-            product = db.session.get(Product, product_id)
-            if product and (product.shopify_inventory_item_id or product.is_listed_on_shopify):
-                try:
-                    from app.workers.shopify_tasks import sync_inventory_to_shopify_task
-                    sync_inventory_to_shopify_task.delay(product.id, product.available_stock)
-                except Exception:
-                    from app.integrations.shopify.sync import ShopifySyncService
-                    ShopifySyncService.sync_inventory(product.id, product.available_stock)
+            from app.workers.shopify_tasks import process_outbox_events
+            process_outbox_events.delay()
         except Exception as shopify_err:
-            logger.warning(f"Failed to sync stock change to Shopify for product {product_id}: {shopify_err}")
-
+            logger.warning(f"Failed to trigger outbox drain for product {product_id}: {shopify_err}")

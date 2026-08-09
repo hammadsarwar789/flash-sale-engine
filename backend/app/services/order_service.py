@@ -20,23 +20,24 @@ class OrderService:
         cls,
         user_id: str,
         product_id: str,
-        quantity: int,
-        idempotency_key: str,
-        expiry_minutes: int = 10,
+        quantity: int = 1,
+        idempotency_key: str = None,
+        expiry_minutes: int = 15,
+        source: str = "WEB",
     ) -> Tuple[bool, str, Optional[Order], Optional[OutboxEvent]]:
-        """
-        Executes Direct Flash Sale Reservation for a single SKU.
-        Creates Order and matching OrderItem record.
-        """
+        """Create pending order reservation, deduct DB stock via adjust_stock, and emit outbox event."""
+        if not idempotency_key:
+            idempotency_key = f"order_res_{user_id}_{product_id}_{int(datetime.now(timezone.utc).timestamp())}"
+
         product = db.session.query(Product).filter_by(id=product_id, is_active=True).first()
         if not product:
-            return False, "Product does not exist or is inactive", None, None
+            return False, "Product not found or inactive", None, None
 
         from app.core.extensions import redis_client
         lock_acquired = False
-        try:
-            lock_acquired = redis_client.set(f"lock:idempotency:{idempotency_key}", "1", nx=True, ex=30)
-        except Exception:
+        if redis_client:
+            lock_acquired = bool(redis_client.set(f"idempotency:{idempotency_key}", "LOCKED", nx=True, ex=30))
+        else:
             lock_acquired = True
 
         existing_order = db.session.query(Order).filter_by(idempotency_key=idempotency_key).first()
@@ -65,6 +66,7 @@ class OrderService:
                 total_amount=total_amount,
                 idempotency_key=idempotency_key,
                 expires_at=expires_at,
+                source=source,
             )
             db.session.add(order)
             db.session.flush()
@@ -96,11 +98,21 @@ class OrderService:
                 status=OutboxStatus.PENDING,
             )
             db.session.add(outbox_event)
-
-            product.available_stock = max(0, product.available_stock - quantity)
-
             db.session.commit()
-            InventoryService.notify_stock_change(product_id)
+
+            # Atomically adjust DB & Redis stock via central service
+            try:
+                from app.services.inventory_sync import adjust_stock
+                adjust_stock(
+                    product_id=product_id,
+                    delta=-quantity,
+                    reason=f"{source}_ORDER_PLACED",
+                    source=source,
+                    reference_id=order.id,
+                )
+            except Exception as stock_err:
+                logger.warning(f"Failed to adjust stock during create_reservation: {stock_err}")
+
             logger.info(f"Successfully created single-item order {order.id} and outbox event {outbox_event.id}")
             return True, "Reservation created successfully", order, outbox_event
 
