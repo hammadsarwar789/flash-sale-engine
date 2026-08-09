@@ -256,6 +256,7 @@ def ensure_default_admin():
 
 def ensure_default_products_and_variants():
     """Ensure sample products and variants (Color & Size) exist for realistic catalog display."""
+    db.session.rollback()
     try:
         from app.models.product import Product
         from app.models.product_variant import ProductVariant
@@ -263,7 +264,6 @@ def ensure_default_products_and_variants():
         prod_count = db.session.query(Product).count()
         if prod_count == 0:
             p1 = Product(
-                # id="prod_demo_01",
                 name="Cyberpunk Tactical Headphones",
                 sku="SKU-TACTICAL-01",
                 description="Studio-grade noise cancelling flash sale headphones with RBG telemetrics.",
@@ -284,13 +284,14 @@ def ensure_default_products_and_variants():
             v3 = ProductVariant(product_id=p1.id, sku="SKU-TACTICAL-01-RED-S", name="Signal Red / Small", color="Signal Red", size="S", price=189.99, total_stock=20, available_stock=20)
             db.session.add_all([v1, v2, v3])
             db.session.commit()
-
-        # Warm Redis product catalog cache safely without blocking startup
-        try:
-            from app.api.v1.products import warm_product_cache
-            warm_product_cache()
-            logger.info("Redis cache warmed successfully.")
-        except Exception as cache_err:
-            logger.warning(f"Redis cache warmup skipped or timed out: {cache_err}")
     except Exception as e:
+        db.session.rollback()
         logger.warning(f"Default products seed warning: {e}")
+
+    # NON-BLOCKING REDIS WARMUP: Isolated outside database transaction block
+    try:
+        from app.api.v1.products import warm_product_cache
+        warm_product_cache()
+        logger.info("Redis cache warmed successfully.")
+    except Exception as cache_err:
+        logger.warning(f"Redis cache warmup skipped non-blockingly: {cache_err}")
