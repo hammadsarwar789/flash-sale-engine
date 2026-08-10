@@ -136,14 +136,17 @@ def adjust_stock(
 
     db.session.commit()
 
-    # Mirror new stock to Redis with standardized key formats
+    # Mirror new stock to Redis with standardized key formats and reset hold counts
     try:
         if variant_id:
             redis_client.set(f"variant:{variant_id}:stock", new_qty)
+            redis_client.set(f"variant:{variant_id}:hold", 0)
             if product:
                 redis_client.set(f"product:{product.id}:stock", product.available_stock)
+                redis_client.set(f"product:{product.id}:hold", 0)
         else:
             redis_client.set(f"product:{product.id}:stock", new_qty)
+            redis_client.set(f"product:{product.id}:hold", 0)
 
         # Invalidate all catalog cache keys
         redis_client.delete("catalog:default")

@@ -48,11 +48,12 @@ for i = 1, num_items do
     local stock_key = KEYS[(i - 1) * 2 + 1]
     local req_qty = tonumber(ARGV[i])
     local current_stock = tonumber(redis.call('GET', stock_key) or '-1')
+
     if current_stock == -1 then
-        return -2
+        return -2  -- Key missing
     end
     if current_stock < req_qty then
-        return -1
+        return -1  -- Insufficient stock for this item
     end
 end
 
@@ -160,8 +161,8 @@ class InventoryService:
     @classmethod
     def reserve_multi_stock(cls, items: list) -> Tuple[bool, str]:
         """
-        Atomically reserve stock for multiple items/variants in Redis via Lua script.
-        items: list of (product_id, quantity) or (product_id, variant_id, quantity) tuples.
+        Atomically reserve stock for multiple products/variants in a single Lua operation.
+        Items format: list of tuples (product_id, variant_id, quantity) or (product_id, quantity).
         """
         if not items:
             return False, "No items provided"
@@ -173,6 +174,7 @@ class InventoryService:
                 pid, vid, qty = item[0], item[1], item[2]
             else:
                 pid, vid, qty = item[0], None, item[1]
+
             s_key, h_key = cls._get_keys(pid, vid)
             keys.extend([s_key, h_key])
             args.append(qty)
@@ -248,26 +250,20 @@ class InventoryService:
 
     @classmethod
     def warmup_product_stock(cls, product_id: str) -> bool:
-        """Warm up Redis stock cache for PostgreSQL Product record and its variants, taking active holds into account."""
+        """Warm up Redis stock cache for PostgreSQL Product record and its variants."""
         try:
             product = db.session.query(Product).filter_by(id=product_id, is_active=True).first()
             if not product:
                 return False
 
             stock_key, hold_key = cls._get_keys(product_id)
-            current_hold = int(redis_client.get(hold_key) or 0)
-            net_stock = max(0, product.available_stock - current_hold)
-            redis_client.set(stock_key, net_stock)
-            if not redis_client.exists(hold_key):
-                redis_client.set(hold_key, 0)
+            redis_client.set(stock_key, product.available_stock)
+            redis_client.set(hold_key, 0)
 
             for variant in product.variants:
                 v_s_key, v_h_key = cls._get_keys(product_id, variant.id)
-                v_hold = int(redis_client.get(v_h_key) or 0)
-                v_net = max(0, variant.available_stock - v_hold)
-                redis_client.set(v_s_key, v_net)
-                if not redis_client.exists(v_h_key):
-                    redis_client.set(v_h_key, 0)
+                redis_client.set(v_s_key, variant.available_stock)
+                redis_client.set(v_h_key, 0)
 
             logger.info(f"Warmed up stock for product {product_id} and {len(product.variants)} variants")
             return True
@@ -288,12 +284,14 @@ class InventoryService:
             redis_hold = redis_client.get(hold_key)
 
             redis_client.set(stock_key, product.available_stock)
+            redis_client.set(hold_key, 0)
 
             variant_reconciliations = []
             for variant in product.variants:
                 v_s_key, v_h_key = cls._get_keys(product_id, variant.id)
                 v_stock = redis_client.get(v_s_key)
                 redis_client.set(v_s_key, variant.available_stock)
+                redis_client.set(v_h_key, 0)
                 variant_reconciliations.append({
                     "variant_id": variant.id,
                     "variant_sku": variant.sku,
@@ -356,6 +354,9 @@ class InventoryService:
         """Clear catalog cache and trigger outbox drain task for Shopify sync."""
         try:
             redis_client.delete("catalog:default")
+            keys = redis_client.keys("catalog:products:*")
+            if keys:
+                redis_client.delete(*keys)
         except Exception as cache_err:
             logger.warning(f"Failed to clear catalog cache: {cache_err}")
 
