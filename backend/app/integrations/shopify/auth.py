@@ -22,7 +22,7 @@ class ShopifyAuthManager:
 
     @staticmethod
     def get_api_version() -> str:
-        return os.getenv("SHOPIFY_API_VERSION", "2024-01")
+        return os.getenv("SHOPIFY_API_VERSION", "2026-07")
 
     @staticmethod
     def get_webhook_secret() -> str:

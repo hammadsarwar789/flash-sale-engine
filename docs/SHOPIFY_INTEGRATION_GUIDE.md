@@ -45,16 +45,19 @@ To allow Flash Sale Engine to securely communicate with your Shopify store, you 
 
 ### Step 1.3: Create a New App
 1. Click the green **Create an app** button.
-2. Enter an App name: `Flash Sale Engine`.
+2. Enter your App name: `Custom Store Sync Engine`.
 3. Select your App developer email and click **Create app**.
 
 ### Step 1.4: Grant API Permissions (Scopes)
 1. Under **Overview**, click **Configure Admin API scopes**.
-2. Search and check **Read & Write** boxes for the following permissions:
-   - ✅ `read_products` & `write_products` (To create & edit catalog products)
-   - ✅ `read_inventory` & `write_inventory` (To adjust stock levels in real time)
-   - ✅ `read_orders` & `write_orders` (To receive and process customer orders)
-   - ✅ `read_locations` (To find your warehouse/store location)
+2. Enable the required permissions:
+   - ✅ `read_products` & `write_products`
+   - ✅ `read_inventory` & `write_inventory`
+   - ✅ `read_orders` & `read_all_orders`
+   - ✅ `read_locations`
+   - ✅ `read_customers`
+   - ✅ `read_files` & `write_files`
+   - ✅ `read_fulfillments` & `write_fulfillments`
 3. Click **Save** at the top right.
 
 ### Step 1.5: Install App & Get Your Access Token
@@ -78,7 +81,7 @@ Open the `.env` file inside the `backend/` folder (or ask your host administrato
 # -----------------------------------------------------------------
 SHOPIFY_SHOP_DOMAIN=flash-sale-21466.myshopify.com
 SHOPIFY_ACCESS_TOKEN=shpat_your_token_copied_from_step_1_5
-SHOPIFY_API_VERSION=2024-01
+SHOPIFY_API_VERSION=2026-07
 SHOPIFY_LOCATION_ID=80021225539
 SHOPIFY_WEBHOOK_SECRET=shpss_your_webhook_secret
 ```
@@ -106,7 +109,7 @@ Webhooks tell Flash Sale Engine instantly whenever someone buys or refunds an it
 - **Event:** `Order creation`
 - **Format:** `JSON`
 - **URL:** `https://your-domain.com/api/v1/webhooks/shopify/orders/create`
-- **Webhook API version:** `2024-01`
+- **Webhook API version:** `2026-07`
 - Click **Save**.
 
 ### Step 3.3: Create the Refund Webhook
