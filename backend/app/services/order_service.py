@@ -481,32 +481,44 @@ class OrderService:
 
         try:
             order.status = OrderStatus.CANCELLED
-            release_items = []
 
             if order.items:
                 for item in order.items:
-                    if item.variant_id:
-                        from app.models.product_variant import ProductVariant
-                        variant = db.session.query(ProductVariant).filter_by(id=item.variant_id).first()
-                        if variant:
-                            variant.available_stock += item.quantity
-                        release_items.append((item.product_id, item.variant_id, item.quantity))
-                    else:
-                        product = db.session.query(Product).filter_by(id=item.product_id).first()
-                        if product:
-                            product.available_stock += item.quantity
-                        release_items.append((item.product_id, None, item.quantity))
+                    try:
+                        from app.services.inventory_sync import adjust_stock
+                        if item.variant_id:
+                            adjust_stock(
+                                variant_id=item.variant_id,
+                                delta=+item.quantity,
+                                reason="WEB_ORDER_CANCELLED",
+                                source="WEB",
+                                reference_id=order.id,
+                            )
+                        else:
+                            adjust_stock(
+                                product_id=item.product_id,
+                                delta=+item.quantity,
+                                reason="WEB_ORDER_CANCELLED",
+                                source="WEB",
+                                reference_id=order.id,
+                            )
+                    except Exception as stock_err:
+                        logger.warning(f"Failed to adjust stock for cancelled order item {item.id}: {stock_err}")
             elif order.product_id and order.quantity:
-                product = db.session.query(Product).filter_by(id=order.product_id).first()
-                if product:
-                    product.available_stock += order.quantity
-                release_items.append((order.product_id, None, order.quantity))
+                try:
+                    from app.services.inventory_sync import adjust_stock
+                    adjust_stock(
+                        product_id=order.product_id,
+                        delta=+order.quantity,
+                        reason="WEB_ORDER_CANCELLED",
+                        source="WEB",
+                        reference_id=order.id,
+                    )
+                except Exception as stock_err:
+                    logger.warning(f"Failed to adjust stock for cancelled order {order.id}: {stock_err}")
 
             db.session.commit()
-
-            # Restore Redis stock pool
-            InventoryService.release_multi_stock(release_items)
-            logger.info(f"Order {order_id} cancelled and stock restored for {len(release_items)} items.")
+            logger.info(f"Order {order_id} cancelled and stock restored.")
             return True, "Order cancelled and stock restored"
 
         except Exception as e:
@@ -534,31 +546,44 @@ class OrderService:
         for order in expired_orders:
             try:
                 order.status = OrderStatus.EXPIRED
-                release_items = []
                 if order.items:
                     for item in order.items:
-                        if item.variant_id:
-                            from app.models.product_variant import ProductVariant
-                            variant = db.session.query(ProductVariant).filter_by(id=item.variant_id).first()
-                            if variant:
-                                variant.available_stock += item.quantity
-                            release_items.append((item.product_id, item.variant_id, item.quantity))
-                        else:
-                            product = db.session.query(Product).filter_by(id=item.product_id).first()
-                            if product:
-                                product.available_stock += item.quantity
-                            release_items.append((item.product_id, None, item.quantity))
+                        try:
+                            from app.services.inventory_sync import adjust_stock
+                            if item.variant_id:
+                                adjust_stock(
+                                    variant_id=item.variant_id,
+                                    delta=+item.quantity,
+                                    reason="WEB_ORDER_EXPIRED",
+                                    source="WEB",
+                                    reference_id=order.id,
+                                )
+                            else:
+                                adjust_stock(
+                                    product_id=item.product_id,
+                                    delta=+item.quantity,
+                                    reason="WEB_ORDER_EXPIRED",
+                                    source="WEB",
+                                    reference_id=order.id,
+                                )
+                        except Exception as stock_err:
+                            logger.warning(f"Failed to adjust stock for expired order item {item.id}: {stock_err}")
                 elif order.product_id and order.quantity:
-                    product = db.session.query(Product).filter_by(id=order.product_id).first()
-                    if product:
-                        product.available_stock += order.quantity
-                    release_items.append((order.product_id, None, order.quantity))
+                    try:
+                        from app.services.inventory_sync import adjust_stock
+                        adjust_stock(
+                            product_id=order.product_id,
+                            delta=+order.quantity,
+                            reason="WEB_ORDER_EXPIRED",
+                            source="WEB",
+                            reference_id=order.id,
+                        )
+                    except Exception as stock_err:
+                        logger.warning(f"Failed to adjust stock for expired order {order.id}: {stock_err}")
 
                 db.session.commit()
-                if release_items:
-                    InventoryService.release_multi_stock(release_items)
                 cancelled_count += 1
-                logger.info(f"Auto-cancelled expired PENDING order '{order.id}' and restored stock for {len(release_items)} items.")
+                logger.info(f"Auto-cancelled expired PENDING order '{order.id}' and restored stock.")
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"Error auto-cancelling expired order '{order.id}': {e}")

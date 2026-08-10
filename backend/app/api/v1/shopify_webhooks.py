@@ -62,61 +62,65 @@ def shopify_order_created_webhook():
             redis_client.set(idempotency_key, "COMPLETED", ex=86400)
             return jsonify({"status": "success", "order_id": existing.id, "message": "Order already processed"}), 200
 
-        # Resolve local product or variant matching Shopify IDs / SKU
-        first_item = dto["line_items"][0] if dto["line_items"] else {}
-        sh_variant_id = first_item.get("shopify_variant_id")
-        sh_product_id = first_item.get("shopify_product_id")
-        sku = first_item.get("sku")
-        qty = first_item.get("quantity", 1)
+        # Resolve and deduct stock for ALL line items in the Shopify order
+        processed_items = []
+        for line_item in dto["line_items"]:
+            sh_variant_id = line_item.get("shopify_variant_id")
+            sh_product_id = line_item.get("shopify_product_id")
+            sku = line_item.get("sku")
+            qty = line_item.get("quantity", 1)
 
-        product = None
-        if sh_variant_id:
-            variant = db.session.query(ProductVariant).filter_by(shopify_variant_id=str(sh_variant_id)).first()
-            if variant:
-                product = variant.product
-        if not product and sh_product_id:
-            product = db.session.query(Product).filter(
-                (Product.shopify_product_id == str(sh_product_id)) |
-                (Product.shopify_product_id == f"gid://shopify/Product/{sh_product_id}")
-            ).first()
-        if not product and sku:
-            product = db.session.query(Product).filter_by(sku=sku).first()
+            product = None
+            variant = None
+            if sh_variant_id:
+                variant = db.session.query(ProductVariant).filter_by(shopify_variant_id=str(sh_variant_id)).first()
+                if variant:
+                    product = variant.product
+            if not product and sh_product_id:
+                product = db.session.query(Product).filter(
+                    (Product.shopify_product_id == str(sh_product_id)) |
+                    (Product.shopify_product_id == f"gid://shopify/Product/{sh_product_id}")
+                ).first()
+            if not product and sku:
+                product = db.session.query(Product).filter_by(sku=sku).first()
 
-        # Fallback to first available active product if unmatched in sandbox test
-        if not product:
-            product = db.session.query(Product).filter_by(is_active=True).first()
+            if not product:
+                logger.warning(f"Could not match local product for Shopify line item SKU={sku}, variant={sh_variant_id}")
+                continue
 
-        if not product:
-            logger.error(f"Could not match local product for Shopify Order {shopify_order_id}")
-            return jsonify({"error": "Product Not Found", "message": "No matching product in local catalog"}), 400
+            try:
+                from app.services.inventory_sync import adjust_stock
+                if variant:
+                    adjust_stock(
+                        variant_id=variant.id,
+                        delta=-qty,
+                        reason="SHOPIFY_ORDER_PLACED",
+                        source="SHOPIFY",
+                        reference_id=shopify_order_id,
+                    )
+                else:
+                    adjust_stock(
+                        product_id=product.id,
+                        delta=-qty,
+                        reason="SHOPIFY_ORDER_PLACED",
+                        source="SHOPIFY",
+                        reference_id=shopify_order_id,
+                    )
+                processed_items.append({"product_id": product.id, "qty": qty})
+            except Exception as stock_err:
+                logger.warning(f"Failed to adjust stock for Shopify order line item: {stock_err}")
 
-        # Execute Order Service Creation & Redis Inventory Lua Hold
-        success, msg, order, _ = OrderService.create_reservation(
-            user_id="usr_shopify_guest_001",
-            product_id=product.id,
-            quantity=qty,
-            idempotency_key=f"sh_ord_{shopify_order_id}",
-        )
-
-        if not success or not order:
-            logger.error(f"Failed to reserve local order for Shopify Webhook {shopify_order_id}: {msg}")
-            return jsonify({"error": "Order Reservation Failed", "message": msg}), 400
-
-        # Update Shopify specific Order attributes
-        order.source = "SHOPIFY"
-        order.shopify_order_id = shopify_order_id
-        order.shopify_order_number = dto["shopify_order_number"]
-        order.status = OrderStatus.PAID
-        db.session.commit()
+        if not processed_items:
+            logger.error(f"Could not match any local products for Shopify Order {shopify_order_id}")
+            return jsonify({"error": "Product Not Found", "message": "No matching products in local catalog"}), 400
 
         redis_client.set(idempotency_key, "COMPLETED", ex=86400)
 
-        logger.info(f"Processed Shopify Order Webhook {shopify_order_id} -> Created local Order {order.id}")
+        logger.info(f"Processed Shopify Order Webhook {shopify_order_id} -> {len(processed_items)} items deducted")
         return jsonify({
             "status": "success",
-            "order_id": order.id,
             "shopify_order_id": shopify_order_id,
-            "available_stock": product.available_stock
+            "items_processed": len(processed_items),
         }), 200
 
     except Exception as ex:
@@ -168,11 +172,64 @@ def shopify_refund_created_webhook():
         payload = request.get_json(force=True) or {}
         shopify_order_id = str(payload.get("order_id") or payload.get("id") or "")
 
-        order = db.session.query(Order).filter_by(shopify_order_id=shopify_order_id).first()
-        if order:
-            order.status = OrderStatus.REFUNDED
-            db.session.commit()
-            if order.product_id:
+        # Parse refund_line_items from Shopify payload for exact quantities
+        refund_line_items = payload.get("refund_line_items") or []
+        restored_count = 0
+
+        for rli in refund_line_items:
+            restock_qty = int(rli.get("quantity", 0))
+            if restock_qty <= 0:
+                continue
+
+            line_item = rli.get("line_item") or {}
+            sh_variant_id = str(line_item.get("variant_id", ""))
+            sh_product_id = str(line_item.get("product_id", ""))
+            sku = line_item.get("sku") or ""
+
+            product = None
+            variant = None
+            if sh_variant_id:
+                variant = db.session.query(ProductVariant).filter_by(shopify_variant_id=sh_variant_id).first()
+                if variant:
+                    product = variant.product
+            if not product and sh_product_id:
+                product = db.session.query(Product).filter(
+                    (Product.shopify_product_id == sh_product_id) |
+                    (Product.shopify_product_id == f"gid://shopify/Product/{sh_product_id}")
+                ).first()
+            if not product and sku:
+                product = db.session.query(Product).filter_by(sku=sku).first()
+
+            if not product:
+                logger.warning(f"Could not match local product for Shopify refund line item SKU={sku}")
+                continue
+
+            try:
+                from app.services.inventory_sync import adjust_stock
+                if variant:
+                    adjust_stock(
+                        variant_id=variant.id,
+                        delta=+restock_qty,
+                        reason="SHOPIFY_ORDER_REFUNDED",
+                        source="SHOPIFY",
+                        reference_id=shopify_order_id,
+                    )
+                else:
+                    adjust_stock(
+                        product_id=product.id,
+                        delta=+restock_qty,
+                        reason="SHOPIFY_ORDER_REFUNDED",
+                        source="SHOPIFY",
+                        reference_id=shopify_order_id,
+                    )
+                restored_count += 1
+            except Exception as stock_err:
+                logger.warning(f"Could not adjust stock on Shopify refund line item: {stock_err}")
+
+        # Fallback: if no refund_line_items parsed, use legacy order-level restore
+        if not refund_line_items:
+            order = db.session.query(Order).filter_by(shopify_order_id=shopify_order_id).first()
+            if order and order.product_id:
                 try:
                     from app.services.inventory_sync import adjust_stock
                     adjust_stock(
@@ -182,10 +239,11 @@ def shopify_refund_created_webhook():
                         source="SHOPIFY",
                         reference_id=order.id,
                     )
+                    restored_count += 1
                 except Exception as stock_err:
                     logger.warning(f"Could not adjust stock on Shopify refund: {stock_err}")
 
-        return jsonify({"status": "success", "message": "Shopify refund synced"}), 200
+        return jsonify({"status": "success", "message": f"Shopify refund synced, {restored_count} items restored"}), 200
     except Exception as ex:
         logger.error(f"Error processing Shopify refund webhook: {ex}")
         return jsonify({"error": "Internal Server Error", "message": str(ex)}), 500

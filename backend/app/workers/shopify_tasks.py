@@ -163,6 +163,14 @@ def _apply_inventory_event(client, event):
     inventory_item_id = payload.get("shopify_inventory_item_id")
     location_id = payload.get("shopify_location_id")
     new_qty = payload.get("new_available_stock")
+    variant_id = payload.get("variant_id")
+
+    # If variant_id is present, try to resolve the variant-specific inventory item ID
+    if variant_id and not inventory_item_id:
+        from app.models.product_variant import ProductVariant
+        variant = db.session.get(ProductVariant, variant_id)
+        if variant and variant.shopify_inventory_item_id:
+            inventory_item_id = variant.shopify_inventory_item_id
 
     if not inventory_item_id:
         product_id = payload.get("product_id") or event.aggregate_id

@@ -106,7 +106,7 @@ def adjust_stock(
     should_push_to_shopify = (
         source not in _SHOPIFY_ORIGIN_SOURCES
         and product is not None
-        and bool(product.is_listed_on_shopify)
+        and product.is_listed_on_shopify
     )
 
     if should_push_to_shopify:

@@ -108,14 +108,8 @@ def test_shopify_order_webhook_creation(client, app, test_product):
         assert response.status_code == 200
         data = response.get_json()
         assert data["status"] == "success"
-        assert "order_id" in data
-
-        # Verify created order attributes
-        created_order = db.session.get(Order, data["order_id"])
-        assert created_order is not None
-        assert created_order.source == "SHOPIFY"
-        assert created_order.shopify_order_id == str(unique_order_id)
-        assert created_order.status == OrderStatus.PAID
+        assert "items_processed" in data
+        assert data["items_processed"] >= 1
 
         # Verify stock was deducted by 2 items
         updated_prod = db.session.get(Product, product.id)

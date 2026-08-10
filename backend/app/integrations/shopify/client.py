@@ -19,8 +19,8 @@ class ShopifyClient:
         self.api_version = ShopifyAuthManager.get_api_version()
         self.base_url = f"https://{self.shop_domain}/admin/api/{self.api_version}"
 
-    def _request(self, method: str, path: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Execute HTTPS request to Shopify Admin API."""
+    def _request(self, method: str, path: str, data: Optional[Dict[str, Any]] = None, _retries: int = 3) -> Dict[str, Any]:
+        """Execute HTTPS request to Shopify Admin API with automatic rate-limit retry."""
         url = f"{self.base_url}{path}" if path.startswith("/") else f"{self.base_url}/{path}"
         headers = {
             "Content-Type": "application/json",
@@ -29,35 +29,39 @@ class ShopifyClient:
         }
 
         payload_bytes = json.dumps(data).encode("utf-8") if data is not None else None
-        req = urllib.request.Request(url, data=payload_bytes, headers=headers, method=method.upper())
 
-        try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                status_code = resp.getcode()
-                body = resp.read().decode("utf-8")
-                return json.loads(body) if body else {}
-        except urllib.error.HTTPError as err:
-            status_code = err.code
-            body = err.read().decode("utf-8") if err.fp else ""
-            err_data = {}
+        for attempt in range(_retries + 1):
+            req = urllib.request.Request(url, data=payload_bytes, headers=headers, method=method.upper())
+
             try:
-                err_data = json.loads(body) if body else {}
-            except Exception:
-                err_data = {"raw": body}
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    body = resp.read().decode("utf-8")
+                    return json.loads(body) if body else {}
+            except urllib.error.HTTPError as err:
+                status_code = err.code
+                body = err.read().decode("utf-8") if err.fp else ""
+                err_data = {}
+                try:
+                    err_data = json.loads(body) if body else {}
+                except Exception:
+                    err_data = {"raw": body}
 
-            if status_code == 429:
-                retry_after = int(err.headers.get("Retry-After", 5))
-                logger.warning(f"Shopify rate limit hit (429). Retrying after {retry_after}s...")
-                raise ShopifyRateLimitError(retry_after=retry_after)
+                if status_code == 429:
+                    retry_after = int(err.headers.get("Retry-After", 2 * (attempt + 1)))
+                    if attempt < _retries:
+                        logger.warning(f"Shopify rate limit (429). Retry {attempt + 1}/{_retries} after {retry_after}s...")
+                        time.sleep(retry_after)
+                        continue
+                    raise ShopifyRateLimitError(retry_after=retry_after)
 
-            msg = err_data.get("errors") or err_data.get("message") or f"HTTP {status_code}"
-            if isinstance(msg, dict):
-                msg = json.dumps(msg)
-            logger.error(f"Shopify API Error [{status_code}] on {method} {url}: {msg}")
-            raise ShopifyApiError(status_code=status_code, message=str(msg), payload=err_data)
-        except Exception as ex:
-            logger.error(f"Network error calling Shopify API [{method} {url}]: {ex}")
-            raise ShopifyApiError(status_code=500, message=str(ex))
+                msg = err_data.get("errors") or err_data.get("message") or f"HTTP {status_code}"
+                if isinstance(msg, dict):
+                    msg = json.dumps(msg)
+                logger.error(f"Shopify API Error [{status_code}] on {method} {url}: {msg}")
+                raise ShopifyApiError(status_code=status_code, message=str(msg), payload=err_data)
+            except Exception as ex:
+                logger.error(f"Network error calling Shopify API [{method} {url}]: {ex}")
+                raise ShopifyApiError(status_code=500, message=str(ex))
 
     def create_product(self, product_payload: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new product in Shopify via POST /admin/api/2024-01/products.json."""
