@@ -156,12 +156,15 @@ def adjust_stock(
     except Exception as redis_err:
         logger.warning(f"Redis stock mirror failed for key {target_id}: {redis_err}")
 
-    # Kick immediate outbox drain task
+    # Kick outbox drain task (with synchronous fallback if Celery worker is offline)
     if should_push_to_shopify:
         try:
             from app.workers.shopify_tasks import process_outbox_events
-            process_outbox_events.delay()
+            try:
+                process_outbox_events.delay()
+            except Exception:
+                process_outbox_events()
         except Exception as task_err:
-            logger.debug(f"Immediate outbox drain task dispatch skipped: {task_err}")
+            logger.warning(f"Immediate outbox drain failed: {task_err}")
 
     return new_qty

@@ -30,4 +30,4 @@ class ShopifyAuthManager:
 
     @staticmethod
     def get_location_id() -> str:
-        return os.getenv("SHOPIFY_LOCATION_ID", "loc_default_01")
+        return os.getenv("SHOPIFY_LOCATION_ID", "80021225539")

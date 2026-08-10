@@ -81,10 +81,21 @@ class ShopifyClient:
                 return True # Already deleted
             raise
 
+    def get_locations(self) -> list:
+        """Fetch store location list from Shopify API GET /admin/api/2024-01/locations.json."""
+        res = self._request("GET", "/locations.json")
+        return res.get("locations", [])
+
     def set_inventory_level(self, inventory_item_id: str, location_id: str, available_qty: int) -> Dict[str, Any]:
         """Set inventory level in Shopify via POST /admin/api/2024-01/inventory_levels/set.json."""
         clean_item_id = inventory_item_id.replace("gid://shopify/InventoryItem/", "")
         clean_loc_id = location_id.replace("gid://shopify/Location/", "")
+
+        if not clean_loc_id or not clean_loc_id.isdigit():
+            locs = self.get_locations()
+            if locs:
+                clean_loc_id = str(locs[0].get("id", clean_loc_id))
+
         payload = {
             "location_id": int(clean_loc_id) if clean_loc_id.isdigit() else clean_loc_id,
             "inventory_item_id": int(clean_item_id) if clean_item_id.isdigit() else clean_item_id,
