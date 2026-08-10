@@ -707,8 +707,8 @@ export const VendorPortalPage: React.FC = () => {
                     <th className="py-2.5 px-3">PRICE</th>
                     <th className="py-2.5 px-3">DISCOUNT</th>
                     <th className="py-2.5 px-3">SHOPIFY SYNC</th>
-                    <th className="py-2.5 px-3">REDIS STOCK</th>
-                    <th className="py-2.5 px-3">DB STOCK</th>
+                    <th className="py-2.5 px-3">AVAILABLE STOCK</th>
+                    <th className="py-2.5 px-3">TOTAL CAPACITY</th>
                     <th className="py-2.5 px-3 text-right">ACTIONS</th>
                   </tr>
                 </thead>
