@@ -1,8 +1,7 @@
 import pytest
 from app import create_app
 from app.core.extensions import db
-from app.models.user import User
-from app.models.product import Product
+from app.models import *
 from app.core.security import hash_password, create_access_token
 
 

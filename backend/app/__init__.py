@@ -58,15 +58,17 @@ def create_app(config_name: str = None) -> Flask:
             return response
 
     # Initialize extensions
+    from flask_smorest import Api
     db.init_app(app)
     migrate.init_app(app, db)
     init_redis(app)
-    smorest_api.init_app(app)
+    smorest_api = Api(app)
     make_celery(app)
 
-    # Automatically synchronize schema and create missing tables
-    with app.app_context():
-        sync_database_schema()
+    # Automatically synchronize schema and create missing tables (skipped in unit testing)
+    if not app.config.get("TESTING"):
+        with app.app_context():
+            sync_database_schema()
 
     # Start background outbox poller to drain Shopify inventory sync events
     # Guard against Flask reloader double-start: only the reloaded child process

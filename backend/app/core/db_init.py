@@ -146,6 +146,7 @@ def _run_initial_seeds():
         pass
 
     try:
+        from app import models  # Ensure all ORM models are registered in metadata
         db.create_all()
     except Exception as err:
         logger.warning(f"Table creation warning: {err}")

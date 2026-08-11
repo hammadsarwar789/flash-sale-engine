@@ -401,38 +401,3 @@ def verify_email():
     return jsonify({"message": "Email verified successfully", "user": user.to_dict()}), 200
 
 
-@auth_bp.route("/refresh", methods=["POST"])
-def refresh_token():
-    """Issue a fresh JWT access token for active authenticated user sessions."""
-    from flask import request, current_app
-    from app.core.security import decode_access_token, create_access_token
-
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return jsonify({"message": "Missing Authorization header"}), 401
-
-    token = auth_header.split(" ")[1]
-    secret_key = current_app.config.get("JWT_SECRET_KEY") or current_app.config["SECRET_KEY"]
-
-    payload = decode_access_token(token, secret_key, verify_exp=False)
-    if not payload or "sub" not in payload:
-        return jsonify({"message": "Invalid token"}), 401
-
-    user_id = payload["sub"]
-    user = db.session.query(User).filter_by(id=user_id).first()
-    if not user or not user.is_active or user.status != "ACTIVE":
-        return jsonify({"message": "User inactive or disabled"}), 401
-
-    fresh_token = create_access_token(
-        user_id=user.id,
-        role=user.role,
-        secret_key=secret_key,
-        expires_minutes=10080
-    )
-
-    return jsonify({
-        "access_token": fresh_token,
-        "token_type": "Bearer",
-        "expires_in": 604800,
-        "user": user.to_dict()
-    }), 200

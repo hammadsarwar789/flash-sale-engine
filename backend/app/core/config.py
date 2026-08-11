@@ -76,10 +76,11 @@ class ProductionConfig(BaseConfig):
 
 
 class TestingConfig(BaseConfig):
-    """Testing environment configuration using file SQLite for test persistence."""
+    """Testing environment configuration."""
 
     TESTING: bool = True
-    SQLALCHEMY_DATABASE_URI: str = "sqlite:///" + str(BASE_DIR / "test_temp.db")
+    SQLALCHEMY_DATABASE_URI: str = "sqlite:///:memory:"
+    SQLALCHEMY_ENGINE_OPTIONS = {}
     REDIS_DB: int = 15
 
 
