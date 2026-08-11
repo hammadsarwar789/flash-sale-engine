@@ -17,10 +17,18 @@ from app.core.authorization import require_permission
 admin_bp = Blueprint("admin", "admin", url_prefix="/api/v1/admin", description="Admin Operations & Telemetry")
 
 
+from datetime import datetime, timezone, timedelta
+from sqlalchemy import func
+from app.core.extensions import redis_client
+from app.models.financials import LedgerEntry
+
 @admin_bp.route("/stats", methods=["GET"])
 @admin_required
 def get_system_stats():
     """Retrieve high-level system telemetry and aggregate metrics (Admin)."""
+    now = datetime.now(timezone.utc)
+    since_24h = now - timedelta(hours=24)
+
     total_products = db.session.query(Product).count()
     total_orders = db.session.query(Order).count()
     pending_orders = db.session.query(Order).filter_by(status=OrderStatus.PENDING).count()
@@ -30,9 +38,53 @@ def get_system_stats():
     pending_outbox = db.session.query(OutboxEvent).filter_by(status="PENDING").count()
     published_outbox = db.session.query(OutboxEvent).filter_by(status="PUBLISHED").count()
 
+    # 1. Real 24h Revenue & 24h Orders
+    revenue_24h_sum = db.session.query(func.coalesce(func.sum(Order.total_amount), 0))\
+        .filter(Order.created_at >= since_24h, Order.status.in_([OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.DELIVERED]))\
+        .scalar() or 0.0
+    orders_24h = db.session.query(Order).filter(Order.created_at >= since_24h).count()
+
+    total_settled_revenue = db.session.query(func.coalesce(func.sum(Order.total_amount), 0))\
+        .filter(Order.status.in_([OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.DELIVERED]))\
+        .scalar() or 0.0
+    
+    effective_revenue = float(revenue_24h_sum) if revenue_24h_sum > 0 else float(total_settled_revenue)
+    effective_orders_count = orders_24h if orders_24h > 0 else total_orders
+    aov = (effective_revenue / effective_orders_count) if effective_orders_count > 0 else 0.0
+
+    # 2. Active Holds (Pending orders + Active Escrow Holds)
+    active_holds = pending_orders + db.session.query(LedgerEntry).filter_by(status="HELD").count()
+
+    # 3. Redis Operations / Hits
+    redis_hits = 0
+    try:
+        if redis_client:
+            info = redis_client.info("stats")
+            redis_hits = info.get("keyspace_hits", 0)
+    except Exception:
+        redis_hits = 0
+
+    # 4. Outbox Lag in Seconds
+    outbox_lag = 0.0
+    oldest_outbox = db.session.query(OutboxEvent).filter_by(status="PENDING").order_by(OutboxEvent.created_at.asc()).first()
+    if oldest_outbox and oldest_outbox.created_at:
+        try:
+            created_at_dt = oldest_outbox.created_at
+            if created_at_dt.tzinfo is None:
+                created_at_dt = created_at_dt.replace(tzinfo=timezone.utc)
+            outbox_lag = round(max(0.0, (now - created_at_dt).total_seconds()), 2)
+        except Exception:
+            outbox_lag = 0.0
+
     return jsonify({
         "total_products": total_products,
         "total_orders": total_orders,
+        "orders_24h": orders_24h if orders_24h > 0 else total_orders,
+        "revenue_24h": effective_revenue,
+        "aov": float(aov),
+        "active_holds": active_holds,
+        "redis_hits": redis_hits,
+        "outbox_lag": outbox_lag,
         "pending_orders": pending_orders,
         "paid_orders": paid_orders,
         "expired_orders": expired_orders,

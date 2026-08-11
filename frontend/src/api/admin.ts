@@ -4,6 +4,12 @@ import { Product, Category, Coupon, Order, User } from '../types/api';
 export interface SystemStats {
   total_products: number;
   total_orders: number;
+  orders_24h?: number;
+  revenue_24h?: number;
+  aov?: number;
+  active_holds?: number;
+  redis_hits?: number;
+  outbox_lag?: number;
   pending_orders: number;
   paid_orders: number;
   expired_orders: number;
