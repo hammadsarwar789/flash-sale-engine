@@ -1,6 +1,41 @@
 import { apiFetch } from './client';
 import { Product, Category, Coupon, Order, User } from '../types/api';
 
+export interface FinancialPeriodMetrics {
+  gmv: number;
+  net_revenue: number;
+  settled_payouts: number;
+}
+
+export interface FinancialReporting {
+  h24: FinancialPeriodMetrics;
+  mtd: FinancialPeriodMetrics;
+  ytd: FinancialPeriodMetrics;
+  annual: FinancialPeriodMetrics;
+  arr_run_rate: number;
+}
+
+export interface EscrowRisk {
+  total_escrow_balance: number;
+  active_holds_count: number;
+  aging_holds_count: number;
+  aging_holds_amount: number;
+  disputed_funds: number;
+  refund_rate_pct: number;
+  avg_hold_duration_days: number;
+  pending_clearance: number;
+}
+
+export interface PipelineHealth {
+  outbox_queue_depth: number;
+  ingestion_rate_msg_s: number;
+  consumer_rate_msg_s: number;
+  dlq_count: number;
+  redis_hits_s: number;
+  outbox_lag_sec: number;
+  lag_status: string;
+}
+
 export interface SystemStats {
   total_products: number;
   total_orders: number;
@@ -16,6 +51,9 @@ export interface SystemStats {
   total_users: number;
   outbox_pending: number;
   outbox_published: number;
+  financial_reporting?: FinancialReporting;
+  escrow_risk?: EscrowRisk;
+  pipeline_health?: PipelineHealth;
 }
 
 export interface OutboxEventItem {
