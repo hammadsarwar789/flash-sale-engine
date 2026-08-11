@@ -315,3 +315,13 @@ def update_admin_payout_status(payout_id: str):
     db.session.commit()
 
     return jsonify({"message": f"Payout request for ${float(payout.amount):.2f} updated to '{status}'.", "payout": payout.to_dict()}), 200
+
+
+@admin_bp.route("/ledger", methods=["GET"])
+@admin_required
+def list_admin_financial_ledger():
+    """Retrieve full append-only financial ledger event trail for audit compliance (Admin)."""
+    from app.models.financials import LedgerEntry
+    entries = db.session.query(LedgerEntry).order_by(LedgerEntry.created_at.desc()).limit(150).all()
+    return jsonify([e.to_dict() for e in entries]), 200
+

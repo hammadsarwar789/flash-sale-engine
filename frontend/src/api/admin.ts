@@ -275,4 +275,8 @@ export const adminApi = {
       body: JSON.stringify({ status }),
     });
   },
+
+  async getFinancialLedger(): Promise<any[]> {
+    return apiFetch<any[]>('/admin/ledger');
+  },
 };

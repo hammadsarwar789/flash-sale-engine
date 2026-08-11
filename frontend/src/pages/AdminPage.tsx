@@ -54,6 +54,8 @@ export const AdminPage: React.FC = () => {
   const [outletInventories, setOutletInventories] = useState<any[]>([]);
   const [sellersList, setSellersList] = useState<any[]>([]);
   const [payoutsList, setPayoutsList] = useState<any[]>([]);
+  const [ledgerList, setLedgerList] = useState<any[]>([]);
+  const [expandedAuditSubOrders, setExpandedAuditSubOrders] = useState<Record<string, boolean>>({});
   const [selectedOutletId, setSelectedOutletId] = useState<string>('out_fsd_01');
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
 
@@ -132,7 +134,7 @@ export const AdminPage: React.FC = () => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const [statsData, prodsData, catsData, ordersData, usersData, outboxData, logsData, couponsData, approvalsData, auditLogsData, rolesData, permsData, outletInvData, sellersData, payoutsData] = await Promise.all([
+      const [statsData, prodsData, catsData, ordersData, usersData, outboxData, logsData, couponsData, approvalsData, auditLogsData, rolesData, permsData, outletInvData, sellersData, payoutsData, ledgerData] = await Promise.all([
         role === 'admin' ? adminApi.getStats().catch(() => null) : Promise.resolve(null),
         productsApi.getProducts({ per_page: 100 }).catch(() => ({ items: [] as Product[] })),
         productsApi.getCategories().catch(() => []),
@@ -148,6 +150,7 @@ export const AdminPage: React.FC = () => {
         adminApi.getOutletInventory(selectedOutletId).catch(() => []),
         role === 'admin' ? adminApi.getSellers().catch(() => []) : Promise.resolve([]),
         role === 'admin' ? adminApi.getPayouts().catch(() => []) : Promise.resolve([]),
+        role === 'admin' ? adminApi.getFinancialLedger().catch(() => []) : Promise.resolve([]),
       ]);
 
       if (statsData) setStats(statsData);
@@ -165,6 +168,7 @@ export const AdminPage: React.FC = () => {
       setOutletInventories(outletInvData || []);
       setSellersList(sellersData || []);
       setPayoutsList(payoutsData || []);
+      setLedgerList(ledgerData || []);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to load admin telemetry data.');
     } finally {
@@ -1864,63 +1868,174 @@ export const AdminPage: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 10: PAYOUT CLEARINGHOUSE */}
-        {activeTab === 'payouts' && (
-          <div className="space-y-8">
-            <div className="flex justify-between items-center border-b border-rule pb-4">
-              <h2 className="font-serif text-3xl text-ink">Financial Clearinghouse & Merchant Payouts</h2>
-              <Eyebrow className="text-signal block font-mono">MERCHANT ESCROW WITHDRAWAL QUEUE</Eyebrow>
-            </div>
+        {/* TAB 10: PAYOUT CLEARINGHOUSE & FINANCIAL AUDIT TRAIL */}
+        {activeTab === 'payouts' && (() => {
+          // Group raw ledger entries by sub_order_id for audit history tree
+          const auditSubOrderGroups = (() => {
+            const map = new Map<string, {
+              sub_order_id: string;
+              seller_name: string;
+              amount: number;
+              status: string;
+              events: any[];
+            }>();
 
-            <div className="border border-rule bg-paper overflow-x-auto font-mono text-xs">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-paper-sunk border-b border-rule text-ash">
-                    <th className="py-2.5 px-3">PAYOUT ID</th>
-                    <th className="py-2.5 px-3">MERCHANT STORE</th>
-                    <th className="py-2.5 px-3">AMOUNT</th>
-                    <th className="py-2.5 px-3">STATUS</th>
-                    <th className="py-2.5 px-3">REQUESTED AT</th>
-                    <th className="py-2.5 px-3 text-right">ACTION</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-rule/40">
-                  {payoutsList.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-ash">NO PAYOUT REQUESTS PENDING.</td>
-                    </tr>
-                  ) : (
-                    payoutsList.map((p) => (
-                      <tr key={p.id} className="hover:bg-paper-sunk/40">
-                        <td className="py-2.5 px-3 text-ink font-semibold">{p.id.slice(0, 8)}...</td>
-                        <td className="py-2.5 px-3 font-semibold text-ink">{p.seller_name}</td>
-                        <td className="py-2.5 px-3 text-gain font-semibold">${p.amount.toFixed(2)}</td>
-                        <td className="py-2.5 px-3 font-semibold">
-                          <span className={`px-2 py-0.5 text-[10px] ${
-                            p.status === 'PAID' ? 'bg-gain/20 text-gain' : 'bg-signal/20 text-signal'
-                          }`}>
-                            ● {p.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-ash">{new Date(p.requested_at).toLocaleString()}</td>
-                        <td className="py-2.5 px-3 text-right space-x-2">
-                          {p.status !== 'PAID' && (
-                            <button
-                              onClick={() => handleUpdatePayoutStatus(p.id, 'PAID')}
-                              className="px-2.5 py-1 text-[11px] font-semibold bg-gain text-paper hover:bg-gain/90 transition-colors"
-                            >
-                              MARK PAID 💰
-                            </button>
-                          )}
-                        </td>
+            const sorted = [...ledgerList].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+            for (const entry of sorted) {
+              const subId = entry.sub_order_id || entry.id;
+              const existing = map.get(subId);
+
+              if (!existing) {
+                map.set(subId, {
+                  sub_order_id: subId,
+                  seller_name: entry.seller_name || 'Platform Merchant',
+                  amount: entry.amount,
+                  status: entry.entry_type === 'ESCROW_RELEASE' || entry.status === 'RELEASED' ? 'Settled' : 'Pending Escrow',
+                  events: [entry],
+                });
+              } else {
+                if (entry.entry_type === 'ESCROW_RELEASE' || entry.status === 'RELEASED') {
+                  existing.status = 'Settled';
+                }
+                existing.events.push(entry);
+              }
+            }
+
+            return Array.from(map.values());
+          })();
+
+          return (
+            <div className="space-y-8 font-mono text-xs">
+              <div className="flex justify-between items-center border-b border-rule pb-4">
+                <h2 className="font-serif text-3xl text-ink">Financial Clearinghouse & Merchant Payouts</h2>
+                <Eyebrow className="text-signal block font-mono">MERCHANT ESCROW WITHDRAWAL QUEUE</Eyebrow>
+              </div>
+
+              {/* Section 1: Payout Requests Table */}
+              <div className="space-y-3">
+                <h3 className="font-serif text-2xl text-ink">Merchant Payout Requests</h3>
+                <div className="border border-rule bg-paper overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-paper-sunk border-b border-rule text-ash">
+                        <th className="py-2.5 px-3">PAYOUT ID</th>
+                        <th className="py-2.5 px-3">MERCHANT STORE</th>
+                        <th className="py-2.5 px-3">AMOUNT</th>
+                        <th className="py-2.5 px-3">STATUS</th>
+                        <th className="py-2.5 px-3">REQUESTED AT</th>
+                        <th className="py-2.5 px-3 text-right">ACTION</th>
                       </tr>
-                    ))
+                    </thead>
+                    <tbody className="divide-y divide-rule/40">
+                      {payoutsList.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-ash">NO PAYOUT REQUESTS PENDING.</td>
+                        </tr>
+                      ) : (
+                        payoutsList.map((p) => (
+                          <tr key={p.id} className="hover:bg-paper-sunk/40">
+                            <td className="py-2.5 px-3 text-ink font-semibold">{p.id.slice(0, 8)}...</td>
+                            <td className="py-2.5 px-3 font-semibold text-ink">{p.seller_name}</td>
+                            <td className="py-2.5 px-3 text-gain font-semibold">${p.amount.toFixed(2)}</td>
+                            <td className="py-2.5 px-3 font-semibold">
+                              <span className={`px-2 py-0.5 text-[10px] ${
+                                p.status === 'PAID' ? 'bg-gain/20 text-gain' : 'bg-signal/20 text-signal'
+                              }`}>
+                                ● {p.status}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-ash">{new Date(p.requested_at).toLocaleString()}</td>
+                            <td className="py-2.5 px-3 text-right space-x-2">
+                              {p.status !== 'PAID' && (
+                                <button
+                                  onClick={() => handleUpdatePayoutStatus(p.id, 'PAID')}
+                                  className="px-2.5 py-1 text-[11px] font-semibold bg-gain text-paper hover:bg-gain/90 transition-colors"
+                                >
+                                  MARK PAID 💰
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Section 2: Admin & Financial Audit Trail (Event Log View) */}
+              <div className="space-y-4 pt-4 border-t border-rule">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-serif text-2xl text-ink">Admin Financial Audit Trail</h3>
+                  <span className="text-ash text-[11px]">APPEND-ONLY SUB-ORDER EVENT LOG</span>
+                </div>
+
+                <div className="space-y-3">
+                  {auditSubOrderGroups.length === 0 ? (
+                    <div className="border border-rule p-8 text-center text-ash bg-paper">
+                      NO AUDIT LOG EVENTS RECORDED YET.
+                    </div>
+                  ) : (
+                    auditSubOrderGroups.map((group) => {
+                      const isExpanded = !!expandedAuditSubOrders[group.sub_order_id];
+                      return (
+                        <div key={group.sub_order_id} className="border border-rule bg-paper">
+                          {/* Sub-Order Header Row */}
+                          <div
+                            onClick={() => setExpandedAuditSubOrders(prev => ({ ...prev, [group.sub_order_id]: !prev[group.sub_order_id] }))}
+                            className="flex items-center justify-between p-3.5 bg-paper-sunk/60 hover:bg-paper-sunk cursor-pointer transition-colors"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <span className="font-bold text-signal">{isExpanded ? '[▼]' : '[>]'}</span>
+                              <span className="font-semibold text-ink">Sub-Order: {group.sub_order_id.slice(0, 12)}...</span>
+                              <span className="text-ash">({group.seller_name})</span>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                              <span className="font-bold text-ink">Total: ${group.amount.toFixed(2)}</span>
+                              <span className={`px-2 py-0.5 text-[10px] uppercase font-semibold ${
+                                group.status === 'Settled' ? 'bg-gain/20 text-gain' : 'bg-signal/20 text-signal'
+                              }`}>
+                                Status: {group.status}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Expandable Event History Tree */}
+                          {isExpanded && (
+                            <div className="p-4 border-t border-rule/60 bg-paper space-y-2 text-xs">
+                              <div className="text-ash font-mono text-[11px] mb-2">└── Event History:</div>
+                              <div className="space-y-1.5 pl-4 font-mono">
+                                {group.events.map((evt: any, idx: number) => {
+                                  const isLast = idx === group.events.length - 1;
+                                  const isSuperceded = evt.entry_type === 'ESCROW_HOLD' && group.events.some((e: any) => e.entry_type === 'ESCROW_RELEASE');
+                                  return (
+                                    <div key={evt.id} className="flex items-center space-x-3 py-1 border-b border-rule/20 last:border-0">
+                                      <span className="text-ash">{isLast ? '└──' : '├──'}</span>
+                                      <span className="text-ash w-40">{new Date(evt.created_at).toLocaleString()}</span>
+                                      <span className="font-semibold text-ink w-36">| {evt.entry_type}</span>
+                                      <span className={`w-24 font-semibold ${evt.entry_type === 'ESCROW_RELEASE' ? 'text-gain' : 'text-ink'}`}>
+                                        {evt.entry_type === 'ESCROW_RELEASE' ? `+$${evt.amount.toFixed(2)}` : ` $${evt.amount.toFixed(2)}`}
+                                      </span>
+                                      <span className="text-ash">
+                                        | <span className={evt.status === 'RELEASED' ? 'text-gain' : 'text-signal'}>{evt.status}</span>
+                                        {isSuperceded && <span className="text-ash ml-1">(Superceded)</span>}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
       </main>
     </div>

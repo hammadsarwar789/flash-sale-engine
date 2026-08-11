@@ -982,70 +982,144 @@ export const VendorPortalPage: React.FC = () => {
         )}
 
         {/* TAB 3: FINANCIAL LEDGER & PAYOUTS */}
-        {hasAccount && profile?.status === 'APPROVED' && activeTab === 'finance' && finance && (
-          <div className="space-y-8 font-mono text-xs">
-            {/* Payout Withdrawal Form */}
-            <form onSubmit={handleRequestPayout} className="border border-rule bg-paper p-6 space-y-4">
-              <h3 className="font-serif text-2xl text-ink">Request Payout Withdrawal</h3>
-              <div className="flex items-center space-x-4">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="1"
-                  max={finance.available_payout_balance}
-                  placeholder={`Max $${finance.available_payout_balance.toFixed(2)}`}
-                  value={payoutAmount}
-                  onChange={(e) => setPayoutAmount(e.target.value)}
-                  className="bg-paper border border-rule px-4 py-2.5 text-ink focus:outline-none w-64"
-                />
-                <button
-                  type="submit"
-                  disabled={finance.available_payout_balance <= 0}
-                  className="px-6 py-2.5 bg-gain text-paper font-semibold hover:bg-gain/90 disabled:opacity-50 transition-colors uppercase"
-                >
-                  REQUEST PAYOUT WITHDRAWAL →
-                </button>
-              </div>
-            </form>
+        {hasAccount && profile?.status === 'APPROVED' && activeTab === 'finance' && finance && (() => {
+          // Helper: Group raw transition entries by Sub-Order ID for a clean aggregated view
+          const aggregatedSubOrders = (() => {
+            const map = new Map<string, {
+              sub_order_id: string;
+              amount: number;
+              status: 'HELD' | 'RELEASED';
+              held_date: string;
+              released_date: string | null;
+            }>();
 
-            {/* Financial Ledger Entries */}
-            <div className="border border-rule bg-paper p-6 space-y-4">
-              <h3 className="font-serif text-2xl text-ink">Double-Entry Financial Ledger</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-paper-sunk border-b border-rule text-ash">
-                      <th className="py-2.5 px-3">ENTRY ID</th>
-                      <th className="py-2.5 px-3">SUB-ORDER</th>
-                      <th className="py-2.5 px-3">TYPE</th>
-                      <th className="py-2.5 px-3">AMOUNT</th>
-                      <th className="py-2.5 px-3">STATUS</th>
-                      <th className="py-2.5 px-3 text-right">TIMESTAMP</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-rule/40">
-                    {finance.ledger.map((entry) => (
-                      <tr key={entry.id} className="hover:bg-paper-sunk/40">
-                        <td className="py-2.5 px-3 text-ink font-semibold">{entry.id.slice(0, 8)}...</td>
-                        <td className="py-2.5 px-3 text-ash">{entry.sub_order_id.slice(0, 8)}...</td>
-                        <td className="py-2.5 px-3 font-semibold">{entry.entry_type}</td>
-                        <td className="py-2.5 px-3 font-semibold text-gain">${entry.amount.toFixed(2)}</td>
-                        <td className="py-2.5 px-3 font-semibold">
-                          <span className={entry.status === 'RELEASED' ? 'text-gain' : 'text-signal'}>
-                            ● {entry.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-right text-ash">
-                          {new Date(entry.created_at).toLocaleString()}
-                        </td>
+            const sorted = [...finance.ledger].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+            for (const entry of sorted) {
+              const subId = entry.sub_order_id || entry.id;
+              const existing = map.get(subId);
+
+              if (!existing) {
+                map.set(subId, {
+                  sub_order_id: subId,
+                  amount: entry.amount,
+                  status: entry.entry_type === 'ESCROW_RELEASE' || entry.status === 'RELEASED' ? 'RELEASED' : 'HELD',
+                  held_date: entry.created_at,
+                  released_date: entry.entry_type === 'ESCROW_RELEASE' ? entry.created_at : (entry.status === 'RELEASED' ? entry.created_at : null),
+                });
+              } else {
+                if (entry.entry_type === 'ESCROW_RELEASE' || entry.status === 'RELEASED') {
+                  existing.status = 'RELEASED';
+                  existing.released_date = entry.created_at;
+                }
+              }
+            }
+
+            return Array.from(map.values()).sort((a, b) => {
+              const timeA = new Date(a.released_date || a.held_date).getTime();
+              const timeB = new Date(b.released_date || b.held_date).getTime();
+              return timeB - timeA;
+            });
+          })();
+
+          const totalValue = finance.available_payout_balance + finance.escrow_held_balance;
+
+          return (
+            <div className="space-y-8 font-mono text-xs">
+              {/* Summary KPI Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="border border-rule p-5 bg-paper space-y-1">
+                  <div className="text-ash font-mono text-[11px] uppercase">Available / Settled</div>
+                  <div className="text-3xl font-serif text-gain font-normal">${finance.available_payout_balance.toFixed(2)}</div>
+                  <div className="text-ash text-[10px]">Ready for instant withdrawal</div>
+                </div>
+                <div className="border border-rule p-5 bg-paper space-y-1">
+                  <div className="text-ash font-mono text-[11px] uppercase">In Escrow (Pending)</div>
+                  <div className="text-3xl font-serif text-signal font-normal">${finance.escrow_held_balance.toFixed(2)}</div>
+                  <div className="text-ash text-[10px]">Return window countdown active</div>
+                </div>
+                <div className="border border-rule p-5 bg-paper space-y-1">
+                  <div className="text-ash font-mono text-[11px] uppercase">Total Value</div>
+                  <div className="text-3xl font-serif text-ink font-normal">${totalValue.toFixed(2)}</div>
+                  <div className="text-ash text-[10px]">Settled + Pending Escrow Total</div>
+                </div>
+              </div>
+
+              {/* Payout Withdrawal Form */}
+              <form onSubmit={handleRequestPayout} className="border border-rule bg-paper p-6 space-y-4">
+                <h3 className="font-serif text-2xl text-ink">Request Payout Withdrawal</h3>
+                <div className="flex items-center space-x-4">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    max={finance.available_payout_balance}
+                    placeholder={`Max $${finance.available_payout_balance.toFixed(2)}`}
+                    value={payoutAmount}
+                    onChange={(e) => setPayoutAmount(e.target.value)}
+                    className="bg-paper border border-rule px-4 py-2.5 text-ink focus:outline-none w-64"
+                  />
+                  <button
+                    type="submit"
+                    disabled={finance.available_payout_balance <= 0}
+                    className="px-6 py-2.5 bg-gain text-paper font-semibold hover:bg-gain/90 disabled:opacity-50 transition-colors uppercase"
+                  >
+                    REQUEST PAYOUT WITHDRAWAL →
+                  </button>
+                </div>
+              </form>
+
+              {/* User-Facing Payout Dashboard (Aggregated View by Sub-Order) */}
+              <div className="border border-rule bg-paper p-6 space-y-4">
+                <div className="flex justify-between items-center border-b border-rule pb-3">
+                  <h3 className="font-serif text-2xl text-ink">Sub-Order Settlement Dashboard</h3>
+                  <span className="text-ash text-[11px]">SINGLE SOURCE OF TRUTH PER ITEM</span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-paper-sunk border-b border-rule text-ash">
+                        <th className="py-2.5 px-3">SUB-ORDER ID</th>
+                        <th className="py-2.5 px-3">AMOUNT</th>
+                        <th className="py-2.5 px-3">STATUS</th>
+                        <th className="py-2.5 px-3">HELD DATE</th>
+                        <th className="py-2.5 px-3 text-right">RELEASED DATE</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-rule/40">
+                      {aggregatedSubOrders.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-8 text-center text-ash">NO SUB-ORDER SETTLEMENT RECORDS FOUND.</td>
+                        </tr>
+                      ) : (
+                        aggregatedSubOrders.map((item) => (
+                          <tr key={item.sub_order_id} className="hover:bg-paper-sunk/40">
+                            <td className="py-3 px-3 text-ink font-semibold">{item.sub_order_id.slice(0, 8)}...</td>
+                            <td className="py-3 px-3 font-semibold text-ink">${item.amount.toFixed(2)}</td>
+                            <td className="py-3 px-3 font-semibold">
+                              <span className={`px-2 py-0.5 text-[10px] uppercase ${
+                                item.status === 'RELEASED' ? 'bg-gain/20 text-gain' : 'bg-signal/20 text-signal'
+                              }`}>
+                                ● {item.status === 'RELEASED' ? 'RELEASED' : 'HELD'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-ash">
+                              {item.held_date ? new Date(item.held_date).toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                            </td>
+                            <td className="py-3 px-3 text-right text-ash">
+                              {item.released_date ? new Date(item.released_date).toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </main>
     </div>
   );
