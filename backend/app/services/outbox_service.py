@@ -67,8 +67,8 @@ class OutboxService:
                         sh_id = event.payload.get("shopify_product_id")
                         if sh_id:
                             delete_product_from_shopify_task.delay(sh_id)
-                    elif event.event_type == "STOCK_UPDATED" and isinstance(event.payload, dict):
-                        avail = event.payload.get("available_stock", 0)
+                    elif event.event_type in ["STOCK_UPDATED", "INVENTORY_ADJUSTED"] and isinstance(event.payload, dict):
+                        avail = event.payload.get("new_available_stock", event.payload.get("available_stock", 0))
                         sync_inventory_to_shopify_task.delay(event.aggregate_id, avail)
                 except Exception as task_err:
                     logger.warning(f"Could not dispatch Shopify worker task for event {event.id}: {task_err}")

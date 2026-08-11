@@ -1,103 +1,150 @@
-# 🏛️ System Architecture & Distributed Engineering Trade-Offs
+# 🏛️ System Architecture Map & Component Topology (`Architecture.md`)
 
-## 1. High-Scale Engineering Challenges & Design Trade-Offs
-
-During high-concurrency event-driven flash sales (thousands of requests per second targeting limited inventory), standard monolithic patterns break down:
-
-### 1.1 Database Row-Lock Contention vs. In-Memory Atomic Scripting
-* **The Problem:** Executing standard SQL updates (`UPDATE products SET available_stock = available_stock - 1 WHERE id = ...`) causes hundreds of concurrent database connections to queue on the exact same row lock. This leads to connection pool saturation, thread starvation, and `HTTP 504 Gateway Timeout` errors.
-* **The Solution:** We offload high-frequency stock check-and-decrement operations to **Redis in-memory Lua scripts** (`LUA_RESERVE_STOCK`). Because Redis executes scripts single-threaded, stock reservations complete in sub-millisecond time ($< 1\text{ ms}$) without acquiring SQL database locks during the initial HTTP request.
-
-### 1.2 TOC-TOU (Time-of-Check to Time-of-Use) Race Conditions
-* **The Problem:** Reading stock in application memory (`SELECT available_stock FROM products`) followed by an update (`UPDATE products SET available_stock = available_stock - 1`) introduces a race condition where multiple concurrent workers read `available_stock > 0` simultaneously, leading to negative inventory and severe overselling.
-* **The Solution:** Atomic Lua scripting combines check and mutation into an indivisible operation within Redis:
-  ```lua
-  local current_stock = tonumber(redis.call('GET', stock_key) or '0')
-  if current_stock >= requested_qty then
-      redis.call('DECRBY', stock_key, requested_qty)
-      redis.call('INCRBY', hold_key, requested_qty)
-      return 1 -- SUCCESS
-  else
-      return 0 -- ERR_OUT_OF_STOCK
-  end
-  ```
+This document provides a **complete, non-blind system map** of the **Flash Sale Engine**, detailing the multi-tier component architecture, folder/file structure, state distribution between Redis and PostgreSQL, and security topology.
 
 ---
 
-## 2. The Transactional Outbox Pattern
-
-Attempting to write to PostgreSQL AND publish an event to RabbitMQ within an HTTP request handler creates the **Dual-Write Problem**: if the database transaction commits but the network glitches before queue publishing, event state becomes inconsistent.
+## 🗺️ 1. High-Level Multi-Tier Component Diagram
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                       PostgreSQL Database Transaction                       │
+│                      CLIENT / USER INTERFACE LAYER                          │
 │                                                                             │
-│   1. INSERT INTO orders (id, status, ...) VALUES (...);                     │
-│   2. INSERT INTO sub_orders (id, seller_id, ...) VALUES (...);              │
-│   3. INSERT INTO outbox_events (aggregate_type, event_type, payload, status)│
-│      VALUES ('Order', 'order.reserved', '{...}', 'PENDING');                │
-│                                                                             │
-│   4. COMMIT TRANSACTION; (Both Domain State & Event are atomically saved)  │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │
-                                       │ Async Polling Daemon (publisher.py)
-                                       ▼
+│   ┌────────────────────────┐                   ┌────────────────────────┐   │
+│   │ React 18 + Vite SPA    │                   │ Mobile & Third-Party   │   │
+│   │ (Tailwind CSS, Pinia)  │                   │ Webhook Callers        │   │
+│   └───────────┬────────────┘                   └───────────┬────────────┘   │
+└───────────────┼────────────────────────────────────────────┼────────────────┘
+                │ HTTP / REST / JSON Headers                 │ HTTP Webhooks
+                ▼                                            ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                      Outbox Publisher Daemon Process                        │
+│                       APPLICATION & GATEWAY LAYER                           │
 │                                                                             │
-│   1. SELECT * FROM outbox_events WHERE status = 'PENDING' LIMIT 100;        │
-│   2. Publish payload to RabbitMQ Exchange ('flash_events');                │
-│   3. UPDATE outbox_events SET status = 'PUBLISHED' WHERE id = ...;          │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │ Flask REST API Container (Gunicorn WSGI / Application Factory)       │   │
+│   │                                                                     │   │
+│   │ • API Gateway Router (`app/api/v1/`)                                │   │
+│   │ • Resilience Guards (`@rate_limit`, `@idempotent`)                  │   │
+│   │ • Security / RBAC (`@jwt_required`, `@roles_required`)              │   │
+│   │ • Central Sync Gateway (`app/services/inventory_sync.py`)           │   │
+│   └───────────────────┬───────────────────────────────┬─────────────────┘   │
+└───────────────────────┼───────────────────────────────┼─────────────────────┘
+                        │ Sub-ms Memory Ops             │ SQL ACID Transactions
+                        ▼                               ▼
+┌───────────────────────────────┐     ┌───────────────────────────────────────┐
+│     IN-MEMORY REDIS LAYER     │     │      PERSISTENT POSTGRESQL STORE      │
+│                               │     │                                       │
+│ • Lua Scripts (`LUA_RESERVE`) │     │ • 24+ ORM Domain Models               │
+│ • Hot Stock & Hold Counters   │     │ • `products`, `orders`, `sub_orders`  │
+│ • ZSET Sliding Rate Limits    │     │ • `outbox_events` Log Table           │
+│ • Idempotency Lock Keys       │     │ • Double-Entry `ledger_entries`       │
+└───────────────────────────────┘     └───────────────────┬───────────────────┘
+                                                          │ Async Outbox Polling
+                                                          ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       ASYNC WORKER & SCHEDULER LAYER                        │
+│                                                                             │
+│   ┌────────────────────────┐                   ┌────────────────────────┐   │
+│   │ Outbox Drain Worker    │                   │ Celery Beat Scheduler  │   │
+│   │ (`publisher.py` /      │                   │ • Daily Escrow Sweep   │   │
+│   │  `shopify_tasks.py`)   │                   │ • Order Expiry Timer   │   │
+│   └───────────┬────────────┘                   └───────────┬────────────┘   │
+└───────────────┼────────────────────────────────────────────┼────────────────┘
+                │ Async HTTPS Push                           │ External Sync
+                ▼                                            ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     EXTERNAL INTEGRATION GATEWAYS                           │
+│                                                                             │
+│   ┌────────────────────────┐                   ┌────────────────────────┐   │
+│   │ Shopify Admin API      │                   │ Payment Gateways       │   │
+│   │ (REST & GraphQL)       │                   │ (Stripe, Paypal, etc) │   │
+│   └────────────────────────┘                   └────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Location**: [`backend/app/services/order_service.py`](file:///d:/Flash%20Sale%20Engine/backend/app/services/order_service.py) and [`backend/app/workers/publisher.py`](file:///d:/Flash%20Sale%20Engine/backend/app/workers/publisher.py)
-- **Automatic Compensation:** If the database transaction fails for any reason during commit, `OrderService` invokes `InventoryService.release_stock()` to immediately restore the held Redis stock back to the available pool.
-
 ---
 
-## 3. Multi-Vendor Financial Escrow Lifecycle
+## 📁 2. Complete Codebase Directory & Module Directory Map
 
-In a multi-merchant marketplace, cart checkouts contain items originating from different independent sellers. The platform enforces strict sub-order partitioning and double-entry escrow tracking:
+### Backend Directory Layout (`backend/app/`)
 
 ```text
-[ Customer Checkout ] ──► Parent Order ($200.00)
-                              │
-                              ├──► SubOrder 1 (Merchant A: $120.00)
-                              │     └── LedgerEntry: ESCROW_HOLD ($108.00, 10% commission deducted)
-                              │         Maturity: NOW() + 7 Days
-                              │
-                              └──► SubOrder 2 (Merchant B: $80.00)
-                                    └── LedgerEntry: ESCROW_HOLD ($72.00, 10% commission deducted)
-                                        Maturity: NOW() + 7 Days
+backend/app/
+├── api/                             # REST API Controller Endpoints
+│   ├── decorators/                  # Cross-cutting API Decorators
+│   │   ├── authorization.py         # Role-Based Access Control (@roles_required)
+│   │   ├── idempotent.py            # Redis Header-Based Idempotency Guard (@idempotent)
+│   │   └── rate_limit.py            # Redis ZSET Sliding-Window Rate Limiter (@rate_limit)
+│   └── v1/                          # Version 1 API Route Blueprints
+│       ├── admin.py                 # Platform Admin Management API
+│       ├── approvals.py             # Vendor Onboarding Approvals API
+│       ├── auth.py                  # JWT Auth (Login, Register, Refresh)
+│       ├── cart.py                  # Customer Shopping Cart API
+│       ├── commerce.py              # Checkout & Order Placement API
+│       ├── orders.py                # Order History & Flash Sale Reserve API
+│       ├── products.py              # Catalog Management & Stock Edit API
+│       ├── shopify_webhooks.py      # Shopify HMAC Webhook Callbacks
+│       ├── support.py               # Customer Support Ticket API
+│       └── vendor.py                # Merchant Portal Dashboard API
+├── core/                            # Engine Infrastructure & Setup
+│   ├── config.py                    # Environment Configuration & App Settings
+│   ├── db_init.py                   # DB Initialization, Seed Data & Indexes
+│   ├── extensions.py                # SQLAlchemy DB & Redis Client Handles
+│   └── security.py                  # Password Hashing & JWT Utilities
+├── customer_support/                # Vector RAG AI Support Module
+│   ├── models/                      # Ticket & Message Models
+│   └── services/                    # Cosine Similarity Vector RAG Engine (`ai_service.py`)
+├── models/                          # 24+ Relational ORM Domain Models
+│   ├── cart.py                      # Cart & CartItem
+│   ├── financials.py                # LedgerEntry (Escrow Double-Entry Accounting)
+│   ├── order.py                     # Order Entity (Parent Order)
+│   ├── order_item.py                # Line Item Snapshot
+│   ├── outbox.py                    # Transactional Outbox Log (`OutboxEvent`)
+│   ├── outlet_inventory.py          # Multi-Branch Physical Inventory
+│   ├── product.py                   # Product Master (Optimistic Lock Version)
+│   ├── product_variant.py           # Variant Stock & SKU Options
+│   ├── seller.py                    # Vendor Profile & Balance Balances
+│   ├── sub_order.py                 # SubOrder (Vendor Order Splits)
+│   └── user.py                      # User Identity Master
+├── services/                        # Core Domain Business Logic Services
+│   ├── escrow_engine.py             # Merchant Escrow Hold & Maturity Release Logic
+│   ├── inventory_service.py         # In-Memory Redis Lua Reservation Engine
+│   ├── inventory_sync.py            # Central Inventory Adjustment Sync Gateway (`adjust_stock`)
+│   ├── order_service.py             # Order Placement & Compensation Handlers
+│   ├── order_splitter.py            # Multi-Vendor Order Splitting Logic
+│   └── payment_service.py           # Payment Gateway Integrations
+└── workers/                         # Asynchronous Celery Worker & Outbox Tasks
+    ├── celery_app.py                # Celery Instance Configuration
+    ├── publisher.py                 # Outbox Event Polling & Publisher Daemon
+    ├── shopify_tasks.py             # Async Shopify Admin API Synchronization
+    └── tasks.py                     # Payment, Escrow Release & Expiry Timer Tasks
 ```
-
-### Escrow State Machine
-1. **Order Payment:** Parent `Order` payment triggers `OrderSplitter` to create seller `SubOrder` records.
-2. **Escrow Hold Entry:** `EscrowEngine.hold_funds()` creates a double-entry `LedgerEntry` (`entry_type='ESCROW_HOLD'`, `status='HELD'`, `available_at = NOW() + 7 days`).
-3. **Maturity Delay Window:** Funds remain locked in `held_escrow_balance` for 7 days to cover potential customer return or dispute requests.
-4. **Celery Beat Periodic Release:** Daily at 02:00 UTC, `release_matured_escrow_task` queries:
-   ```sql
-   SELECT * FROM ledger_entries 
-   WHERE entry_type = 'ESCROW_HOLD' 
-     AND status = 'HELD' 
-     AND available_at <= NOW();
-   ```
-   Matured entries transition to `RELEASED`, transferring the net amount into the merchant's `available_balance`.
-5. **Refund Reversals:** Authorized returns trigger `EscrowEngine.process_refund()`, writing a `REFUND` ledger entry and deducting held funds before release.
 
 ---
 
-## 4. Vector Cosine Similarity RAG Support Engine
+## 📊 3. State Distribution: Hot State vs. Cold State
 
-The customer support module ([`backend/app/customer_support/services/ai_service.py`](file:///d:/Flash%20Sale%20Engine/backend/app/customer_support/services/ai_service.py)) integrates an in-memory Retrieval-Augmented Generation (RAG) vector engine to analyze customer ticket descriptions against platform documentation.
+| Data Domain | Storage Medium | Key / Table Name | Purpose & Lifespan |
+| :--- | :--- | :--- | :--- |
+| **Hot Available Stock** | Redis | `product:<id>:stock` | Sub-ms check & decrement counter ($< 1\text{ ms}$). |
+| **Hot Stock Hold Count** | Redis | `product:<id>:hold` | Temporary reserve count during 10-min payment window. |
+| **Sliding Window Rate Limit** | Redis | `rate_limit:<ip_or_user_id>` | Redis `ZSET` keeping request timestamps over 60 seconds. |
+| **Idempotency Response Cache**| Redis | `idempotency:<key>` | Redis `String` with 120s TTL preventing duplicate POST execution. |
+| **Cold Catalog Data** | PostgreSQL | `products`, `product_variants` | Persistent master catalog record, optimistic versioning (`version`). |
+| **Order & Line Items** | PostgreSQL | `orders`, `sub_orders`, `order_items` | Permanent financial records and transaction logs. |
+| **Sync Events Log** | PostgreSQL | `outbox_events` | Outbox pattern events waiting for external queue drain (`PENDING`/`PUBLISHED`). |
+| **Merchant Balances** | PostgreSQL | `ledger_entries`, `sellers` | Immutable double-entry financial escrow ledger (`HELD`/`RELEASED`). |
 
-### 4.1 Vector Cosine Similarity Formula
-The engine constructs term-frequency vector embeddings for the customer query $Q$ and candidate document vector $D$:
+---
 
-$$\text{Similarity}(Q, D) = \frac{Q \cdot D}{\|Q\| \|D\|} = \frac{\sum_{i=1}^{n} Q_i D_i}{\sqrt{\sum_{i=1}^{n} Q_i^2} \sqrt{\sum_{i=1}^{n} D_i^2}}$$
+## 🔒 4. Security & Access Control Topology
 
-### 4.2 Automated Response Thresholds & Workflow
-- **Confidence Threshold ($\ge 0.85$):** If similarity score $\ge 0.85$ on general policy queries, `process_new_ticket_task` automatically dispatches `SYSTEM_AI_BOT` response, attaching policy citations and updating ticket status to `WAITING_CUSTOMER`.
-- **Product Defect Auto-Routing:** Tickets containing defect or damage keywords are categorized at `HIGH` priority and routed directly to the specific seller's `vendor_id` queue.
-- **Purchaser-Only Gating:** `TicketService.create_ticket()` verifies `Order.filter_by(user_id=customer_id)` prior to ticket creation, blocking non-purchasing users (`HTTP 403 Forbidden`).
+The system implements multi-layered security controls across API endpoints:
+
+1. **Authentication:** Bearer JWT Access Tokens issued by [`backend/app/api/v1/auth.py`](file:///d:/Flash%20Sale%20Engine/backend/app/api/v1/auth.py).
+2. **Role-Based Access Control (RBAC):** Endpoint gating via `@roles_required`:
+   * `CUSTOMER`: Place orders, manage cart, create support tickets.
+   * `VENDOR`: View merchant sub-orders, edit owned product catalog, request escrow payouts.
+   * `ADMIN`: Manage user roles, approve merchant onboarding applications, review dispute tickets.
+   * `SUPER_ADMIN`: Full system permissions and platform config access.
+3. **Webhook HMAC Validation:** Shopify webhooks inspect `X-Shopify-Hmac-SHA256` headers using SHA-256 HMAC digest verification against `SHOPIFY_WEBHOOK_SECRET`.

@@ -187,4 +187,54 @@ def test_outbound_product_sync_service(app, test_product):
             assert reloaded_prod.shopify_variant_id == "555"
             assert reloaded_prod.shopify_inventory_item_id == "999111"
             assert reloaded_prod.sync_status == "SYNCED"
+            assert reloaded_prod.is_listed_on_shopify is True
             assert reloaded_prod.last_synced_at is not None
+
+
+def test_website_purchase_triggers_shopify_inventory_sync(app, test_product):
+    """Test that buying an item on the website automatically updates Shopify inventory levels."""
+    from app.services.inventory_sync import adjust_stock
+    from app.models.outbox import OutboxEvent, OutboxStatus
+
+    with app.app_context():
+        # Clear pre-existing outbox events to isolate test assertions
+        db.session.query(OutboxEvent).filter_by(status=OutboxStatus.PENDING).delete()
+        db.session.commit()
+
+        product = db.session.get(Product, test_product.id) or test_product
+        initial_stock = product.available_stock
+        product.shopify_product_id = "gid://shopify/Product/8427812781"
+        product.shopify_inventory_item_id = "999111"
+        product.shopify_location_id = "80021225539"
+        product.is_listed_on_shopify = True
+        db.session.commit()
+        db.session.expire_all()
+
+        mock_set_inventory = MagicMock(return_value={"inventory_level": {"available": initial_stock - 2}})
+
+        with patch.object(ShopifyClient, "set_inventory_level", mock_set_inventory):
+            new_qty = adjust_stock(
+                product_id=product.id,
+                delta=-2,
+                reason="WEB_ORDER_PLACED",
+                source="WEB",
+                reference_id="test_ord_101",
+            )
+
+            assert new_qty == initial_stock - 2
+            mock_set_inventory.assert_called_once_with(
+                inventory_item_id="999111",
+                location_id="80021225539",
+                available_qty=initial_stock - 2,
+            )
+
+            # Verify outbox event was created and marked PUBLISHED
+            outbox_event = (
+                db.session.query(OutboxEvent)
+                .filter_by(aggregate_id=product.id, event_type="INVENTORY_ADJUSTED")
+                .order_by(OutboxEvent.created_at.desc())
+                .first()
+            )
+            assert outbox_event is not None
+            assert outbox_event.status == OutboxStatus.PUBLISHED
+

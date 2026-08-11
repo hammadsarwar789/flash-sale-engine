@@ -101,21 +101,25 @@ def retry_failed_shopify_syncs_task(self):
 MAX_ATTEMPTS = 5
 
 
-@shared_task(bind=True, max_retries=MAX_ATTEMPTS, default_retry_delay=30)
-def process_outbox_events(self, batch_size: int = 25):
+def drain_outbox_events(batch_size: int = 25):
     """Pulls PENDING outbox events (oldest first) and applies each to Shopify."""
     from datetime import datetime, timezone
     from app.models.outbox import OutboxEvent, OutboxStatus
     from app.integrations.shopify.client import ShopifyClient
 
-    events = (
+    query = (
         db.session.query(OutboxEvent)
         .filter(OutboxEvent.status == OutboxStatus.PENDING)
         .order_by(OutboxEvent.created_at.asc())
         .limit(batch_size)
-        .with_for_update(skip_locked=True)
-        .all()
     )
+    try:
+        bind = db.session.get_bind()
+        if bind and bind.dialect.name != "sqlite":
+            query = query.with_for_update(skip_locked=True)
+    except Exception:
+        pass
+    events = query.all()
 
     if not events:
         return {"processed": 0}
@@ -158,6 +162,12 @@ def process_outbox_events(self, batch_size: int = 25):
     return {"processed": processed_count}
 
 
+@shared_task(bind=True, max_retries=MAX_ATTEMPTS, default_retry_delay=30)
+def process_outbox_events(self, batch_size: int = 25):
+    """Async background worker task to drain PENDING outbox events."""
+    return drain_outbox_events(batch_size=batch_size)
+
+
 def _apply_inventory_event(client, event):
     payload = event.payload or {}
     inventory_item_id = payload.get("shopify_inventory_item_id")
@@ -176,6 +186,12 @@ def _apply_inventory_event(client, event):
         product_id = payload.get("product_id") or event.aggregate_id
         product = db.session.get(Product, product_id)
         if product:
+            if not product.shopify_inventory_item_id:
+                try:
+                    ShopifySyncService.sync_product(product.id)
+                    db.session.refresh(product)
+                except Exception as sync_err:
+                    logger.warning(f"On-demand product sync failed during inventory update for product {product.id}: {sync_err}")
             inventory_item_id = product.shopify_inventory_item_id
             location_id = location_id or product.shopify_location_id
 

@@ -81,7 +81,7 @@ Open the `.env` file inside the `backend/` folder (or ask your host administrato
 # -----------------------------------------------------------------
 SHOPIFY_SHOP_DOMAIN=flash-sale-21466.myshopify.com
 SHOPIFY_ACCESS_TOKEN=shpat_your_token_copied_from_step_1_5
-SHOPIFY_API_VERSION=2026-07
+SHOPIFY_API_VERSION=2024-01
 SHOPIFY_LOCATION_ID=80021225539
 SHOPIFY_WEBHOOK_SECRET=shpss_your_webhook_secret
 ```
@@ -109,7 +109,7 @@ Webhooks tell Flash Sale Engine instantly whenever someone buys or refunds an it
 - **Event:** `Order creation`
 - **Format:** `JSON`
 - **URL:** `https://your-domain.com/api/v1/webhooks/shopify/orders/create`
-- **Webhook API version:** `2026-07`
+- **Webhook API version:** `2024-01`
 - Click **Save**.
 
 ### Step 3.3: Create the Refund Webhook

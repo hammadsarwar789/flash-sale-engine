@@ -106,7 +106,15 @@ def adjust_stock(
     should_push_to_shopify = (
         source not in _SHOPIFY_ORIGIN_SOURCES
         and product is not None
-        and product.is_listed_on_shopify
+        and (
+            product.is_listed_on_shopify
+            or bool(product.shopify_inventory_item_id or product.shopify_product_id)
+        )
+    )
+    logger.info(
+        f"InventorySync: should_push={should_push_to_shopify}, "
+        f"source={source}, listed={product.is_listed_on_shopify if product else None}, "
+        f"sh_inv={product.shopify_inventory_item_id if product else None}"
     )
 
     if should_push_to_shopify:
@@ -156,15 +164,12 @@ def adjust_stock(
     except Exception as redis_err:
         logger.warning(f"Redis stock mirror failed for key {target_id}: {redis_err}")
 
-    # Kick outbox drain task (with synchronous fallback if Celery worker is offline)
+    # Kick outbox drain task immediately to synchronize Shopify inventory
     if should_push_to_shopify:
         try:
-            from app.workers.shopify_tasks import process_outbox_events
-            try:
-                process_outbox_events.delay()
-            except Exception:
-                process_outbox_events()
+            from app.workers.shopify_tasks import drain_outbox_events
+            drain_outbox_events()
         except Exception as task_err:
-            logger.warning(f"Immediate outbox drain failed: {task_err}")
+            logger.exception(f"Immediate outbox drain failed: {task_err}")
 
     return new_qty

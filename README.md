@@ -51,7 +51,7 @@ The Flash Sale Engine decouples high-frequency inventory reservations from relat
 ## ⚡ High-Concurrency Capabilities
 
 1. **Sub-Millisecond Inventory Reservations (Redis Lua Scripting):** Single-threaded Lua execution guarantees atomic check-and-decrement stock holds (`product:{id}:stock` $\rightarrow$ `product:{id}:hold`), preventing overselling under heavy load.
-2. **Transactional Outbox Pattern:** Ensures dual-write consistency by writing `Order` domain entities and `OutboxEvent` records in a single database transaction. A background polling daemon (`publisher.py`) pushes events to RabbitMQ reliably.
+2. **Transactional Outbox Pattern:** Ensures dual-write consistency by writing `Order` domain entities and `OutboxEvent` records in a single database transaction. A background polling daemon (`publisher.py` / `shopify_tasks.py`) pushes events to RabbitMQ/Shopify reliably.
 3. **Distributed Idempotency Layer:** Decorates checkout routes (`@idempotent`) using Redis locks (`idempotency:<key>`) to eliminate duplicate order submissions during network retries.
 4. **Sliding-Window Rate Limiter:** Protects endpoints (`@rate_limit`) using Redis Sorted Sets (`ZSET`) to enforce sliding-window request quotas (`10,000 req / 60s`).
 
@@ -98,15 +98,20 @@ sequenceDiagram
 
 ---
 
-## 📚 Technical Documentation Suite (`/docs`)
+## 📚 Complete Technical Documentation Suite (`/docs`)
 
-Comprehensive engineering documentation is available in the `/docs` directory:
+Comprehensive engineering documentation is maintained in the [`docs/`](docs/) directory:
 
-- 🏛️ **[System Architecture & Design Trade-offs](docs/ARCHITECTURE.md)**: Deep dive into distributed engineering decisions, TOC-TOU solutions, Transactional Outbox pattern, double-entry escrow, and Vector Cosine RAG formulas.
-- 🔌 **[Complete REST API Reference](docs/API.md)**: JWT authentication, RBAC permission codes, Marshmallow JSON schemas, and courier webhook specifications.
-- 🗄️ **[Database Schemas & Indexing](docs/DATABASE.md)**: Detailed ORM entity mapping (24+ models), DB check constraints, optimistic version locking, composite index strategies, and `message_count` counter-cache denormalization.
-- ⚙️ **[Concurrency Locks & Worker Topology](docs/CONCURRENCY_AND_WORKERS.md)**: Redis Lua scripts breakdown (`LUA_RESERVE_STOCK`, `LUA_RELEASE_STOCK`), Celery background worker tasks, sliding-window rate limiting, and `@idempotent` mechanics.
-- 📖 **[Master Manual](DOCUMENTATION.md)**: Combined single-file platform documentation manual.
+- 🧠 **[Architecture Decisions & Engineering Rationale (`docs/Decision.md`)](docs/Decision.md)**: Deep dive into the "WHY" behind Redis Lua in-memory atomic reservations, Transactional Outbox pattern, centralized `adjust_stock()` sync gateway, 7-day double-entry escrow lifecycle, counter-cache denormalization, sliding-window rate limiting, and vector AI support.
+- 🔀 **[System Execution Flow & Code Tracing (`docs/flow.md`)](docs/flow.md)**: Legible, step-by-step code execution flow traces showing exact movement between files, endpoints, functions, Redis commands, SQL transactions, Celery workers, and webhooks.
+- 🐛 **[Cold-Start Bug Diagnostic & Troubleshooting Guide (`docs/bug.md`)](docs/bug.md)**: Start-to-finish runbook for diagnosing, isolating, reproducing, and resolving bugs with empirical inspection checklists.
+- 🚀 **[End-to-End Feature Integration Guide (`docs/feature.md`)](docs/feature.md)**: 6-phase feature engineering blueprints for adding inventory triggers (POS/TikTok Shop), Celery tasks, and secured REST API endpoints.
+- 🏛️ **[System Architecture Map & Component Topology (`docs/Architecture.md`)](docs/Architecture.md)**: Complete multi-tier architecture diagram, module directory map, hot state vs. cold state table, and security topology.
+- ⛔ **[System Constraints & Non-Negotiable Invariants (`docs/constraints.md`)](docs/constraints.md)**: Non-negotiable architectural boundaries, stock mutation gate, outbox dual-write gate, escrow ledger rules, and AI safety rules.
+- 🔌 **[Complete REST API Reference (`docs/API.md`)](docs/API.md)**: JWT authentication, RBAC permission codes, Marshmallow JSON schemas, and courier webhook specifications.
+- ⚙️ **[Concurrency Locks & Worker Topology (`docs/CONCURRENCY_AND_WORKERS.md`)](docs/CONCURRENCY_AND_WORKERS.md)**: Redis Lua scripts breakdown (`LUA_RESERVE_STOCK`, `LUA_RELEASE_STOCK`), Celery background worker tasks, sliding-window rate limiting, and `@idempotent` mechanics.
+- 🗄️ **[Database Schemas & Indexing (`docs/DATABASE.md`)](docs/DATABASE.md)**: Detailed ORM entity mapping (24+ models), DB check constraints, optimistic version locking, composite index strategies, and `message_count` counter-cache denormalization.
+- 🛍️ **[Shopify Integration Guide (`docs/SHOPIFY_INTEGRATION_GUIDE.md`)](docs/SHOPIFY_INTEGRATION_GUIDE.md)**: Operational guide for linking Shopify stores, access tokens, webhooks, and automatic stock sync.
 
 ---
 
@@ -157,11 +162,11 @@ npm run dev
 
 ### 🧪 Run Automated Verification Tests
 ```powershell
-# Run Backend Pytest Suite (41/41 Passing)
+# Run Backend Pytest Suite
 cd backend
 .venv\Scripts\python.exe -m pytest tests/
 
-# Run Frontend TypeScript Compilation Check (0 Errors)
+# Run Frontend TypeScript Compilation Check
 cd frontend
 cmd /c npx tsc --noEmit
 ```

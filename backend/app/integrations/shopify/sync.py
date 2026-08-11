@@ -38,6 +38,7 @@ class ShopifySyncService:
             shopify_id = str(resp.get("id", ""))
             product.shopify_product_id = f"gid://shopify/Product/{shopify_id}" if shopify_id else product.shopify_product_id
             product.sync_status = "SYNCED"
+            product.is_listed_on_shopify = True
             product.last_synced_at = datetime.now(timezone.utc)
             product.last_sync_error = None
 

@@ -520,6 +520,35 @@ def delete_product_from_shopify(product_id):
     return jsonify({"message": "Product deleted from Shopify successfully", "product": product.to_dict()}), 200
 
 
+@products_bp.route("/shopify/sync-all", methods=["POST"])
+@jwt_required
+def sync_all_products_to_shopify():
+    """Bulk synchronize all active Shopify-linked products & stock levels to Shopify Admin API."""
+    from app.integrations.shopify.sync import ShopifySyncService
+    products = db.session.query(Product).filter(
+        (Product.is_listed_on_shopify == True) | (Product.shopify_product_id.isnot(None))
+    ).all()
+
+    synced_count = 0
+    errors = []
+    for prod in products:
+        try:
+            ShopifySyncService.sync_product(prod.id)
+            if prod.shopify_inventory_item_id:
+                ShopifySyncService.sync_inventory(prod.id, prod.available_stock)
+            synced_count += 1
+        except Exception as err:
+            errors.append({"product_id": prod.id, "error": str(err)})
+
+    return jsonify({
+        "message": f"Successfully synchronized {synced_count} products to Shopify",
+        "total_products": len(products),
+        "synced_count": synced_count,
+        "errors": errors,
+    }), 200
+
+
+
 # --- Variant Endpoints ---
 
 @products_bp.route("/<string:product_id>/variants", methods=["GET"])
