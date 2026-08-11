@@ -103,7 +103,9 @@ Traces how inventory changes in Shopify update Flash Sale Engine, and vice versa
        │      │   `INSERT INTO outbox_events (aggregate_type='PRODUCT', event_type='INVENTORY_ADJUSTED', payload={...})`
        │      ├─► Commit SQL
        │      ├─► Mirror to Redis: `redis_client.set("product:p99:stock", new_qty)`
-       │      └─► Immediate Outbox Kick: [app/workers/shopify_tasks.py:drain_outbox_events()]
+       │      └─► Immediate Outbox Kick + Background Poller Fallback:
+       │          ├─► Immediate: [app/workers/shopify_tasks.py:drain_outbox_events()]
+       │          └─► Poller Thread (every 30s): [app/workers/shopify_tasks.py:_outbox_poller_loop()]
        │
        ▼
 [ app/workers/shopify_tasks.py:drain_outbox_events() ]
@@ -120,7 +122,7 @@ Traces how inventory changes in Shopify update Flash Sale Engine, and vice versa
 1. **Shopify Webhook Gateway:** [`handle_shopify_order_webhook()`](file:///d:/Flash%20Sale%20Engine/backend/app/api/v1/shopify_webhooks.py#L30-L85) in `app/api/v1/shopify_webhooks.py`
 2. **Central Sync Gateway:** [`adjust_stock()`](file:///d:/Flash%20Sale%20Engine/backend/app/services/inventory_sync.py#L36-L175) in `app/services/inventory_sync.py`
 3. **Outbox Model:** [`OutboxEvent`](file:///d:/Flash%20Sale%20Engine/backend/app/models/outbox.py#L12-L40) in `app/models/outbox.py`
-4. **Outbox Worker Task:** [`drain_outbox_events()`](file:///d:/Flash%20Sale%20Engine/backend/app/workers/shopify_tasks.py#L25-L95) in `app/workers/shopify_tasks.py`
+4. **Outbox Worker Task & Poller:** [`drain_outbox_events()`](file:///d:/Flash%20Sale%20Engine/backend/app/workers/shopify_tasks.py#L104-L163) and [`start_outbox_poller()`](file:///d:/Flash%20Sale%20Engine/backend/app/workers/shopify_tasks.py#L36-L45) in `app/workers/shopify_tasks.py`
 
 ---
 

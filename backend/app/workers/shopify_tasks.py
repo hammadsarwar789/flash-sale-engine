@@ -1,5 +1,6 @@
 import time
 import logging
+import threading
 from celery import shared_task
 from app.core.extensions import db
 from app.models.product import Product
@@ -8,6 +9,42 @@ from app.integrations.shopify.sync import ShopifySyncService
 from app.integrations.shopify.exceptions import ShopifyRateLimitError, ShopifyApiError
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Background Outbox Poller — ensures PENDING outbox events (especially
+# INVENTORY_ADJUSTED) are drained to Shopify even when the immediate
+# synchronous call inside adjust_stock() fails silently.
+# ---------------------------------------------------------------------------
+_poller_started = False
+_poller_lock = threading.Lock()
+_POLL_INTERVAL_SECONDS = 30
+
+
+def _outbox_poller_loop(app):
+    """Daemon thread that periodically drains pending outbox events."""
+    logger.info("OutboxPoller: background thread started (interval=%ds)", _POLL_INTERVAL_SECONDS)
+    while True:
+        try:
+            time.sleep(_POLL_INTERVAL_SECONDS)
+            with app.app_context():
+                result = drain_outbox_events(batch_size=25)
+                processed = result.get("processed", 0)
+                if processed > 0:
+                    logger.info("OutboxPoller: drained %d pending outbox events to Shopify.", processed)
+        except Exception:
+            logger.exception("OutboxPoller: error during outbox drain cycle")
+
+
+def start_outbox_poller(app):
+    """Start the background outbox poller thread (idempotent — safe to call multiple times)."""
+    global _poller_started
+    with _poller_lock:
+        if _poller_started:
+            return
+        _poller_started = True
+    t = threading.Thread(target=_outbox_poller_loop, args=(app,), daemon=True)
+    t.start()
+    logger.info("OutboxPoller: registered background drain thread.")
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=10)

@@ -75,14 +75,39 @@ def schedule_order_expiry_task(self, order_id: str):
 
         if order.items:
             for item in order.items:
-                product = db.session.query(Product).filter_by(id=item.product_id).first()
-                if product:
-                    product.available_stock += item.quantity
+                try:
+                    from app.services.inventory_sync import adjust_stock
+                    if item.variant_id:
+                        adjust_stock(
+                            variant_id=item.variant_id,
+                            delta=+item.quantity,
+                            reason="WEB_ORDER_EXPIRED",
+                            source="WEB",
+                            reference_id=order.id,
+                        )
+                    else:
+                        adjust_stock(
+                            product_id=item.product_id,
+                            delta=+item.quantity,
+                            reason="WEB_ORDER_EXPIRED",
+                            source="WEB",
+                            reference_id=order.id,
+                        )
+                except Exception as stock_err:
+                    logger.warning(f"Failed to adjust stock for expired order item {item.id}: {stock_err}")
                 release_items.append((item.product_id, item.quantity))
         elif order.product_id and order.quantity:
-            product = db.session.query(Product).filter_by(id=order.product_id).first()
-            if product:
-                product.available_stock += order.quantity
+            try:
+                from app.services.inventory_sync import adjust_stock
+                adjust_stock(
+                    product_id=order.product_id,
+                    delta=+order.quantity,
+                    reason="WEB_ORDER_EXPIRED",
+                    source="WEB",
+                    reference_id=order.id,
+                )
+            except Exception as stock_err:
+                logger.warning(f"Failed to adjust stock for expired order {order.id}: {stock_err}")
             release_items.append((order.product_id, order.quantity))
 
         db.session.commit()

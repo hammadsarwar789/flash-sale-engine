@@ -713,29 +713,53 @@ class OrderService:
 
             # Restore stock for unfulfilled / pre-shipped orders
             if previous_status in [OrderStatus.PENDING, OrderStatus.PAID]:
+                from app.services.inventory_sync import adjust_stock
                 if order.items:
                     for item in order.items:
-                        if item.variant_id:
-                            from app.models.product_variant import ProductVariant
-                            variant = db.session.query(ProductVariant).filter_by(id=item.variant_id).first()
-                            if variant:
-                                variant.available_stock += item.quantity
+                        try:
+                            if item.variant_id:
+                                adjust_stock(
+                                    variant_id=item.variant_id,
+                                    delta=+item.quantity,
+                                    reason="WEB_ORDER_REFUNDED",
+                                    source="WEB",
+                                    reference_id=order.id,
+                                )
                                 if previous_status == OrderStatus.PAID:
-                                    variant.total_stock += item.quantity
-                            release_items.append((item.product_id, item.variant_id, item.quantity))
-                        else:
-                            product = db.session.query(Product).filter_by(id=item.product_id).first()
-                            if product:
-                                product.available_stock += item.quantity
+                                    from app.models.product_variant import ProductVariant
+                                    variant = db.session.query(ProductVariant).filter_by(id=item.variant_id).first()
+                                    if variant:
+                                        variant.total_stock += item.quantity
+                            else:
+                                adjust_stock(
+                                    product_id=item.product_id,
+                                    delta=+item.quantity,
+                                    reason="WEB_ORDER_REFUNDED",
+                                    source="WEB",
+                                    reference_id=order.id,
+                                )
                                 if previous_status == OrderStatus.PAID:
-                                    product.total_stock += item.quantity
-                            release_items.append((item.product_id, None, item.quantity))
+                                    product = db.session.query(Product).filter_by(id=item.product_id).first()
+                                    if product:
+                                        product.total_stock += item.quantity
+                        except Exception as stock_err:
+                            logger.warning(f"Failed to adjust stock for refunded order item {item.id}: {stock_err}")
+                        release_items.append((item.product_id, item.variant_id, item.quantity))
                 elif order.product_id and order.quantity:
-                    product = db.session.query(Product).filter_by(id=order.product_id).first()
-                    if product:
-                        product.available_stock += order.quantity
+                    try:
+                        adjust_stock(
+                            product_id=order.product_id,
+                            delta=+order.quantity,
+                            reason="WEB_ORDER_REFUNDED",
+                            source="WEB",
+                            reference_id=order.id,
+                        )
                         if previous_status == OrderStatus.PAID:
-                            product.total_stock += order.quantity
+                            product = db.session.query(Product).filter_by(id=order.product_id).first()
+                            if product:
+                                product.total_stock += order.quantity
+                    except Exception as stock_err:
+                        logger.warning(f"Failed to adjust stock for refunded order {order.id}: {stock_err}")
                     release_items.append((order.product_id, None, order.quantity))
 
             # Reverse related SubOrders and write REFUND ledger entries

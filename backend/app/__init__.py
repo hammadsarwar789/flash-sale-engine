@@ -68,6 +68,17 @@ def create_app(config_name: str = None) -> Flask:
     with app.app_context():
         sync_database_schema()
 
+    # Start background outbox poller to drain Shopify inventory sync events
+    # Guard against Flask reloader double-start: only the reloaded child process
+    # (WERKZEUG_RUN_MAIN == 'true') or non-debug mode should start the poller.
+    if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        try:
+            from app.workers.shopify_tasks import start_outbox_poller
+            start_outbox_poller(app)
+        except Exception as poller_err:
+            import logging
+            logging.getLogger(__name__).warning(f"Could not start outbox poller: {poller_err}")
+
     # Register API Blueprints via Flask-Smorest
     smorest_api.register_blueprint(auth_bp)
     smorest_api.register_blueprint(products_bp)

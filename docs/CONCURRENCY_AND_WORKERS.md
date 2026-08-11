@@ -92,7 +92,7 @@ Async tasks are defined in [`backend/app/workers/tasks.py`](file:///d:/Flash%20S
 ### 2.2 10-Minute Order Expiration Timer (`schedule_order_expiry_task`)
 * **Signature:** `schedule_order_expiry_task(order_id: str)`
 * **Countdown Delay:** Scheduled with `eta = Date.now() + 10 minutes`.
-* **Execution:** Checks `Order.status`. If status is still `PENDING` (unpaid), transitions status to `EXPIRED` and invokes `InventoryService.release_stock()` to restore Redis and PostgreSQL stock.
+* **Execution:** Checks `Order.status`. If status is still `PENDING` (unpaid), transitions status to `EXPIRED` and invokes `adjust_stock()` (`reason="WEB_ORDER_EXPIRED"`, `source="WEB"`) to restore Redis and PostgreSQL stock, automatically enqueueing Shopify outbox events.
 
 ### 2.3 Automated Daily Escrow Release (`release_matured_escrow_task`)
 * **Schedule:** Celery Beat Cron: `0 2 * * *` (Daily at 02:00 UTC).
@@ -101,6 +101,11 @@ Async tasks are defined in [`backend/app/workers/tasks.py`](file:///d:/Flash%20S
 ### 2.4 Support AI RAG Auto-Responder (`process_new_ticket_task`)
 * **Signature:** `process_new_ticket_task(ticket_id: str)`
 * **Execution:** Executes `AIService.generate_rag_suggested_reply()`. If confidence $\ge 0.85$ on general policy questions, dispatches automated `SYSTEM_AI_BOT` response and updates ticket status to `WAITING_CUSTOMER`. Defect tickets are automatically routed to the vendor's queue at `HIGH` priority.
+
+### 2.5 Resilient Background Outbox Poller (`start_outbox_poller`)
+* **Location:** [`backend/app/workers/shopify_tasks.py`](file:///d:/Flash%20Sale%20Engine/backend/app/workers/shopify_tasks.py)
+* **Mechanics:** Daemon thread initialized at application startup (`__init__.py`). Runs every 30 seconds (`_POLL_INTERVAL_SECONDS = 30`), fetching `PENDING` `OutboxEvent` items and executing `drain_outbox_events()`.
+* **Guarantees:** Ensures that even if immediate synchronous outbox processing encounters transient network error or API rate-limiting during `adjust_stock()`, inventory adjustments (from sales, cancellations, refunds, or restocks) are reliably pushed to the Shopify Admin API without manual intervention or standalone worker processes.
 
 ---
 

@@ -47,7 +47,7 @@ When an order is completed or stock changes locally, external systems (Shopify A
   * *Implementation:* [`backend/app/models/outbox.py`](file:///d:/Flash%20Sale%20Engine/backend/app/models/outbox.py), [`backend/app/services/inventory_sync.py`](file:///d:/Flash%20Sale%20Engine/backend/app/services/inventory_sync.py)
   * By writing an `OutboxEvent` record to PostgreSQL *inside the exact same SQL transaction* as the `Order` or `Product` update, domain state changes and pending notifications either both commit or both roll back together.
 * **Asynchronous Resilient Polling Daemon (`publisher.py` / `shopify_tasks.py`):**
-  * Independent worker processes poll or drain pending `OutboxEvent` records (`status = PENDING`) asynchronously, handling retries, exponential backoff, and rate limits without slowing down the HTTP user checkout path.
+  * `adjust_stock()` immediately triggers synchronous outbox drainage. In addition, an in-process daemon thread (`start_outbox_poller`) continuously polls pending `OutboxEvent` records (`status = PENDING`) every 30 seconds asynchronously, handling retries, exponential backoff, and network recovery automatically.
 
 ---
 
