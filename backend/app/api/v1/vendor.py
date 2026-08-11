@@ -168,6 +168,14 @@ def get_vendor_finance():
     """Retrieve financial ledger telemetry, escrow held balances, and payout request history."""
     from sqlalchemy import func
     from app.models.financials import LedgerEntry, PayoutRequest
+    from app.services.escrow_engine import release_matured_escrow
+
+    # Auto-release any matured escrow entries whose return window has passed
+    try:
+        release_matured_escrow()
+    except Exception as err:
+        logger.warning(f"On-demand escrow release warning: {err}")
+
     user_id = g.current_user_id
     seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
 
@@ -227,6 +235,14 @@ def request_vendor_payout():
     """Submit a payout withdrawal request for released escrow balance."""
     from sqlalchemy import func
     from app.models.financials import LedgerEntry, PayoutRequest
+    from app.services.escrow_engine import release_matured_escrow
+
+    # Auto-release any matured escrow entries before checking payout balance
+    try:
+        release_matured_escrow()
+    except Exception as err:
+        logger.warning(f"On-demand escrow release warning in payout request: {err}")
+
     user_id = g.current_user_id
     seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
 
