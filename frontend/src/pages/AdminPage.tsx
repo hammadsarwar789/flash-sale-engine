@@ -669,23 +669,23 @@ export const AdminPage: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <div className="h-[96px] border border-rule p-3 bg-paper flex flex-col justify-between">
                 <Eyebrow className="text-ash block">REVENUE 24H</Eyebrow>
-                <Numeric value={stats?.revenue_24h ?? 0} format="price" zeroPadInt={3} className="text-lg font-medium text-ink" />
+                <Numeric value={stats?.revenue_24h ?? 0} format="price" className="text-lg font-medium text-ink" />
               </div>
               <div className="h-[96px] border border-rule p-3 bg-paper flex flex-col justify-between">
                 <Eyebrow className="text-ash block">ORDERS 24H</Eyebrow>
-                <Numeric value={stats?.orders_24h ?? stats?.total_orders ?? 0} format="integer" zeroPadInt={3} className="text-lg font-medium text-ink" />
+                <Numeric value={stats?.orders_24h ?? stats?.total_orders ?? 0} format="integer" className="text-lg font-medium text-ink" />
               </div>
               <div className="h-[96px] border border-rule p-3 bg-paper flex flex-col justify-between">
                 <Eyebrow className="text-ash block">AOV</Eyebrow>
-                <Numeric value={stats?.aov ?? 0} format="price" zeroPadInt={2} className="text-lg font-medium text-ink" />
+                <Numeric value={stats?.aov ?? 0} format="price" className="text-lg font-medium text-ink" />
               </div>
               <div className="h-[96px] border border-rule p-3 bg-paper flex flex-col justify-between">
                 <Eyebrow className="text-ash block">ACTIVE HOLDS</Eyebrow>
-                <Numeric value={stats?.active_holds ?? stats?.outbox_pending ?? 0} format="integer" zeroPadInt={2} className="text-lg font-medium text-signal font-semibold" />
+                <Numeric value={stats?.active_holds ?? stats?.outbox_pending ?? 0} format="integer" className="text-lg font-medium text-signal font-semibold" />
               </div>
               <div className="h-[96px] border border-rule p-3 bg-paper flex flex-col justify-between">
                 <Eyebrow className="text-ash block">REDIS HITS/S</Eyebrow>
-                <Numeric value={stats?.redis_hits ?? 0} format="integer" zeroPadInt={4} className="text-lg font-medium text-ink" />
+                <Numeric value={stats?.redis_hits ?? 0} format="integer" className="text-lg font-medium text-ink" />
               </div>
               <div className="h-[96px] border border-rule p-3 bg-paper flex flex-col justify-between">
                 <Eyebrow className="text-ash block">OUTBOX LAG</Eyebrow>
