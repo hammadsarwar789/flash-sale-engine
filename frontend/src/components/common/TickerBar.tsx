@@ -4,6 +4,7 @@ import { Product } from '../../types/api';
 
 export const TickerBar: React.FC = () => {
   const [tickerItems, setTickerItems] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -24,7 +25,7 @@ export const TickerBar: React.FC = () => {
               (p.available_stock > 0 && p.available_stock <= 20)
           );
 
-          // 2. If products are on sale, display them; otherwise fallback to trending / top-stock products
+          // 2. Display on-sale products if present; otherwise display top trending/in-stock products
           const selectedProducts =
             onSaleProducts.length > 0
               ? onSaleProducts
@@ -50,16 +51,17 @@ export const TickerBar: React.FC = () => {
             return `🔥 TRENDING: ${name} — ${price}${product.available_stock > 0 ? ` (${product.available_stock} IN STOCK)` : ''}`;
           });
 
-          formattedEvents.push('⚡ FLASH SALE FLOOR LIVE — REAL-TIME INVENTORY HOLD ACTIVE');
           setTickerItems(formattedEvents);
         }
       } catch (err) {
-        // Silently retain current or default items on error
+        // Retain existing items on error
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchProducts();
-    const interval = setInterval(fetchProducts, 60000); // Auto-refresh ticker items every 60 seconds
+    const interval = setInterval(fetchProducts, 60000);
 
     return () => {
       isMounted = false;
@@ -67,14 +69,13 @@ export const TickerBar: React.FC = () => {
     };
   }, []);
 
-  const defaultEvents = [
-    'FLASH SALE FLOOR LIVE — REAL-TIME INVENTORY HOLD ACTIVE',
-    '⚡ INSTANT 1-CLICK CHECKOUT ENABLED',
-    '🚀 REAL-TIME STOCK RESERVATION ACTIVE',
-  ];
+  const displayItems = tickerItems.length > 0
+    ? tickerItems
+    : loading
+      ? ['LOADING LIVE INVENTORY CATALOG...']
+      : ['FLASH SALE ENGINE LIVE — CATALOG READY'];
 
-  const events = tickerItems.length > 0 ? tickerItems : defaultEvents;
-  const fullMarqueeText = events.join('  ·  ') + '  ·  ';
+  const fullMarqueeText = displayItems.join('  ·  ') + '  ·  ';
 
   return (
     <aside 
@@ -87,9 +88,9 @@ export const TickerBar: React.FC = () => {
         <span className="font-semibold text-signal-ink">LIVE</span>
       </div>
 
-      {/* Screen Reader Only Summary */}
+      {/* Screen Reader Summary */}
       <div className="sr-only" aria-live="polite">
-        Flash Sale Engine Live. Active sale drops and trending products in progress.
+        Flash Sale Engine Live Ticker.
       </div>
 
       {/* Scrolling Marquee */}
