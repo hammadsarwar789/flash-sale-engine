@@ -2,7 +2,6 @@ import concurrent.futures
 import pytest
 from app.services.inventory_service import InventoryService
 
-
 def test_concurrency_zero_overselling(app, test_product):
     """
     Simulate 20 concurrent threads trying to reserve stock of 1 item each.
