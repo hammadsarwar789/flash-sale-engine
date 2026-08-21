@@ -80,10 +80,10 @@ export const Footer: React.FC = () => {
           {/* Column 1: Colophon & Build Data */}
           <div className="space-y-4">
             <Wordmark size="md" className="[&_span.text-ink]:text-bone" />
-            <p className="text-ash text-xs leading-relaxed max-w-sm">
+            <p className="text-bone/70 text-xs leading-relaxed max-w-sm">
               High-concurrency inventory reservation engine and live flash sale market. Built for low-latency order placement under extreme load.
             </p>
-            <div className="font-mono text-[11px] text-ash space-x-2 pt-2 flex flex-wrap items-center">
+            <div className="font-mono text-[11px] text-bone/60 space-x-2 pt-2 flex flex-wrap items-center">
               <span>SYSTEM: V1.0-ENGINE</span>
               <span>·</span>
               <span>MODE: {telemetry.mode.toUpperCase()}</span>
@@ -99,7 +99,7 @@ export const Footer: React.FC = () => {
           {/* Column 2: Navigation Columns (Auto-fetched Categories) */}
           <div className="grid grid-cols-2 gap-8 text-xs font-mono">
             <div>
-              <Eyebrow className="text-ash mb-3 block">Catalog</Eyebrow>
+              <Eyebrow className="text-bone/60 mb-3 block">Catalog</Eyebrow>
               <ul className="space-y-2">
                 <li><Link to="/products" className="text-bone/80 hover:text-bone">ALL DROPS</Link></li>
                 {categories.length > 0 ? (
@@ -120,7 +120,7 @@ export const Footer: React.FC = () => {
               </ul>
             </div>
             <div>
-              <Eyebrow className="text-ash mb-3 block">Account & System</Eyebrow>
+              <Eyebrow className="text-bone/60 mb-3 block">Account & System</Eyebrow>
               <ul className="space-y-2">
                 <li><Link to="/orders" className="text-bone/80 hover:text-bone">MY ORDERS</Link></li>
                 <li><Link to="/cart" className="text-bone/80 hover:text-bone">ACTIVE CART</Link></li>
@@ -132,21 +132,21 @@ export const Footer: React.FC = () => {
 
           {/* Column 3: Auto-Fetched Live Telemetry Metrics */}
           <div className="space-y-4">
-            <Eyebrow className="text-ash block">Telemetry Status</Eyebrow>
+            <Eyebrow className="text-bone/60 block">Telemetry Status</Eyebrow>
             <div className="space-y-2.5 font-mono text-xs">
               <div className="flex items-center justify-between border-b border-rule/40 pb-2">
                 <div className="flex items-center space-x-2">
                   <span className={`w-1.5 h-1.5 inline-block ${telemetry.dbStatus === 'UP' ? 'bg-gain' : 'bg-signal animate-pulse'}`} />
                   <span className="text-bone">POSTGRES DB ENGINE</span>
                 </div>
-                <span className="text-ash">{telemetry.dbStatus === 'UP' ? '100% ONLINE' : telemetry.dbStatus}</span>
+                <span className="text-bone/70">{telemetry.dbStatus === 'UP' ? '100% ONLINE' : telemetry.dbStatus}</span>
               </div>
               <div className="flex items-center justify-between border-b border-rule/40 pb-2">
                 <div className="flex items-center space-x-2">
-                  <span className={`w-1.5 h-1.5 inline-block ${telemetry.redisStatus === 'UP' ? 'bg-gain' : 'bg-ash'}`} />
+                  <span className={`w-1.5 h-1.5 inline-block ${telemetry.redisStatus === 'UP' ? 'bg-gain' : 'bg-bone/40'}`} />
                   <span className="text-bone">REDIS LUA LOCKS</span>
                 </div>
-                <span className="text-ash">{telemetry.redisStatus === 'UP' ? 'ACTIVE (RESP2)' : 'FALLBACK (DB)'}</span>
+                <span className="text-bone/70">{telemetry.redisStatus === 'UP' ? 'ACTIVE (RESP2)' : 'FALLBACK (DB)'}</span>
               </div>
               <div className="flex items-center justify-between border-b border-rule/40 pb-2">
                 <div className="flex items-center space-x-2">
@@ -162,7 +162,7 @@ export const Footer: React.FC = () => {
 
         </div>
 
-        <div className="mt-12 pt-8 border-t border-rule/60 flex flex-col sm:flex-row justify-between items-center text-[11px] font-mono text-ash">
+        <div className="mt-12 pt-8 border-t border-rule/60 flex flex-col sm:flex-row justify-between items-center text-[11px] font-mono text-bone/60">
           <span>© 2026 FLASH SALE ENGINE. ALL RIGHTS RESERVED.</span>
           <span className="mt-2 sm:mt-0">HIGH-SCALE CONCURRENCY ENGINE — LOW LATENCY HYPER-DRIVE.</span>
         </div>

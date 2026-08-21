@@ -537,7 +537,7 @@ export const AdminPage: React.FC = () => {
             <button
               onClick={() => setActiveTab('overview')}
               className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
-                activeTab === 'overview' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+                activeTab === 'overview' ? 'bg-bone text-ink border-bone font-semibold' : 'text-bone/75 border-transparent hover:text-bone hover:bg-white/10'
               }`}
             >
               01. TELEMETRY
@@ -548,7 +548,7 @@ export const AdminPage: React.FC = () => {
             <button
               onClick={() => setActiveTab('products')}
               className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
-                activeTab === 'products' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+                activeTab === 'products' ? 'bg-bone text-ink border-bone font-semibold' : 'text-bone/75 border-transparent hover:text-bone hover:bg-white/10'
               }`}
             >
               02. PRODUCTS ({products.length})
@@ -559,7 +559,7 @@ export const AdminPage: React.FC = () => {
             <button
               onClick={() => setActiveTab('orders')}
               className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
-                activeTab === 'orders' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+                activeTab === 'orders' ? 'bg-bone text-ink border-bone font-semibold' : 'text-bone/75 border-transparent hover:text-bone hover:bg-white/10'
               }`}
             >
               03. ORDERS ({orders.length})
@@ -570,7 +570,7 @@ export const AdminPage: React.FC = () => {
             <button
               onClick={() => setActiveTab('coupons')}
               className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
-                activeTab === 'coupons' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+                activeTab === 'coupons' ? 'bg-bone text-ink border-bone font-semibold' : 'text-bone/75 border-transparent hover:text-bone hover:bg-white/10'
               }`}
             >
               04. PROMO COUPONS
@@ -581,7 +581,7 @@ export const AdminPage: React.FC = () => {
             <button
               onClick={() => setActiveTab('users')}
               className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
-                activeTab === 'users' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+                activeTab === 'users' ? 'bg-bone text-ink border-bone font-semibold' : 'text-bone/75 border-transparent hover:text-bone hover:bg-white/10'
               }`}
             >
               05. USER DIRECTORY ({usersList.length})
@@ -592,7 +592,7 @@ export const AdminPage: React.FC = () => {
             <button
               onClick={() => setActiveTab('approvals')}
               className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
-                activeTab === 'approvals' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+                activeTab === 'approvals' ? 'bg-bone text-ink border-bone font-semibold' : 'text-bone/75 border-transparent hover:text-bone hover:bg-white/10'
               }`}
             >
               06. APPROVALS ({approvalsList.length})
@@ -603,7 +603,7 @@ export const AdminPage: React.FC = () => {
             <button
               onClick={() => setActiveTab('roles')}
               className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
-                activeTab === 'roles' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+                activeTab === 'roles' ? 'bg-bone text-ink border-bone font-semibold' : 'text-bone/75 border-transparent hover:text-bone hover:bg-white/10'
               }`}
             >
               07. ROLES & RBAC
@@ -614,7 +614,7 @@ export const AdminPage: React.FC = () => {
             <button
               onClick={() => setActiveTab('outlets')}
               className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
-                activeTab === 'outlets' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+                activeTab === 'outlets' ? 'bg-bone text-ink border-bone font-semibold' : 'text-bone/75 border-transparent hover:text-bone hover:bg-white/10'
               }`}
             >
               08. OUTLET STOCKS
@@ -625,7 +625,7 @@ export const AdminPage: React.FC = () => {
             <button
               onClick={() => setActiveTab('sellers')}
               className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
-                activeTab === 'sellers' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+                activeTab === 'sellers' ? 'bg-bone text-ink border-bone font-semibold' : 'text-bone/75 border-transparent hover:text-bone hover:bg-white/10'
               }`}
             >
               09. MERCHANT DIRECTORY ({sellersList.length})
@@ -636,7 +636,7 @@ export const AdminPage: React.FC = () => {
             <button
               onClick={() => setActiveTab('payouts')}
               className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
-                activeTab === 'payouts' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
+                activeTab === 'payouts' ? 'bg-bone text-ink border-bone font-semibold' : 'text-bone/75 border-transparent hover:text-bone hover:bg-white/10'
               }`}
             >
               10. PAYOUT CLEARINGHOUSE ({payoutsList.length})
@@ -644,7 +644,7 @@ export const AdminPage: React.FC = () => {
           )}
         </nav>
 
-        <div className="hidden md:block pt-8 border-t border-rule/40 font-mono text-[11px] text-ash space-y-1">
+        <div className="hidden md:block pt-8 border-t border-rule/40 font-mono text-[11px] text-bone/60 space-y-1">
           <p>REDIS LUA: ACTIVE</p>
           <p>OUTBOX STREAM: ONLINE</p>
         </div>
