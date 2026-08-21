@@ -162,7 +162,7 @@ export const SupportPortalPage: React.FC = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center space-x-2 bg-paper-sunk border border-rule p-1">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2 bg-paper-sunk border border-rule p-1">
           {isStaff && (
             <button
               onClick={() => setActiveTab('dashboard')}

@@ -502,41 +502,41 @@ export const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 w-full">
       {/* Top Session Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border border-rule bg-paper font-mono text-xs">
-        <div>
-          <span className="text-ash uppercase">ACTIVE OPERATOR SESSION: </span>
-          <span className="text-ink font-semibold">{user?.email || 'GUEST'}</span>
-          <span className="ml-2 px-2 py-0.5 border border-rule bg-paper-sunk text-signal font-bold uppercase">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 border border-rule bg-paper font-mono text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <span className="text-ash uppercase">OPERATOR: </span>
+          <span className="text-ink font-semibold break-all">{user?.email || 'GUEST'}</span>
+          <span className="px-2 py-0.5 border border-rule bg-paper-sunk text-signal font-bold uppercase text-[10px] sm:text-xs">
             ROLE: {role}
           </span>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 w-full sm:w-auto">
           <button
             onClick={() => loadAdminData()}
             disabled={isLoading}
-            className="px-4 py-1.5 bg-ink text-bone hover:bg-graphite transition-colors uppercase font-mono text-xs"
+            className="w-full sm:w-auto px-4 py-1.5 bg-ink text-bone hover:bg-graphite transition-colors uppercase font-mono text-xs text-center"
           >
             {isLoading ? 'SYNCING DATA...' : '↻ SYNC TELEMETRY'}
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row min-h-[720px] border border-rule bg-paper">
+      <div className="flex flex-col md:flex-row min-h-[720px] border border-rule bg-paper min-w-0 w-full overflow-hidden">
       
-      {/* 240px Left Rail */}
-      <aside className="w-full md:w-[240px] bg-ink text-bone border-r border-rule p-4 space-y-6 flex-shrink-0">
+      {/* Responsive Left Rail (Horizontal scroll on mobile, vertical sidebar on desktop) */}
+      <aside className="w-full md:w-[240px] bg-ink text-bone border-b md:border-b-0 md:border-r border-rule p-4 space-y-4 md:space-y-6 flex-shrink-0">
         <div className="space-y-1">
           <Eyebrow className="text-signal block font-mono">ADMIN CONTROL</Eyebrow>
-          <h2 className="font-serif text-2xl text-bone">Floor Rail</h2>
+          <h2 className="font-serif text-xl sm:text-2xl text-bone">Floor Rail</h2>
         </div>
 
-        <nav className="space-y-1 font-mono text-xs">
+        <nav className="flex flex-row md:flex-col overflow-x-auto md:overflow-visible space-x-2 md:space-x-0 md:space-y-1 font-mono text-xs pb-2 md:pb-0 scrollbar-none">
           {role === 'admin' && (
             <button
               onClick={() => setActiveTab('overview')}
-              className={`w-full text-left px-3 py-2 border transition-colors ${
+              className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
                 activeTab === 'overview' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
               }`}
             >
@@ -547,7 +547,7 @@ export const AdminPage: React.FC = () => {
           {(role === 'admin' || role === 'manager') && (
             <button
               onClick={() => setActiveTab('products')}
-              className={`w-full text-left px-3 py-2 border transition-colors ${
+              className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
                 activeTab === 'products' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
               }`}
             >
@@ -558,7 +558,7 @@ export const AdminPage: React.FC = () => {
           {(role === 'admin' || role === 'manager') && (
             <button
               onClick={() => setActiveTab('orders')}
-              className={`w-full text-left px-3 py-2 border transition-colors ${
+              className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
                 activeTab === 'orders' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
               }`}
             >
@@ -569,7 +569,7 @@ export const AdminPage: React.FC = () => {
           {role === 'admin' && (
             <button
               onClick={() => setActiveTab('coupons')}
-              className={`w-full text-left px-3 py-2 border transition-colors ${
+              className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
                 activeTab === 'coupons' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
               }`}
             >
@@ -580,7 +580,7 @@ export const AdminPage: React.FC = () => {
           {(role === 'admin' || role === 'manager') && (
             <button
               onClick={() => setActiveTab('users')}
-              className={`w-full text-left px-3 py-2 border transition-colors ${
+              className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
                 activeTab === 'users' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
               }`}
             >
@@ -591,7 +591,7 @@ export const AdminPage: React.FC = () => {
           {(role === 'admin' || role === 'manager') && (
             <button
               onClick={() => setActiveTab('approvals')}
-              className={`w-full text-left px-3 py-2 border transition-colors ${
+              className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
                 activeTab === 'approvals' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
               }`}
             >
@@ -602,7 +602,7 @@ export const AdminPage: React.FC = () => {
           {role === 'admin' && (
             <button
               onClick={() => setActiveTab('roles')}
-              className={`w-full text-left px-3 py-2 border transition-colors ${
+              className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
                 activeTab === 'roles' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
               }`}
             >
@@ -613,7 +613,7 @@ export const AdminPage: React.FC = () => {
           {(role === 'admin' || role === 'manager' || role === 'stock_operator') && (
             <button
               onClick={() => setActiveTab('outlets')}
-              className={`w-full text-left px-3 py-2 border transition-colors ${
+              className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
                 activeTab === 'outlets' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
               }`}
             >
@@ -624,7 +624,7 @@ export const AdminPage: React.FC = () => {
           {role === 'admin' && (
             <button
               onClick={() => setActiveTab('sellers')}
-              className={`w-full text-left px-3 py-2 border transition-colors ${
+              className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
                 activeTab === 'sellers' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
               }`}
             >
@@ -635,7 +635,7 @@ export const AdminPage: React.FC = () => {
           {role === 'admin' && (
             <button
               onClick={() => setActiveTab('payouts')}
-              className={`w-full text-left px-3 py-2 border transition-colors ${
+              className={`whitespace-nowrap w-auto md:w-full text-left px-3 py-2 border transition-colors ${
                 activeTab === 'payouts' ? 'bg-bone text-ink border-bone font-semibold' : 'text-ash border-transparent hover:text-bone hover:bg-graphite/40'
               }`}
             >
@@ -644,14 +644,14 @@ export const AdminPage: React.FC = () => {
           )}
         </nav>
 
-        <div className="pt-8 border-t border-rule/40 font-mono text-[11px] text-ash space-y-1">
+        <div className="hidden md:block pt-8 border-t border-rule/40 font-mono text-[11px] text-ash space-y-1">
           <p>REDIS LUA: ACTIVE</p>
           <p>OUTBOX STREAM: ONLINE</p>
         </div>
       </aside>
 
       {/* Content Area */}
-      <main className="flex-1 p-6 space-y-6 overflow-x-auto">
+      <main className="flex-1 p-3 sm:p-6 space-y-6 overflow-x-auto min-w-0 w-full">
         
         {/* Messages */}
         {errorMsg && <div className="p-3 border border-loss bg-paper text-loss font-mono text-xs">{errorMsg}</div>}

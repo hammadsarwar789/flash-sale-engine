@@ -46,7 +46,7 @@ export const OrdersPage: React.FC = () => {
 
       {/* Dense Table Layout */}
       <div className="border border-rule bg-paper overflow-x-auto">
-        <table className="w-full text-left font-mono text-xs border-collapse">
+        <table className="min-w-[640px] w-full text-left font-mono text-xs border-collapse">
           <thead>
             <tr className="bg-paper-sunk border-b border-rule text-ash">
               <th className="py-3 px-4"><Eyebrow>ORD Nº</Eyebrow></th>
@@ -96,13 +96,13 @@ export const OrdersPage: React.FC = () => {
                   {/* Expanded Accordion Panel */}
                   {isExpanded && (
                     <tr className="bg-paper-sunk border-b border-rule">
-                      <td colSpan={6} className="p-6 space-y-6">
+                      <td colSpan={6} className="p-4 sm:p-6 space-y-6">
                         <div className="space-y-1">
                           <Eyebrow className="text-ash block">ORDERED PRODUCTS</Eyebrow>
                           <div className="space-y-1.5 font-sans text-sm font-medium text-ink">
                             {order.items && order.items.length > 0 ? (
                               order.items.map((item, idx) => (
-                                <div key={idx} className="flex justify-between items-center bg-paper p-2.5 border border-rule">
+                                <div key={idx} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-paper p-2.5 border border-rule gap-1">
                                   <span>{item.product_name || `Product #${item.product_id}`}</span>
                                   <span className="font-mono text-xs text-ash">QTY: {item.quantity} × ${Number(item.unit_price || 0).toFixed(2)}</span>
                                 </div>
@@ -119,7 +119,7 @@ export const OrdersPage: React.FC = () => {
                           <Eyebrow className="text-ash block">FULFILLMENT LIFECYCLE TIMELINE</Eyebrow>
 
                           {/* Horizontal Stepper */}
-                          <div className="flex items-center space-x-2 font-mono text-xs pt-2">
+                          <div className="flex items-center space-x-2 font-mono text-xs pt-2 overflow-x-auto pb-1">
                             {['PENDING', 'PAID', 'SHIPPED', 'DELIVERED'].map((step, idx, arr) => {
                               const state = getStepState(order.status, step);
                               const isReached = state === 'reached';
@@ -127,14 +127,14 @@ export const OrdersPage: React.FC = () => {
                               return (
                                 <React.Fragment key={step}>
                                   <div
-                                    className={`px-3 py-1.5 border border-rule ${
+                                    className={`px-3 py-1.5 border border-rule whitespace-nowrap ${
                                       isReached ? 'bg-ink text-paper font-semibold' : 'bg-paper text-ash'
                                     }`}
                                   >
                                     [ {step} ]
                                   </div>
                                   {idx < arr.length - 1 && (
-                                    <span className="text-rule">───</span>
+                                    <span className="text-rule flex-shrink-0">───</span>
                                   )}
                                 </React.Fragment>
                               );

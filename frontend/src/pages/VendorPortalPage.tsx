@@ -334,7 +334,7 @@ export const VendorPortalPage: React.FC = () => {
 
         {/* Navigation Tabs */}
         {hasAccount && profile?.status === 'APPROVED' && (
-          <div className="flex space-x-2 border-b border-rule mb-8 font-mono text-xs">
+          <div className="flex space-x-2 border-b border-rule mb-8 font-mono text-xs overflow-x-auto whitespace-nowrap pb-1 scrollbar-none">
             <button
               onClick={() => setActiveTab('overview')}
               className={`px-5 py-3 border-b-2 font-semibold transition-colors ${

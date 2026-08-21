@@ -8,10 +8,10 @@ interface WordmarkProps {
 
 export const Wordmark: React.FC<WordmarkProps> = ({ className = '', size = 'md' }) => {
   const sizeClasses = {
-    sm: 'text-lg',
-    md: 'text-2xl',
-    lg: 'text-4xl',
-    hero: 'text-6xl md:text-8xl',
+    sm: 'text-base sm:text-lg',
+    md: 'text-xl sm:text-2xl',
+    lg: 'text-3xl sm:text-4xl',
+    hero: 'text-5xl sm:text-6xl md:text-8xl',
   }[size];
 
   return (

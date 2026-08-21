@@ -461,7 +461,7 @@ export const CheckoutPage: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Eyebrow className="text-ash mb-1 block">CITY / POSTAL ZIP CODE</Eyebrow>
                   <div className="flex space-x-2">
@@ -476,7 +476,7 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="POSTAL/ZIP CODE"
+                      placeholder="POSTAL/ZIP"
                       value={postalCode}
                       onChange={(e) => setPostalCode(e.target.value)}
                       className="w-1/3 bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink uppercase focus:outline-none rounded-none"
@@ -484,36 +484,34 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex space-x-2">
-                    <div className="w-1/2">
-                      <Eyebrow className="text-ash mb-1 block">STATE / REGION</Eyebrow>
-                      <input
-                        type="text"
-                        required
-                        placeholder="STATE/PROVINCE"
-                        value={state}
-                        onChange={(e) => setState(e.target.value)}
-                        className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
-                      />
-                    </div>
-                    <div className="w-1/2">
-                      <Eyebrow className="text-ash mb-1 block">COUNTRY (GLOBAL)</Eyebrow>
-                      <input
-                        type="text"
-                        required
-                        list="worldwide-countries-list"
-                        placeholder="SELECT OR TYPE COUNTRY..."
-                        value={country}
-                        onChange={(e) => setCountry(e.target.value.toUpperCase())}
-                        className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
-                      />
-                      <datalist id="worldwide-countries-list">
-                        {WORLD_COUNTRIES.map((c) => (
-                          <option key={c.code} value={c.name} />
-                        ))}
-                      </datalist>
-                    </div>
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Eyebrow className="text-ash mb-1 block">STATE / REGION</Eyebrow>
+                    <input
+                      type="text"
+                      required
+                      placeholder="STATE/PROVINCE"
+                      value={state}
+                      onChange={(e) => setState(e.target.value)}
+                      className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
+                    />
+                  </div>
+                  <div>
+                    <Eyebrow className="text-ash mb-1 block">COUNTRY (GLOBAL)</Eyebrow>
+                    <input
+                      type="text"
+                      required
+                      list="worldwide-countries-list"
+                      placeholder="SELECT COUNTRY..."
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value.toUpperCase())}
+                      className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
+                    />
+                    <datalist id="worldwide-countries-list">
+                      {WORLD_COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.name} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
               </div>

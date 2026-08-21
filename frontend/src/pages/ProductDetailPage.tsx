@@ -350,6 +350,23 @@ export const ProductDetailPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Mobile Sticky Bottom CTA Bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-paper border-t border-rule p-3 shadow-lg flex items-center justify-between gap-3">
+        <div className="flex flex-col font-mono">
+          <span className="text-xs text-ash">TOTAL</span>
+          <span className="text-sm font-semibold text-ink">
+            ${(activePrice * quantity).toFixed(2)}
+          </span>
+        </div>
+        <button
+          onClick={handleAddToCart}
+          disabled={isOut || isAddingToCart}
+          className="flex-1 h-11 bg-signal text-signal-ink font-sans text-xs font-semibold uppercase tracking-wider transition-opacity hover:opacity-90 disabled:opacity-50 border border-signal"
+        >
+          {isAddingToCart ? 'RESERVING...' : isOut ? 'OUT OF STOCK' : 'ADD TO CART'}
+        </button>
+      </div>
+
     </div>
   );
 };
