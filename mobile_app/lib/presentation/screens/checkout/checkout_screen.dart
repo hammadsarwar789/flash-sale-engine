@@ -84,7 +84,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppColors.accentFlash.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(4),
                     border: Border.all(color: AppColors.accentFlash.withOpacity(0.4)),
                   ),
                   child: Column(
@@ -123,7 +123,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(4),
                     border: Border.all(color: AppColors.border),
                   ),
                   child: Column(
@@ -134,7 +134,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         children: [
                           const Text(
                             'Order Summary',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink),
                           ),
                           Text(
                             '#${widget.order.id}',
@@ -187,7 +187,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(4),
                     border: Border.all(color: AppColors.border),
                   ),
                   child: Column(
@@ -195,7 +195,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     children: [
                       const Text(
                         'Delivery Address',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink),
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -217,7 +217,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(4),
                     border: Border.all(color: AppColors.border),
                   ),
                   child: Column(
@@ -225,7 +225,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     children: [
                       const Text(
                         'Payment Method',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink),
                       ),
                       const SizedBox(height: 12),
                       RadioListTile<String>(
@@ -259,7 +259,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.signalInk),
                           ),
                         )
                       : Text('Pay ${AppFormatters.formatCurrency(widget.order.totalAmount)} Now'),
@@ -288,12 +288,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     color: AppColors.success,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.check, color: Colors.white, size: 48),
+                  child: const Icon(Icons.check, color: AppColors.ink, size: 48),
                 ),
                 const SizedBox(height: 24),
                 const Text(
                   'Order Confirmed!',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.ink),
                 ),
                 const SizedBox(height: 8),
                 Text(

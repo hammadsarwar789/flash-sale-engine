@@ -87,7 +87,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       const SizedBox(height: 16),
                       const Text(
                         'No orders placed yet',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.ink),
                       ),
                       const SizedBox(height: 8),
                       const Text(
@@ -128,7 +128,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -168,7 +168,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
           if (order.productName != null)
             Text(
               order.productName!,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ink),
             ),
           const SizedBox(height: 4),
           Row(

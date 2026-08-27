@@ -62,14 +62,14 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: AppColors.background.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.accentFlash.withOpacity(0.5)),
+            color: AppColors.paperSunk,
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: AppColors.rule),
           ),
           child: Text(
             value,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.ink,
               fontSize: 16,
               fontWeight: FontWeight.bold,
               fontFamily: 'monospace',
@@ -98,9 +98,9 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.accentFlash.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accentFlash.withOpacity(0.3)),
+        color: AppColors.signal.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.signal.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

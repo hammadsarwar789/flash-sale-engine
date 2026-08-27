@@ -85,7 +85,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: AppColors.ink,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -170,7 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return ElevatedButton(
                           onPressed: isLoading ? null : _submit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.accentFlash,
+                            backgroundColor: AppColors.signal,
                           ),
                           child: isLoading
                               ? const SizedBox(
@@ -178,7 +178,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   width: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.signalInk),
                                   ),
                                 )
                               : const Text('Create Account'),

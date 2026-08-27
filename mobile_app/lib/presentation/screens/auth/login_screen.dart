@@ -69,12 +69,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: 72,
                         height: 72,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppColors.accentFlash, AppColors.primary],
-                          ),
-                          borderRadius: BorderRadius.circular(20),
+                          color: AppColors.signal,
+                          borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Icon(Icons.bolt, color: Colors.white, size: 40),
+                        child: const Icon(Icons.bolt, color: AppColors.signalInk, size: 40),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -84,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: AppColors.ink,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -146,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   width: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.signalInk),
                                   ),
                                 )
                               : const Text('Sign In'),
@@ -168,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: const Text(
                             'Sign Up',
                             style: TextStyle(
-                              color: AppColors.primaryLight,
+                              color: AppColors.signal,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

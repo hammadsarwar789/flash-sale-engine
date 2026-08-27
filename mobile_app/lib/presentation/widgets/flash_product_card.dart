@@ -23,20 +23,11 @@ class FlashProductCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(
-            color: product.isFlashSale ? AppColors.accentFlash.withOpacity(0.4) : AppColors.border,
-            width: product.isFlashSale ? 1.5 : 1,
+            color: product.isFlashSale ? AppColors.signal.withOpacity(0.5) : AppColors.rule,
+            width: 1,
           ),
-          boxShadow: product.isFlashSale
-              ? [
-                  BoxShadow(
-                    color: AppColors.accentFlash.withOpacity(0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  )
-                ]
-              : null,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -61,18 +52,18 @@ class FlashProductCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppColors.accentFlash,
-                          borderRadius: BorderRadius.circular(6),
+                          color: AppColors.signal,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.bolt, color: Colors.white, size: 12),
+                            const Icon(Icons.bolt, color: AppColors.signalInk, size: 12),
                             const SizedBox(width: 2),
                             Text(
                               '-${product.discountPercentage}% OFF',
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: AppColors.signalInk,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -120,7 +111,7 @@ class FlashProductCard extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: AppColors.ink,
                         ),
                       ),
                       if (product.isFlashSale && product.salePrice != null) ...[
@@ -151,7 +142,7 @@ class FlashProductCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         minimumSize: Size.zero,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                       ),
                       child: Text(

@@ -95,7 +95,7 @@ class _CartScreenState extends State<CartScreen> {
                       const SizedBox(height: 16),
                       const Text(
                         'Your cart is empty',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.ink),
                       ),
                       const SizedBox(height: 8),
                       const Text(
@@ -141,7 +141,7 @@ class _CartScreenState extends State<CartScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
@@ -174,7 +174,7 @@ class _CartScreenState extends State<CartScreen> {
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: AppColors.ink,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -246,7 +246,7 @@ class _CartScreenState extends State<CartScreen> {
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: AppColors.border),
         ),
-        child: Icon(icon, size: 16, color: Colors.white),
+        child: Icon(icon, size: 16, color: AppColors.ink),
       ),
     );
   }
@@ -267,7 +267,7 @@ class _CartScreenState extends State<CartScreen> {
                 const Text('Subtotal', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                 Text(
                   AppFormatters.formatCurrency(cart.subtotal),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.ink),
                 ),
               ],
             ),
@@ -285,7 +285,7 @@ class _CartScreenState extends State<CartScreen> {
               children: [
                 const Text(
                   'Total Amount',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink),
                 ),
                 Text(
                   AppFormatters.formatCurrency(cart.subtotal),
@@ -312,7 +312,7 @@ class _CartScreenState extends State<CartScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.signalInk),
                           ),
                         )
                       : const Text(

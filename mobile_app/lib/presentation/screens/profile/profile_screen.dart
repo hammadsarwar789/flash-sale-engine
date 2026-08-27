@@ -48,7 +48,7 @@ class ProfileScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(4),
                       border: Border.all(color: AppColors.border),
                     ),
                     child: Row(
@@ -68,7 +68,7 @@ class ProfileScreen extends StatelessWidget {
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: AppColors.ink,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -105,7 +105,7 @@ class ProfileScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(4),
                       border: Border.all(color: AppColors.border),
                     ),
                     child: Column(
@@ -113,7 +113,7 @@ class ProfileScreen extends StatelessWidget {
                       children: [
                         const Text(
                           'Backend Configuration',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.ink),
                         ),
                         const SizedBox(height: 8),
                         Text(

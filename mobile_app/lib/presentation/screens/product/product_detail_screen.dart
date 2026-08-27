@@ -223,7 +223,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: AppColors.ink,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -237,7 +237,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: AppColors.ink,
                       ),
                     ),
                     if (product.isFlashSale && product.salePrice != null) ...[
@@ -263,7 +263,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(4),
                     border: Border.all(color: AppColors.border),
                   ),
                   child: Column(
@@ -304,7 +304,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: AppColors.ink,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -342,7 +342,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               style: IconButton.styleFrom(
                 backgroundColor: AppColors.surfaceElevated,
                 padding: const EdgeInsets.all(14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
               ),
               onPressed: product.isSoldOut ? null : _onAddToCart,
             ),
@@ -362,7 +362,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.signalInk),
                             ),
                           )
                         : Text(

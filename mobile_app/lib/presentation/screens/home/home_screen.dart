@@ -70,10 +70,10 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: AppColors.accentFlash.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
+                color: AppColors.signal.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(4),
               ),
-              child: const Icon(Icons.bolt, color: AppColors.accentFlash, size: 22),
+              child: const Icon(Icons.bolt, color: AppColors.signal, size: 22),
             ),
             const SizedBox(width: 10),
             const Column(
@@ -124,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           '$count',
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: AppColors.ink,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -180,14 +180,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        const Color(0xFF881337).withOpacity(0.85),
-                        const Color(0xFF1E1B4B).withOpacity(0.85),
+                        AppColors.signal.withOpacity(0.25),
+                        AppColors.bone,
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.accentFlash.withOpacity(0.4)),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AppColors.rule),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,16 +195,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Row(
+                          Row(
                             children: [
-                              Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 22),
-                              SizedBox(width: 6),
+                              Icon(Icons.local_fire_department, color: AppColors.signal, size: 22),
+                              const SizedBox(width: 6),
                               Text(
                                 'MIDNIGHT FLASH DROP',
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: AppColors.ink,
                                   letterSpacing: 1.0,
                                 ),
                               ),
@@ -213,13 +213,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: AppColors.accentFlash,
-                              borderRadius: BorderRadius.circular(20),
+                              color: AppColors.signal,
+                              borderRadius: BorderRadius.circular(2),
                             ),
-                            child: const Text(
+                            child: Text(
                               'LIVE NOW',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: AppColors.signalInk,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -261,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             selectedColor: AppColors.primary,
                             backgroundColor: AppColors.surface,
                             labelStyle: TextStyle(
-                              color: state.selectedCategoryId == null ? Colors.white : AppColors.textSecondary,
+                              color: state.selectedCategoryId == null ? AppColors.ink : AppColors.textSecondary,
                               fontWeight: FontWeight.w600,
                               fontSize: 12,
                             ),
@@ -278,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 selectedColor: AppColors.primary,
                                 backgroundColor: AppColors.surface,
                                 labelStyle: TextStyle(
-                                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                                  color: isSelected ? AppColors.ink : AppColors.textSecondary,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 12,
                                 ),

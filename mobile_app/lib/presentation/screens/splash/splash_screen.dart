@@ -28,27 +28,16 @@ class SplashScreen extends StatelessWidget {
                 width: 90,
                 height: 90,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.accentFlash, AppColors.primary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.4),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+                  color: AppColors.signal,
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Icon(Icons.bolt, color: Colors.white, size: 54),
+                child: const Icon(Icons.bolt, color: AppColors.signalInk, size: 54),
               ),
               const SizedBox(height: 24),
               const Text(
                 'FLASH SALE ENGINE',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.ink,
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 2.0,
@@ -58,13 +47,13 @@ class SplashScreen extends StatelessWidget {
               const Text(
                 'High-Concurrency Live Drops',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: AppColors.graphite,
                   fontSize: 14,
                 ),
               ),
               const SizedBox(height: 48),
               const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentFlash),
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.signal),
               ),
             ],
           ),
