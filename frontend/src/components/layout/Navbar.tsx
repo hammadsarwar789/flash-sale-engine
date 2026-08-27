@@ -35,7 +35,7 @@ export const Navbar: React.FC = () => {
     <>
       <header className="h-[72px] bg-paper border-b border-rule sticky top-0 z-40 flex items-center px-3 sm:px-6 lg:px-8">
         <div className="max-w-[1440px] w-full mx-auto flex items-center justify-between gap-3 sm:gap-6">
-          
+
           {/* Brand Wordmark & Desktop Navigation */}
           <div className="flex items-center space-x-4 sm:space-x-8">
             <Wordmark size="md" />
@@ -44,9 +44,8 @@ export const Navbar: React.FC = () => {
             <nav className="hidden md:flex items-center space-x-6 text-sm font-sans">
               <Link
                 to="/products"
-                className={`relative py-5 transition-colors font-medium ${
-                  isActive('/products') ? 'text-ink' : 'text-graphite hover:text-ink'
-                }`}
+                className={`relative py-5 transition-colors font-medium ${isActive('/products') ? 'text-ink' : 'text-graphite hover:text-ink'
+                  }`}
               >
                 Catalog
                 {isActive('/products') && (
@@ -57,9 +56,8 @@ export const Navbar: React.FC = () => {
               {isAuthenticated && (
                 <Link
                   to="/orders"
-                  className={`relative py-5 transition-colors font-medium ${
-                    isActive('/orders') ? 'text-ink' : 'text-graphite hover:text-ink'
-                  }`}
+                  className={`relative py-5 transition-colors font-medium ${isActive('/orders') ? 'text-ink' : 'text-graphite hover:text-ink'
+                    }`}
                 >
                   Orders
                   {isActive('/orders') && (
@@ -70,9 +68,8 @@ export const Navbar: React.FC = () => {
 
               <Link
                 to="/wishlist"
-                className={`relative py-5 transition-colors font-medium ${
-                  isActive('/wishlist') ? 'text-ink' : 'text-graphite hover:text-ink'
-                }`}
+                className={`relative py-5 transition-colors font-medium ${isActive('/wishlist') ? 'text-ink' : 'text-graphite hover:text-ink'
+                  }`}
               >
                 Wishlist {wishlistCount > 0 && <span className="font-mono text-xs text-ash">({wishlistCount})</span>}
                 {isActive('/wishlist') && (
@@ -83,9 +80,8 @@ export const Navbar: React.FC = () => {
               {isAuthenticated && (
                 <Link
                   to="/vendor"
-                  className={`relative py-5 transition-colors font-mono text-xs uppercase tracking-wider ${
-                    isActive('/vendor') ? 'text-signal font-semibold' : 'text-ash hover:text-ink'
-                  }`}
+                  className={`relative py-5 transition-colors font-mono text-xs uppercase tracking-wider ${isActive('/vendor') ? 'text-signal font-semibold' : 'text-ash hover:text-ink'
+                    }`}
                 >
                   [ VENDOR DESK ]
                   {isActive('/vendor') && (
@@ -97,9 +93,8 @@ export const Navbar: React.FC = () => {
               {isAuthenticated && (
                 <Link
                   to="/support"
-                  className={`relative py-5 transition-colors font-mono text-xs uppercase tracking-wider ${
-                    isActive('/support') ? 'text-signal font-semibold' : 'text-ash hover:text-ink'
-                  }`}
+                  className={`relative py-5 transition-colors font-mono text-xs uppercase tracking-wider ${isActive('/support') ? 'text-signal font-semibold' : 'text-ash hover:text-ink'
+                    }`}
                 >
                   [ SUPPORT DESK ]
                   {isActive('/support') && (
@@ -112,9 +107,8 @@ export const Navbar: React.FC = () => {
               {(user?.role === 'admin' || user?.role === 'manager') && (
                 <Link
                   to="/admin"
-                  className={`relative py-5 transition-colors font-mono text-xs uppercase tracking-wider ${
-                    isActive('/admin') ? 'text-signal font-semibold' : 'text-ash hover:text-ink'
-                  }`}
+                  className={`relative py-5 transition-colors font-mono text-xs uppercase tracking-wider ${isActive('/admin') ? 'text-signal font-semibold' : 'text-ash hover:text-ink'
+                    }`}
                 >
                   [ ADMIN RAIL ]
                   {isActive('/admin') && (
@@ -126,9 +120,8 @@ export const Navbar: React.FC = () => {
               {user?.role === 'stock_operator' && (
                 <Link
                   to="/staff"
-                  className={`relative py-5 transition-colors font-mono text-xs uppercase tracking-wider ${
-                    isActive('/staff') ? 'text-signal font-semibold' : 'text-ash hover:text-ink'
-                  }`}
+                  className={`relative py-5 transition-colors font-mono text-xs uppercase tracking-wider ${isActive('/staff') ? 'text-signal font-semibold' : 'text-ash hover:text-ink'
+                    }`}
                 >
                   [ STAFF RAIL ]
                   {isActive('/staff') && (
@@ -141,7 +134,7 @@ export const Navbar: React.FC = () => {
 
           {/* Right Action Bar */}
           <div className="flex items-center space-x-1.5 sm:space-x-3 flex-shrink-0">
-            
+
             {/* Day / Night Theme Conversion Toggle Button */}
             <button
               onClick={toggleTheme}
@@ -266,9 +259,8 @@ export const Navbar: React.FC = () => {
           <Link
             to="/products"
             onClick={() => setIsMobileMenuOpen(false)}
-            className={`block py-2 px-3 border border-transparent ${
-              isActive('/products') ? 'bg-paper-sunk font-semibold text-ink border-rule' : 'text-graphite hover:text-ink'
-            }`}
+            className={`block py-2 px-3 border border-transparent ${isActive('/products') ? 'bg-paper-sunk font-semibold text-ink border-rule' : 'text-graphite hover:text-ink'
+              }`}
           >
             CATALOG FLOOR
           </Link>
@@ -276,9 +268,8 @@ export const Navbar: React.FC = () => {
           <Link
             to="/wishlist"
             onClick={() => setIsMobileMenuOpen(false)}
-            className={`block py-2 px-3 border border-transparent ${
-              isActive('/wishlist') ? 'bg-paper-sunk font-semibold text-ink border-rule' : 'text-graphite hover:text-ink'
-            }`}
+            className={`block py-2 px-3 border border-transparent ${isActive('/wishlist') ? 'bg-paper-sunk font-semibold text-ink border-rule' : 'text-graphite hover:text-ink'
+              }`}
           >
             WISHLIST {wishlistCount > 0 && <span className="text-ash">({wishlistCount})</span>}
           </Link>
@@ -287,9 +278,8 @@ export const Navbar: React.FC = () => {
             <Link
               to="/orders"
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block py-2 px-3 border border-transparent ${
-                isActive('/orders') ? 'bg-paper-sunk font-semibold text-ink border-rule' : 'text-graphite hover:text-ink'
-              }`}
+              className={`block py-2 px-3 border border-transparent ${isActive('/orders') ? 'bg-paper-sunk font-semibold text-ink border-rule' : 'text-graphite hover:text-ink'
+                }`}
             >
               MY ORDERS
             </Link>
@@ -299,9 +289,8 @@ export const Navbar: React.FC = () => {
             <Link
               to="/vendor"
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block py-2 px-3 border border-transparent text-signal ${
-                isActive('/vendor') ? 'bg-paper-sunk font-semibold border-signal' : 'hover:underline'
-              }`}
+              className={`block py-2 px-3 border border-transparent text-signal ${isActive('/vendor') ? 'bg-paper-sunk font-semibold border-signal' : 'hover:underline'
+                }`}
             >
               [ VENDOR DESK ]
             </Link>
@@ -311,9 +300,8 @@ export const Navbar: React.FC = () => {
             <Link
               to="/support"
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block py-2 px-3 border border-transparent text-signal ${
-                isActive('/support') ? 'bg-paper-sunk font-semibold border-signal' : 'hover:underline'
-              }`}
+              className={`block py-2 px-3 border border-transparent text-signal ${isActive('/support') ? 'bg-paper-sunk font-semibold border-signal' : 'hover:underline'
+                }`}
             >
               [ SUPPORT DESK ]
             </Link>
@@ -323,9 +311,8 @@ export const Navbar: React.FC = () => {
             <Link
               to="/admin"
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block py-2 px-3 border border-transparent text-signal font-semibold ${
-                isActive('/admin') ? 'bg-paper-sunk border-signal' : 'hover:underline'
-              }`}
+              className={`block py-2 px-3 border border-transparent text-signal font-semibold ${isActive('/admin') ? 'bg-paper-sunk border-signal' : 'hover:underline'
+                }`}
             >
               [ ADMIN CONTROL CENTER ]
             </Link>
@@ -335,9 +322,8 @@ export const Navbar: React.FC = () => {
             <Link
               to="/staff"
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block py-2 px-3 border border-transparent text-signal font-semibold ${
-                isActive('/staff') ? 'bg-paper-sunk border-signal' : 'hover:underline'
-              }`}
+              className={`block py-2 px-3 border border-transparent text-signal font-semibold ${isActive('/staff') ? 'bg-paper-sunk border-signal' : 'hover:underline'
+                }`}
             >
               [ STAFF CONTROL CENTER ]
             </Link>
