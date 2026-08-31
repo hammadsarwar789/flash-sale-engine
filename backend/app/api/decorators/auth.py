@@ -8,6 +8,9 @@ def jwt_required(fn):
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
+        if request.method == "OPTIONS":
+            return "", 204
+
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
             return (

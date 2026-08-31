@@ -79,15 +79,18 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   void _onProceedToCheckout(CartSummaryModel cart) {
+    final items = cart.items;
+    if (items.isEmpty) return;
+
     final order = OrderModel(
       id: 0,
       userId: 1,
       totalAmount: cart.subtotal,
       status: 'pending',
-      items: cart.items
+      items: items
           .map((i) => OrderItemModel(
-                id: i.id,
-                productId: i.productId,
+                id: i.id ?? '0',
+                productId: i.productId ?? '0',
                 productName: i.productName.isNotEmpty ? i.productName : (i.product?.name ?? 'Flash Item'),
                 unitPrice: i.unitPrice,
                 quantity: i.quantity,
@@ -281,6 +284,10 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Widget _buildCartContentView(CartSummaryModel cart) {
+    final items = cart.items;
+    if (items.isEmpty) {
+      return _buildEmptyCartView();
+    }
     final subtotal = cart.subtotal;
     final total = (subtotal - _discountAmount).clamp(0.0, double.infinity);
 
