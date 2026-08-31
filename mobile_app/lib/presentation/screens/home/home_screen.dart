@@ -17,6 +17,7 @@ import 'package:mobile_app/logic/wishlist/wishlist_bloc.dart';
 import 'package:mobile_app/logic/wishlist/wishlist_event.dart';
 import 'package:mobile_app/logic/wishlist/wishlist_state.dart';
 import 'package:mobile_app/presentation/widgets/flash_product_card.dart';
+import 'package:mobile_app/presentation/widgets/marquee_ticker_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -222,6 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(width: 8),
         ],
+        bottom: const MarqueeTickerWidget(),
       ),
       body: RefreshIndicator(
         color: C.amber,
@@ -232,47 +234,6 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         child: CustomScrollView(
           slivers: [
-            // Live Marquee Ticker Bar
-            SliverToBoxAdapter(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                color: C.raised,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: C.amber,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'LIVE FLOOR',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: C.amber,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '10:00 MIN RESERVATION TIMERS · DIRECT WAREHOUSE ALLOCATION',
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 10,
-                          color: C.textMute,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
             // Search Bar Header
             SliverToBoxAdapter(
               child: Padding(
