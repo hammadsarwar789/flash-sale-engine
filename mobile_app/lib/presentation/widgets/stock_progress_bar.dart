@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../core/theme/tokens.dart';
+import 'package:mobile_app/core/theme/tokens.dart';
 
 enum StockBarVariant { segmented, continuous }
 
@@ -32,17 +32,17 @@ class StockProgressBar extends StatelessWidget {
       statusText = 'SOLD OUT';
     } else if (isUrgent) {
       barColor = C.amber;
-      statusText = 'CRITICAL: $stock LEFT';
+      statusText = 'CRITICAL · $stock LEFT';
     } else if (isMedium) {
       barColor = C.amber;
-      statusText = '$stock UNITS REMAINING';
+      statusText = '$stock LEFT';
     } else {
       barColor = C.mint;
-      statusText = 'IN STOCK ($stock UNITS)';
+      statusText = '$stock IN POOL';
     }
 
     if (variant == StockBarVariant.segmented) {
-      const totalBlocks = 8;
+      const totalBlocks = 6;
       final filledBlocks = isSoldOut ? 0 : (ratio * totalBlocks).ceil().clamp(1, totalBlocks);
       final segmentStr = '▓' * filledBlocks + '░' * (totalBlocks - filledBlocks);
 
@@ -52,20 +52,24 @@ class StockProgressBar extends StatelessWidget {
           Text(
             segmentStr,
             style: GoogleFonts.jetBrainsMono(
-              fontSize: 11,
+              fontSize: 10,
               color: barColor,
               letterSpacing: 1,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(width: 6),
-          Text(
-            '$stock LEFT',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
-              color: barColor,
-              fontWeight: FontWeight.w700,
-              fontFeatures: [const FontFeature.tabularFigures()],
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              '$stock LEFT',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9,
+                color: barColor,
+                fontWeight: FontWeight.w700,
+                fontFeatures: [const FontFeature.tabularFigures()],
+              ),
             ),
           ),
         ],
@@ -78,16 +82,21 @@ class StockProgressBar extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              statusText,
-              style: GoogleFonts.jetBrainsMono(
-                color: isUrgent ? C.amber : C.textDim,
-                fontSize: 10,
-                fontWeight: isUrgent ? FontWeight.w800 : FontWeight.w600,
-                letterSpacing: 0.3,
-                fontFeatures: [const FontFeature.tabularFigures()],
+            Expanded(
+              child: Text(
+                statusText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.jetBrainsMono(
+                  color: isUrgent ? C.amber : C.textDim,
+                  fontSize: 10,
+                  fontWeight: isUrgent ? FontWeight.w800 : FontWeight.w600,
+                  letterSpacing: 0.2,
+                  fontFeatures: [const FontFeature.tabularFigures()],
+                ),
               ),
             ),
+            const SizedBox(width: 4),
             Text(
               '${(ratio * 100).toInt()}%',
               style: GoogleFonts.jetBrainsMono(
@@ -99,7 +108,7 @@ class StockProgressBar extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 4),
         ClipRRect(
           borderRadius: BorderRadius.circular(2),
           child: LinearProgressIndicator(
