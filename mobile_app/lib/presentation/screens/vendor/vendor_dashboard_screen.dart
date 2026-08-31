@@ -245,6 +245,14 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> with Sing
     );
   }
 
+  String _formatSubOrderId(dynamic rawId) {
+    final str = rawId?.toString() ?? '';
+    if (str.isEmpty) return 'SUB-UNKNOWN';
+    final clean = str.startsWith('SUB-') ? str.substring(4) : str;
+    if (clean.length <= 12) return 'SUB-$clean';
+    return 'SUB-${clean.substring(0, 8)}...${clean.substring(clean.length - 4)}';
+  }
+
   Widget _buildSubOrdersTab() {
     if (_subOrders.isEmpty) {
       return Center(
@@ -265,28 +273,58 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> with Sing
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final order = _subOrders[i];
-        final id = order['id'] ?? 'SUB-00$i';
-        final status = order['status'] ?? 'PENDING';
+        final rawId = order['id'] ?? '00$i';
+        final displayId = _formatSubOrderId(rawId);
+        final status = (order['status'] ?? 'PENDING').toString();
         final total = (order['total_amount'] is num) ? (order['total_amount'] as num).toDouble() : 0.0;
+        final isEven = i % 2 == 0;
 
         return Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: C.surface,
+            color: isEven ? C.surface : C.raised,
             borderRadius: BorderRadius.circular(C.radiusCard),
             border: Border.all(color: C.line),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('SUB-$id', style: GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.bold, color: C.text)),
-                  const SizedBox(height: 4),
-                  StatusPillWidget(status: status),
-                ],
+              // Semantic Status Indicator Strip
+              Container(
+                width: 3,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: status.toUpperCase() == 'DELIVERED' || status.toUpperCase() == 'PAID'
+                      ? C.mint
+                      : (status.toUpperCase() == 'CANCELLED' ? C.rose : C.amber),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
+              const SizedBox(width: 12),
+
+              // Sub-order ID & Status Pill wrapped in Expanded to prevent overflow
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      displayId,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: C.text,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    StatusPillWidget(status: status),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+
               PriceText(amount: total, size: PriceTextSize.md),
             ],
           ),
@@ -319,25 +357,40 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> with Sing
         final sku = p['sku'] ?? 'FSE-LOT';
         final price = (p['price'] is num) ? (p['price'] as num).toDouble() : 0.0;
         final stock = p['available_stock'] ?? p['stock'] ?? 0;
+        final isEven = i % 2 == 0;
 
         return Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: C.surface,
+            color: isEven ? C.surface : C.raised,
             borderRadius: BorderRadius.circular(C.radiusCard),
             border: Border.all(color: C.line),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.bold, color: C.text)),
-                  const SizedBox(height: 2),
-                  Text('SKU: $sku · $stock UNITS HELD', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: C.textMute)),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.bold, color: C.text),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'SKU: $sku · $stock UNITS HELD',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.jetBrainsMono(fontSize: 10, color: C.textMute),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 12),
               PriceText(amount: price, size: PriceTextSize.sm),
             ],
           ),
