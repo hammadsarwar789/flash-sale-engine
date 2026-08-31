@@ -10,7 +10,7 @@ class ProductRepository {
   ProductRepository({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
 
   Future<List<ProductModel>> getProducts({
-    int? categoryId,
+    dynamic categoryId,
     bool? isFlashSale,
     String? search,
     String? sortBy,
@@ -50,7 +50,7 @@ class ProductRepository {
   }
 
   Future<PaginatedProducts> getPaginatedProducts({
-    int? categoryId,
+    dynamic categoryId,
     bool? isFlashSale,
     String? search,
     String? sortBy,

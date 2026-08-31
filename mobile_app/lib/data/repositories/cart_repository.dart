@@ -18,9 +18,9 @@ class CartRepository {
   }
 
   Future<void> addToCart({
-    required int productId,
+    required dynamic productId,
     int quantity = 1,
-    int? variantId,
+    dynamic variantId,
   }) async {
     try {
       await _apiClient.dio.post(

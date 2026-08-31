@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 class CategoryModel extends Equatable {
-  final int id;
+  final dynamic id;
   final String name;
   final String slug;
   final String? description;
@@ -14,8 +14,11 @@ class CategoryModel extends Equatable {
   });
 
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'] ?? json['_id'] ?? json['category_id'] ?? '';
+    final parsedId = (rawId is int) ? rawId : (int.tryParse(rawId.toString()) ?? rawId.toString());
+
     return CategoryModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      id: parsedId,
       name: json['name'] as String? ?? '',
       slug: json['slug'] as String? ?? '',
       description: json['description'] as String?,

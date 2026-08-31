@@ -9,9 +9,9 @@ abstract class CartEvent extends Equatable {
 class LoadCartEvent extends CartEvent {}
 
 class AddToCartEvent extends CartEvent {
-  final int productId;
+  final dynamic productId;
   final int quantity;
-  final int? variantId;
+  final dynamic variantId;
 
   const AddToCartEvent({
     required this.productId,
@@ -24,7 +24,7 @@ class AddToCartEvent extends CartEvent {
 }
 
 class UpdateCartItemQuantityEvent extends CartEvent {
-  final int itemId;
+  final dynamic itemId;
   final int quantity;
 
   const UpdateCartItemQuantityEvent({
@@ -37,7 +37,7 @@ class UpdateCartItemQuantityEvent extends CartEvent {
 }
 
 class RemoveCartItemEvent extends CartEvent {
-  final int itemId;
+  final dynamic itemId;
 
   const RemoveCartItemEvent(this.itemId);
 

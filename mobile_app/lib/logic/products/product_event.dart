@@ -7,7 +7,7 @@ abstract class ProductEvent extends Equatable {
 }
 
 class FetchProductsEvent extends ProductEvent {
-  final int? categoryId;
+  final dynamic categoryId;
   final bool? isFlashSale;
   final String? search;
   final bool isRefresh;
@@ -24,7 +24,7 @@ class FetchProductsEvent extends ProductEvent {
 }
 
 class SelectCategoryEvent extends ProductEvent {
-  final int? categoryId;
+  final dynamic categoryId;
   const SelectCategoryEvent(this.categoryId);
 
   @override

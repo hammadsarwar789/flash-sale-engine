@@ -41,6 +41,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Future<void> _loadProductData() async {
+    final id = widget.productId?.toString() ?? '';
+    if (id.isEmpty || id == '0') {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Invalid Product Identifier ($id).';
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     try {
       final repo = context.read<ProductRepository>();
       final product = await repo.getProductById(widget.productId);
@@ -289,13 +305,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   style: GoogleFonts.manrope(fontSize: 12, color: C.textMute),
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => context.pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: C.amber,
-                    foregroundColor: C.onAmber,
-                  ),
-                  child: const Text('RETURN TO THE FLOOR'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => context.pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: C.raised,
+                        foregroundColor: C.text,
+                      ),
+                      child: const Text('BACK TO FLOOR'),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: _loadProductData,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: C.amber,
+                        foregroundColor: C.onAmber,
+                      ),
+                      child: const Text('RETRY'),
+                    ),
+                  ],
                 ),
               ],
             ),

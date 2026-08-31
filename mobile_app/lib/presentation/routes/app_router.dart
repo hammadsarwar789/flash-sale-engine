@@ -58,9 +58,8 @@ class AppRouter {
       GoRoute(
         path: '/product/:id',
         builder: (context, state) {
-          final idStr = state.pathParameters['id'] ?? '0';
-          final productId = int.tryParse(idStr) ?? idStr;
-          return ProductDetailScreen(productId: productId);
+          final id = state.pathParameters['id'] ?? '';
+          return ProductDetailScreen(productId: id);
         },
       ),
 

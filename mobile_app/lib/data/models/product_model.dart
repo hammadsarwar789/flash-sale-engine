@@ -22,7 +22,7 @@ class VariantModel extends Equatable {
   factory VariantModel.fromJson(Map<String, dynamic> json) {
     final stockVal = json['available_stock'] ?? json['stock'] ?? 0;
     return VariantModel(
-      id: json['id']?.toString() ?? '',
+      id: json['id']?.toString() ?? json['variant_id']?.toString() ?? '',
       sku: json['sku'] as String? ?? '',
       name: json['name'] as String?,
       size: json['size'] as String?,
@@ -73,7 +73,7 @@ class ReviewModel extends Equatable {
 }
 
 class ProductModel extends Equatable {
-  final int id;
+  final dynamic id;
   final String name;
   final String? sku;
   final String? description;
@@ -86,7 +86,7 @@ class ProductModel extends Equatable {
   final String? flashSaleEnd;
   final String? imageUrl;
   final List<String> images;
-  final int? categoryId;
+  final dynamic categoryId;
   final String? categoryName;
   final String? sellerName;
   final bool isActive;
@@ -159,8 +159,18 @@ class ProductModel extends Equatable {
           .toList();
     }
 
+    // Robust ID extraction supporting String UUIDs or integers
+    final rawId = json['id'] ?? json['_id'] ?? json['product_id'] ?? '';
+    final parsedId = (rawId is int) ? rawId : (int.tryParse(rawId.toString()) ?? rawId.toString());
+
+    // Robust category ID extraction
+    final rawCatId = json['category_id'] ?? (json['category'] is Map ? json['category']['id'] : null);
+    final parsedCatId = rawCatId != null
+        ? ((rawCatId is int) ? rawCatId : (int.tryParse(rawCatId.toString()) ?? rawCatId.toString()))
+        : null;
+
     return ProductModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      id: parsedId,
       name: json['name'] as String? ?? '',
       sku: json['sku'] as String?,
       description: json['description'] as String?,
@@ -181,9 +191,7 @@ class ProductModel extends Equatable {
       flashSaleEnd: json['flash_sale_end'] as String?,
       imageUrl: imageUrl,
       images: imageList,
-      categoryId: json['category_id'] is int
-          ? json['category_id']
-          : int.tryParse(json['category_id']?.toString() ?? ''),
+      categoryId: parsedCatId,
       categoryName: json['category_name'] as String? ??
           (json['category'] is Map ? json['category']['name'] : null),
       sellerName: json['seller_name'] as String? ??
@@ -220,40 +228,38 @@ class PaginatedProducts extends Equatable {
   final List<ProductModel> items;
   final int total;
   final int page;
-  final int pages;
   final int perPage;
+  final int totalPages;
+
+  int get pages => totalPages;
 
   const PaginatedProducts({
     required this.items,
     this.total = 0,
     this.page = 1,
-    this.pages = 1,
     this.perPage = 20,
+    this.totalPages = 1,
   });
 
   factory PaginatedProducts.fromJson(Map<String, dynamic> json) {
-    final rawItems = json['items'] ?? json['products'] ?? [];
-    final List<ProductModel> itemsList = (rawItems is List)
-        ? rawItems.map((e) => ProductModel.fromJson(e as Map<String, dynamic>)).toList()
-        : [];
+    final rawItems = json['items'] as List<dynamic>? ??
+        json['products'] as List<dynamic>? ??
+        [];
+    final itemsList =
+        rawItems.map((e) => ProductModel.fromJson(e as Map<String, dynamic>)).toList();
+    final total = json['total'] as int? ?? json['total_items'] as int? ?? itemsList.length;
+    final perPage = json['per_page'] as int? ?? json['limit'] as int? ?? 20;
+    final totalPages = (total / perPage).ceil();
 
     return PaginatedProducts(
       items: itemsList,
-      total: json['total'] is int
-          ? json['total']
-          : int.tryParse(json['total']?.toString() ?? '0') ?? itemsList.length,
-      page: json['page'] is int
-          ? json['page']
-          : int.tryParse(json['page']?.toString() ?? '1') ?? 1,
-      pages: json['pages'] is int
-          ? json['pages']
-          : int.tryParse(json['pages']?.toString() ?? '1') ?? 1,
-      perPage: json['per_page'] is int
-          ? json['per_page']
-          : int.tryParse(json['per_page']?.toString() ?? '20') ?? 20,
+      total: total,
+      page: json['page'] as int? ?? 1,
+      perPage: perPage,
+      totalPages: totalPages > 0 ? totalPages : 1,
     );
   }
 
   @override
-  List<Object?> get props => [items, total, page, pages, perPage];
+  List<Object?> get props => [items, total, page, perPage, totalPages];
 }

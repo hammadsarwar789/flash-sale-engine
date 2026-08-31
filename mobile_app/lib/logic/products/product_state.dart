@@ -16,7 +16,7 @@ class ProductLoaded extends ProductState {
   final List<ProductModel> products;
   final List<ProductModel> flashSaleProducts;
   final List<CategoryModel> categories;
-  final int? selectedCategoryId;
+  final dynamic selectedCategoryId;
   final String searchQuery;
   final String sortBy;
   final int currentPage;
@@ -39,7 +39,7 @@ class ProductLoaded extends ProductState {
     List<ProductModel>? products,
     List<ProductModel>? flashSaleProducts,
     List<CategoryModel>? categories,
-    int? selectedCategoryId,
+    dynamic selectedCategoryId,
     bool clearCategory = false,
     String? searchQuery,
     String? sortBy,

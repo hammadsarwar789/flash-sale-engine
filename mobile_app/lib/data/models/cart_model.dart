@@ -2,8 +2,8 @@ import 'package:equatable/equatable.dart';
 import 'package:mobile_app/data/models/product_model.dart';
 
 class CartItemModel extends Equatable {
-  final int id;
-  final int productId;
+  final dynamic id;
+  final dynamic productId;
   final String productName;
   final double unitPrice;
   final int quantity;
@@ -24,9 +24,12 @@ class CartItemModel extends Equatable {
 
   factory CartItemModel.fromJson(Map<String, dynamic> json) {
     final productData = json['product'] as Map<String, dynamic>?;
+    final rawId = json['id'] ?? '0';
+    final rawProdId = json['product_id'] ?? (productData != null ? productData['id'] : '0') ?? '0';
+
     return CartItemModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
-      productId: json['product_id'] is int ? json['product_id'] : int.tryParse(json['product_id']?.toString() ?? '0') ?? 0,
+      id: (rawId is int) ? rawId : (int.tryParse(rawId.toString()) ?? rawId.toString()),
+      productId: (rawProdId is int) ? rawProdId : (int.tryParse(rawProdId.toString()) ?? rawProdId.toString()),
       productName: json['product_name'] as String? ?? (productData != null ? productData['name'] : '') ?? '',
       unitPrice: (json['unit_price'] is num)
           ? (json['unit_price'] as num).toDouble()
