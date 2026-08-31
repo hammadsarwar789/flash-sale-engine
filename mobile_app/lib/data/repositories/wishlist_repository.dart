@@ -9,11 +9,23 @@ class WishlistRepository {
   WishlistRepository({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
 
   Future<List<WishlistItemModel>> getWishlist() async {
+    String? token;
+    try {
+      token = await _apiClient.storage.read(key: ApiConstants.tokenKey);
+    } catch (_) {}
+
+    if (token == null || token.trim().isEmpty || token == 'null' || token == 'undefined') {
+      return [];
+    }
+
     try {
       final response = await _apiClient.dio.get(ApiConstants.wishlist);
       final List<dynamic> list = response.data is List ? response.data : [];
       return list.map((item) => WishlistItemModel.fromJson(item as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+        return [];
+      }
       throw _apiClient.handleDioError(e);
     }
   }
