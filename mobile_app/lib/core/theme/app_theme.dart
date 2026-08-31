@@ -1,206 +1,230 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'tokens.dart';
 
-/// Design tokens mapped 1-to-1 from the website CSS variables.
-/// Dark mode palette (matches `.dark {}` in index.css).
+/// Backward-compatible AppColors bridge mapped directly to Design System v3 (tokens.dart `C`)
 class AppColors {
   // ── Surfaces ──────────────────────────────────────────────
-  static const Color bone       = Color(0xFF0E0E0C);  // --bone  (scaffold bg)
-  static const Color paper      = Color(0xFF161613);  // --paper (cards, sheets)
-  static const Color paperSunk  = Color(0xFF1F1F1B);  // --paper-sunk (inset bg)
-  static const Color rule       = Color(0xFF3A3935);  // --rule  (borders, dividers)
+  static const Color bone = C.base;
+  static const Color paper = C.surface;
+  static const Color paperSunk = C.raised;
+  static const Color rule = C.line;
 
   // Aliases for Material semantics
-  static const Color background = bone;
-  static const Color surface    = paper;
-  static const Color surfaceElevated = paperSunk;
-  static const Color border     = rule;
+  static const Color background = C.base;
+  static const Color surface = C.surface;
+  static const Color surfaceElevated = C.raised;
+  static const Color border = C.line;
 
   // ── Typography ────────────────────────────────────────────
-  static const Color ink        = Color(0xFFF1EEE6);  // --ink (primary text)
-  static const Color graphite   = Color(0xFFC8C4B8);  // --graphite (secondary text)
-  static const Color ash        = Color(0xFFB5B2A3);  // --ash (muted / hint text)
+  static const Color ink = C.text;
+  static const Color graphite = C.textDim;
+  static const Color ash = C.textMute;
 
-  // Aliases for Material semantics
-  static const Color textPrimary   = ink;
-  static const Color textSecondary = graphite;
-  static const Color textMuted     = ash;
+  static const Color textPrimary = C.text;
+  static const Color textSecondary = C.textDim;
+  static const Color textMuted = C.textMute;
 
-  // ── Accent / Signal ───────────────────────────────────────
-  static const Color signal     = Color(0xFFFF4A32);  // --signal (primary CTA, flash)
-  static const Color signalInk  = Color(0xFF0E0E0C);  // --signal-ink (text on signal)
+  // ── Accent / Signal (Energy Amber) ────────────────────────
+  static const Color signal = C.amber;
+  static const Color signalInk = C.onAmber;
 
-  // Aliases
-  static const Color primary      = signal;
-  static const Color primaryLight = Color(0xFFFF7A66);  // lighter tint of signal
-  static const Color accentFlash  = signal;
+  static const Color primary = C.amber;
+  static const Color primaryLight = Color(0xFFF7BD6B);
+  static const Color accentFlash = C.amber;
 
   // ── Semantic ──────────────────────────────────────────────
-  static const Color gain   = Color(0xFF4FBE7B);  // --gain  (success, in-stock)
-  static const Color warn   = Color(0xFFE0A44A);  // --warn  (warning, low-stock)
-  static const Color loss   = Color(0xFFE5321B);  // --loss  (error, out-of-stock)
-  static const Color marker = Color(0xFF5A4A18);  // --marker (highlight / badge bg)
+  static const Color gain = C.mint;
+  static const Color warn = C.amber;
+  static const Color loss = C.rose;
+  static const Color marker = C.amberSoft;
 
-  // Aliases
-  static const Color success = gain;
-  static const Color warning = warn;
-  static const Color secondary = gain;
+  static const Color success = C.mint;
+  static const Color warning = C.amber;
+  static const Color secondary = C.mint;
+  static const Color info = C.sky;
+  static const Color admin = C.violet;
 }
 
 class AppTheme {
   static ThemeData get darkTheme {
     final baseTextTheme = ThemeData.dark().textTheme.apply(
-      bodyColor: AppColors.ink,
-      displayColor: AppColors.ink,
+      bodyColor: C.text,
+      displayColor: C.text,
     );
 
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.bone,
-      primaryColor: AppColors.signal,
-      dividerColor: AppColors.rule,
+      scaffoldBackgroundColor: C.base,
+      primaryColor: C.amber,
+      dividerColor: C.line,
       colorScheme: const ColorScheme.dark(
-        primary: AppColors.signal,
-        secondary: AppColors.gain,
-        surface: AppColors.paper,
-        error: AppColors.loss,
-        onPrimary: AppColors.signalInk,
-        onSecondary: Colors.white,
-        onSurface: AppColors.ink,
-        onError: Colors.white,
+        primary: C.amber,
+        secondary: C.mint,
+        surface: C.surface,
+        error: C.rose,
+        onPrimary: C.onAmber,
+        onSecondary: C.onMint,
+        onSurface: C.text,
+        onError: C.onRose,
       ),
 
-      // ── Typography ──────────────────────────────────────
-      // Website uses 'Inter Tight' — Google Fonts maps it as interTight
-      textTheme: GoogleFonts.interTightTextTheme(baseTextTheme),
+      // ── Typography (Manrope default, Sora headings, JetBrains Mono numerics)
+      textTheme: GoogleFonts.manropeTextTheme(baseTextTheme).copyWith(
+        displayLarge: GoogleFonts.sora(fontSize: 32, fontWeight: FontWeight.bold, color: C.text, letterSpacing: -0.5),
+        displayMedium: GoogleFonts.sora(fontSize: 28, fontWeight: FontWeight.bold, color: C.text, letterSpacing: -0.4),
+        displaySmall: GoogleFonts.sora(fontSize: 24, fontWeight: FontWeight.bold, color: C.text, letterSpacing: -0.3),
+        headlineMedium: GoogleFonts.sora(fontSize: 20, fontWeight: FontWeight.w700, color: C.text),
+        headlineSmall: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w600, color: C.text),
+        titleLarge: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.w600, color: C.text),
+        titleMedium: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: C.text),
+        titleSmall: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: C.textDim),
+        bodyLarge: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w400, color: C.text),
+        bodyMedium: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w400, color: C.textDim),
+        bodySmall: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w400, color: C.textMute),
+        labelLarge: GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.w700, fontFeatures: [const FontFeature.tabularFigures()]),
+        labelMedium: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.w600, fontFeatures: [const FontFeature.tabularFigures()]),
+        labelSmall: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w500, fontFeatures: [const FontFeature.tabularFigures()]),
+      ),
 
       // ── AppBar ──────────────────────────────────────────
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.bone,
+        backgroundColor: C.base,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
-        iconTheme: const IconThemeData(color: AppColors.ink),
-        titleTextStyle: GoogleFonts.interTight(
-          color: AppColors.ink,
-          fontSize: 20,
+        iconTheme: const IconThemeData(color: C.text),
+        titleTextStyle: GoogleFonts.sora(
+          color: C.text,
+          fontSize: 18,
           fontWeight: FontWeight.w700,
-          letterSpacing: -0.3,
+          letterSpacing: -0.2,
         ),
       ),
 
-      // ── Cards ───────────────────────────────────────────
-      // Website uses sharp, borderless cards with 1px rule borders
+      // ── Cards (Obsidian 10px rounded, 1px hairline border) ────
       cardTheme: CardThemeData(
-        color: AppColors.paper,
+        color: C.surface,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(4), // editorial: near-square
-          side: const BorderSide(color: AppColors.rule, width: 1),
+          borderRadius: BorderRadius.circular(C.radiusCard),
+          side: const BorderSide(color: C.line, width: 1),
         ),
       ),
 
-      // ── Inputs ──────────────────────────────────────────
+      // ── Inputs (10px rounded, C.raised fill, Sky focus border) ──
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.paperSunk,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        hintStyle: GoogleFonts.interTight(color: AppColors.ash, fontSize: 14),
-        labelStyle: GoogleFonts.interTight(color: AppColors.graphite, fontSize: 14),
+        fillColor: C.raised,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        hintStyle: GoogleFonts.manrope(color: C.textMute, fontSize: 13),
+        labelStyle: GoogleFonts.manrope(color: C.textDim, fontSize: 13),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(4),
-          borderSide: const BorderSide(color: AppColors.rule),
+          borderRadius: BorderRadius.circular(C.radiusCard),
+          borderSide: const BorderSide(color: C.line),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(4),
-          borderSide: const BorderSide(color: AppColors.rule),
+          borderRadius: BorderRadius.circular(C.radiusCard),
+          borderSide: const BorderSide(color: C.line),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(4),
-          borderSide: const BorderSide(color: AppColors.signal, width: 2),
+          borderRadius: BorderRadius.circular(C.radiusCard),
+          borderSide: const BorderSide(color: C.sky, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(4),
-          borderSide: const BorderSide(color: AppColors.loss),
+          borderRadius: BorderRadius.circular(C.radiusCard),
+          borderSide: const BorderSide(color: C.rose),
         ),
       ),
 
       // ── Buttons ─────────────────────────────────────────
-      // Website CTA: solid signal-red, dark text, squared-off
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.signal,
-          foregroundColor: AppColors.signalInk,
+          backgroundColor: C.amber,
+          foregroundColor: C.onAmber,
           elevation: 0,
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(C.radiusCard),
           ),
-          textStyle: GoogleFonts.interTight(
-            fontSize: 15,
+          textStyle: GoogleFonts.manrope(
+            fontSize: 14,
             fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
+            letterSpacing: 0.3,
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.ink,
-          side: const BorderSide(color: AppColors.rule),
-          minimumSize: const Size.fromHeight(52),
+          foregroundColor: C.text,
+          side: const BorderSide(color: C.line),
+          minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(C.radiusCard),
           ),
-          textStyle: GoogleFonts.interTight(
-            fontSize: 15,
+          textStyle: GoogleFonts.manrope(
+            fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),
       ),
 
-      // ── Bottom Nav ──────────────────────────────────────
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.paper,
-        selectedItemColor: AppColors.signal,
-        unselectedItemColor: AppColors.ash,
+      // ── Bottom Sheet (20px rounded top) ─────────────────
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: C.overlay,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(C.radiusModal)),
+          side: BorderSide(color: C.line, width: 1),
+        ),
+      ),
+
+      // ── Bottom Navigation Bar ───────────────────────────
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: C.surface,
+        selectedItemColor: C.amber,
+        unselectedItemColor: C.textMute,
+        selectedLabelStyle: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700),
+        unselectedLabelStyle: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
 
       // ── Divider ─────────────────────────────────────────
       dividerTheme: const DividerThemeData(
-        color: AppColors.rule,
+        color: C.line,
         thickness: 1,
         space: 1,
       ),
 
-      // ── Chips (category pills) ─────────────────────────
+      // ── Chips (999px StadiumBorder) ──────────────────────
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.paperSunk,
-        selectedColor: AppColors.signal,
-        labelStyle: GoogleFonts.interTight(
-          color: AppColors.ink,
-          fontSize: 13,
+        backgroundColor: C.raised,
+        selectedColor: C.amber,
+        labelStyle: GoogleFonts.manrope(
+          color: C.text,
+          fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
-        side: const BorderSide(color: AppColors.rule),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(4),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        side: const BorderSide(color: C.line),
+        shape: const StadiumBorder(),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       ),
 
       // ── Snackbar ────────────────────────────────────────
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.paperSunk,
-        contentTextStyle: GoogleFonts.interTight(
-          color: AppColors.ink,
-          fontSize: 14,
+        backgroundColor: C.raised,
+        contentTextStyle: GoogleFonts.manrope(
+          color: C.text,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(C.radiusCard),
+          side: const BorderSide(color: C.line),
         ),
         behavior: SnackBarBehavior.floating,
       ),

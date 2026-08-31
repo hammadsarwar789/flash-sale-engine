@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../core/theme/tokens.dart';
 
 class CountdownTimerWidget extends StatefulWidget {
   final DateTime targetEndTime;
@@ -55,33 +56,33 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
     super.dispose();
   }
 
-  Widget _buildTimeBox(String value, String unit) {
+  Widget _buildTimeBox(String value, String unit, bool isUrgent) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
-            color: AppColors.paperSunk,
-            borderRadius: BorderRadius.circular(2),
-            border: Border.all(color: AppColors.rule),
+            color: C.raised,
+            borderRadius: BorderRadius.circular(C.radiusCard),
+            border: Border.all(color: isUrgent ? C.amber : C.line),
           ),
           child: Text(
             value,
-            style: const TextStyle(
-              color: AppColors.ink,
-              fontSize: 16,
+            style: GoogleFonts.jetBrainsMono(
+              color: isUrgent ? C.amber : C.text,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
-              fontFamily: 'monospace',
+              fontFeatures: [const FontFeature.tabularFigures()],
             ),
           ),
         ),
         const SizedBox(height: 2),
         Text(
           unit,
-          style: const TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 10,
+          style: GoogleFonts.manrope(
+            color: C.textMute,
+            fontSize: 9,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -94,40 +95,49 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
     final hours = _remaining.inHours.toString().padLeft(2, '0');
     final minutes = (_remaining.inMinutes % 60).toString().padLeft(2, '0');
     final seconds = (_remaining.inSeconds % 60).toString().padLeft(2, '0');
+    final isUrgent = _remaining.inSeconds <= 60 && _remaining.inSeconds > 0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.signal.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.signal.withOpacity(0.3)),
+        color: C.amberSoft,
+        borderRadius: BorderRadius.circular(C.radiusCard),
+        border: Border.all(color: C.amber.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.bolt, color: AppColors.accentFlash, size: 20),
-          const SizedBox(width: 6),
-          Text(
-            widget.label,
-            style: const TextStyle(
-              color: AppColors.accentFlash,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-              letterSpacing: 0.8,
+          Container(
+            width: 7,
+            height: 7,
+            decoration: const BoxDecoration(
+              color: C.amber,
+              shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 12),
-          _buildTimeBox(hours, 'HRS'),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4),
-            child: Text(':', style: TextStyle(color: AppColors.accentFlash, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 8),
+          Text(
+            widget.label,
+            style: GoogleFonts.jetBrainsMono(
+              color: C.amber,
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
+              letterSpacing: 0.5,
+              fontFeatures: [const FontFeature.tabularFigures()],
+            ),
           ),
-          _buildTimeBox(minutes, 'MIN'),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4),
-            child: Text(':', style: TextStyle(color: AppColors.accentFlash, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 10),
+          _buildTimeBox(hours, 'HRS', isUrgent),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: Text(':', style: GoogleFonts.jetBrainsMono(color: C.amber, fontWeight: FontWeight.bold)),
           ),
-          _buildTimeBox(seconds, 'SEC'),
+          _buildTimeBox(minutes, 'MIN', isUrgent),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: Text(':', style: GoogleFonts.jetBrainsMono(color: C.amber, fontWeight: FontWeight.bold)),
+          ),
+          _buildTimeBox(seconds, 'SEC', isUrgent),
         ],
       ),
     );

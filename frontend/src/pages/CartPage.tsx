@@ -3,16 +3,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { CartItemRow } from '../components/cart/CartItemRow';
 import { CouponInput } from '../components/cart/CouponInput';
-import { CouponValidation, CartItem } from '../types/api';
-import { Numeric } from '../components/ui/Numeric';
+import { CouponValidation } from '../types/api';
+import { Money } from '../components/ui/Money';
 import { Eyebrow } from '../components/ui/Eyebrow';
+import { Countdown } from '../components/ui/Countdown';
+import { ShieldCheck, ArrowRight, ShoppingBag } from 'lucide-react';
 
 export const CartPage: React.FC = () => {
   const { cart, isLoading, clearCart } = useCart();
   const navigate = useNavigate();
 
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null);
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(299);
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(300);
 
   const items = cart?.items || [];
 
@@ -27,13 +29,10 @@ export const CartPage: React.FC = () => {
     const saved = localStorage.getItem('cart_hold_expires_at');
     let expiresAt = saved ? parseInt(saved, 10) : 0;
 
-    // If no expiration timestamp exists, create new 5-minute hold
     if (!expiresAt || isNaN(expiresAt)) {
       expiresAt = Date.now() + HOLD_DURATION_MS;
       localStorage.setItem('cart_hold_expires_at', expiresAt.toString());
-    } 
-    // If hold timestamp has expired, clear cart & release inventory
-    else if (expiresAt <= Date.now()) {
+    } else if (expiresAt <= Date.now()) {
       localStorage.removeItem('cart_hold_expires_at');
       clearCart();
       setSecondsRemaining(0);
@@ -57,19 +56,11 @@ export const CartPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [items.length, clearCart]);
 
-  const formatTimer = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
-
-  const isTimerLow = secondsRemaining <= 60;
-
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="h-14 w-48 bg-paper-sunk border border-rule"></div>
-        <div className="h-64 bg-paper-sunk border border-rule"></div>
+      <div className="space-y-6 animate-pulse">
+        <div className="h-10 w-48 bg-raised rounded-card"></div>
+        <div className="h-64 bg-surface border border-line rounded-card"></div>
       </div>
     );
   }
@@ -80,11 +71,17 @@ export const CartPage: React.FC = () => {
 
   if (items.length === 0) {
     return (
-      <div className="py-20 text-center space-y-4 border border-rule bg-paper">
-        <h1 className="font-serif text-[48px] text-ink">Cart is empty.</h1>
-        <p className="font-mono text-xs text-ash">No reserved inventory holds active.</p>
-        <Link to="/products" className="inline-block bg-ink text-paper font-mono text-xs uppercase px-6 py-2">
-          ← Return to Floor
+      <div className="py-20 text-center space-y-4 border border-line bg-surface rounded-card max-w-lg mx-auto p-8">
+        <div className="w-12 h-12 rounded-full bg-raised flex items-center justify-center mx-auto text-text-mute">
+          <ShoppingBag className="w-6 h-6" />
+        </div>
+        <h1 className="font-display text-3xl font-bold text-text">Cart is empty</h1>
+        <p className="font-mono text-xs text-text-mute">No active inventory reservation holds.</p>
+        <Link
+          to="/products"
+          className="inline-block bg-amber text-on-amber font-sans font-semibold text-xs uppercase tracking-wider px-6 py-3 rounded-card hover:bg-amber-press transition-colors"
+        >
+          ← Browse The Floor
         </Link>
       </div>
     );
@@ -92,110 +89,99 @@ export const CartPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Editorial Cart Header */}
-      <div className="border-b border-rule pb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      {/* Cart Header */}
+      <div className="border-b border-line pb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-[56px] leading-none text-ink font-normal">Cart.</h1>
-          <div className="font-mono text-xs text-ash mt-2 flex items-center space-x-2">
-            <span>{String(cart?.item_count || 0).padStart(2, '0')} items reserved</span>
+          <Eyebrow className="text-amber block font-bold">RESERVED ALLOCATION</Eyebrow>
+          <h1 className="font-display text-4xl sm:text-5xl font-bold text-text tracking-tight">Cart</h1>
+          <div className="font-mono text-xs text-text-mute mt-2 flex items-center space-x-2">
+            <span className="text-text font-semibold">{String(cart?.item_count || 0).padStart(2, '0')} items held</span>
             <span>·</span>
-            <span>hold expires</span>
-            <span className={`font-semibold ${isTimerLow ? 'text-signal animate-pulse' : 'text-ink'}`}>
-              {formatTimer(secondsRemaining)}
-            </span>
+            <Countdown
+              targetSeconds={secondsRemaining}
+              label="HOLD EXPIRES IN:"
+              onExpire={() => clearCart()}
+            />
           </div>
         </div>
 
         <button
           onClick={() => clearCart()}
-          className="font-mono text-xs text-ash hover:text-loss underline uppercase"
+          className="text-xs font-mono text-text-mute hover:text-rose transition-colors underline"
         >
-          [ CLEAR ALL RESERVATIONS ]
+          CLEAR ENTIRE CART [✕]
         </button>
       </div>
 
-      {/* Cart Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      {/* 2-Column 8/4 Cart Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* Left Column: Line Items Grouped by Seller */}
-        <div className="lg:col-span-8 space-y-6">
-          {Object.entries(
-            items.reduce((acc: Record<string, CartItem[]>, item: CartItem) => {
-              const seller = item.product?.seller_name || item.product?.vendor_name || 'Central Platform Store';
-              if (!acc[seller]) acc[seller] = [];
-              acc[seller].push(item);
-              return acc;
-            }, {})
-          ).map(([sellerName, sellerItems]) => {
-            const sellerSubtotal = sellerItems.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
-            return (
-              <div key={sellerName} className="border border-rule bg-paper p-4 space-y-3">
-                <div className="flex justify-between items-center border-b border-rule pb-2 font-mono text-xs">
-                  <div className="flex items-center space-x-2 font-semibold text-ink">
-                    <span>🏪 STORE:</span>
-                    <span className="uppercase text-signal">{sellerName}</span>
-                    <span className="text-ash font-normal">({sellerItems.length} items)</span>
-                  </div>
-                  <div className="text-ash">
-                    Branch Subtotal: <span className="font-semibold text-ink">${sellerSubtotal.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-0 border-t border-rule">
-                  {sellerItems.map((item: CartItem, idx: number) => (
-                    <CartItemRow key={item.id} item={item} itemIndex={idx} />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Right Column: Sticky Summary Panel (320px layout) */}
-        <div className="lg:col-span-4 sticky top-28 space-y-6 border border-rule p-6 bg-paper">
-          <Eyebrow className="text-ash block border-b border-rule pb-3">SUMMARY</Eyebrow>
-
-          <div className="space-y-3 font-mono text-xs">
-            <div className="flex justify-between text-ink">
-              <Eyebrow className="text-ash">SUBTOTAL</Eyebrow>
-              <Numeric value={subtotal} format="price" zeroPadInt={3} />
-            </div>
-
-            <div className="flex justify-between text-ink">
-              <Eyebrow className="text-ash">SHIPPING</Eyebrow>
-              <span className="text-gain font-semibold">FREE</span>
-            </div>
-
-            {discount > 0 && (
-              <div className="flex justify-between text-gain font-semibold border-t border-rule/30 pt-2">
-                <span>COUPON ({appliedCoupon?.code})</span>
-                <Numeric value={-discount} format="price" zeroPadInt={2} />
-              </div>
-            )}
-
-            <div className="border-t border-rule pt-4 flex justify-between items-baseline">
-              <Eyebrow className="text-ink text-sm">TOTAL</Eyebrow>
-              <Numeric value={total} format="price" zeroPadInt={3} className="text-2xl text-ink font-medium" />
-            </div>
+        {/* Left Column (Line Items) — 8 cols */}
+        <div className="lg:col-span-8 space-y-4">
+          <div className="space-y-3">
+            {items.map((item, index) => (
+              <CartItemRow key={item.id} item={item} itemIndex={index} />
+            ))}
           </div>
 
-          <div className="pt-2 border-t border-rule">
+          <div className="pt-2">
             <CouponInput
               cartSubtotal={subtotal}
               appliedCoupon={appliedCoupon}
               onCouponApplied={(coupon) => setAppliedCoupon(coupon.valid ? coupon : null)}
             />
           </div>
-
-          {/* Checkout Signal CTA */}
-          <button
-            onClick={() => navigate('/checkout', { state: { couponCode: appliedCoupon?.code } })}
-            className="w-full h-14 bg-signal text-signal-ink font-sans text-sm font-semibold uppercase tracking-widest hover:opacity-90 transition-opacity border border-signal rounded-none"
-          >
-            CHECKOUT →
-          </button>
         </div>
 
+        {/* Right Column (Sticky Order Summary) — 4 cols */}
+        <div className="lg:col-span-4 bg-surface border border-line rounded-card p-6 sm:p-8 space-y-6 lg:sticky lg:top-24">
+          <div className="border-b border-line pb-4">
+            <Eyebrow className="text-text-mute block">SUMMARY</Eyebrow>
+            <h3 className="font-display text-xl font-bold text-text">Order Breakdown</h3>
+          </div>
+
+          <div className="space-y-3 font-mono text-xs">
+            <div className="flex items-center justify-between text-text-dim">
+              <span>SUBTOTAL</span>
+              <Money amount={subtotal} size="inline" />
+            </div>
+
+            {appliedCoupon && (
+              <div className="flex items-center justify-between text-mint bg-mint-soft border border-mint/30 p-2 rounded-card">
+                <span>PROMO ({appliedCoupon.code})</span>
+                <span className="font-semibold">−${discount.toFixed(2)}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between text-text-dim">
+              <span>ESTIMATED TAX</span>
+              <span className="text-text-mute">CALCULATED AT CHECKOUT</span>
+            </div>
+
+            <div className="flex items-center justify-between text-text-dim">
+              <span>SHIPPING</span>
+              <span className="text-mint font-semibold">FREE INCLUDED</span>
+            </div>
+
+            <div className="border-t border-line pt-4 flex items-baseline justify-between text-text">
+              <span className="font-display font-bold text-base">TOTAL DUE</span>
+              <Money amount={total} size="lg" className="font-bold text-text" />
+            </div>
+          </div>
+
+          <button
+            onClick={() => navigate('/checkout')}
+            className="w-full bg-amber text-on-amber hover:bg-amber-press py-3.5 px-6 rounded-card font-sans font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-sm"
+          >
+            <span>PROCEED TO CHECKOUT</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+
+          <div className="text-[11px] font-mono text-text-mute flex items-center gap-2 pt-2 border-t border-line">
+            <ShieldCheck className="w-4 h-4 text-mint flex-shrink-0" />
+            <span>256-bit SSL encrypted · Idempotent Stripe order hold</span>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { commerceApi } from '../../api/commerce';
 import { CouponValidation } from '../../types/api';
-import { Numeric } from '../ui/Numeric';
+import { Money } from '../ui/Money';
+import { CheckCircle2, X } from 'lucide-react';
 
 interface CouponInputProps {
   cartSubtotal: number;
@@ -47,12 +48,11 @@ export const CouponInput: React.FC<CouponInputProps> = ({
     const globalLimit = (appliedCoupon as any).usage_limit;
 
     return (
-      <div className="p-3 border border-gain bg-paper text-gain font-mono text-xs space-y-1">
+      <div className="p-3.5 border border-mint/40 bg-mint-soft text-mint rounded-card font-mono text-xs space-y-1">
         <div className="flex items-center justify-between">
-          <div className="font-semibold">
-            <span>PROMO CODE '{appliedCoupon.code}' APPLIED (</span>
-            <Numeric value={Number(appliedCoupon.calculated_discount || 0)} format="price" zeroPadInt={2} />
-            <span> SAVINGS)</span>
+          <div className="font-semibold flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>PROMO '{appliedCoupon.code}' APPLIED (SAVINGS: ${Number(appliedCoupon.calculated_discount || 0).toFixed(2)})</span>
           </div>
           <button
             type="button"
@@ -61,15 +61,16 @@ export const CouponInput: React.FC<CouponInputProps> = ({
               e.stopPropagation();
               onCouponApplied({ valid: false });
             }}
-            className="text-ash hover:text-loss underline"
+            className="text-text-mute hover:text-rose flex items-center gap-1 transition-colors"
           >
-            [ REMOVE ]
+            <X className="w-3.5 h-3.5" />
+            <span>REMOVE</span>
           </button>
         </div>
-        <div className="text-[10px] text-graphite flex flex-wrap gap-2 pt-0.5">
+        <div className="text-[10px] text-text-dim flex flex-wrap gap-2 pt-0.5">
           <span>✓ {maxPerUser} use allowed per user account</span>
           {globalLimit ? (
-            <span>· ⚡ Valid for first {globalLimit} customers</span>
+            <span>· ⚡ Valid for first {globalLimit} orders</span>
           ) : null}
         </div>
       </div>
@@ -85,9 +86,9 @@ export const CouponInput: React.FC<CouponInputProps> = ({
           e.stopPropagation();
           setIsExpanded(true);
         }}
-        className="font-mono text-xs text-ink hover:text-signal underline block"
+        className="font-mono text-xs text-amber hover:underline block"
       >
-        [ + APPLY COUPON CODE ]
+        + APPLY PROMOTIONAL COUPON CODE
       </button>
     );
   }
@@ -97,7 +98,7 @@ export const CouponInput: React.FC<CouponInputProps> = ({
       <div className="flex space-x-2">
         <input
           type="text"
-          placeholder="ENTER PROMO CODE (E.G. FLASH20)"
+          placeholder="ENTER PROMO CODE (E.G. SAVE20)"
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           onKeyDown={(e) => {
@@ -107,21 +108,21 @@ export const CouponInput: React.FC<CouponInputProps> = ({
               handleApply(e);
             }
           }}
-          className="flex-grow bg-paper-sunk border border-rule px-3 py-2 text-xs font-mono text-ink placeholder-ash uppercase focus:outline-none focus:border-ink rounded-none"
+          className="flex-grow bg-raised border border-line focus:border-sky px-3 py-2 text-xs font-mono text-text placeholder:text-text-mute uppercase focus:outline-none rounded-card transition-colors"
         />
         <button
           type="button"
           onClick={handleApply}
           disabled={isValidating || !code.trim()}
-          className="bg-ink text-paper text-xs font-mono px-4 py-2 hover:bg-graphite disabled:opacity-40 rounded-none"
+          className="bg-amber text-on-amber font-sans font-bold text-xs px-4 py-2 hover:bg-amber-press disabled:opacity-40 rounded-card transition-colors shadow-sm"
         >
           {isValidating ? 'CHECKING...' : 'APPLY'}
         </button>
       </div>
 
       {errorMsg && (
-        <div className="font-mono text-xs text-loss">
-          {errorMsg}
+        <div className="font-mono text-xs text-rose">
+          ● {errorMsg}
         </div>
       )}
     </div>

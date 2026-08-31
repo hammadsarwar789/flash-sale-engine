@@ -13,6 +13,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     on<AddToCartEvent>(_onAddToCart);
     on<UpdateCartItemQuantityEvent>(_onUpdateQuantity);
     on<RemoveCartItemEvent>(_onRemoveItem);
+    on<ClearCartEvent>(_onClearCart);
   }
 
   Future<void> _onLoadCart(LoadCartEvent event, Emitter<CartState> emit) async {
@@ -59,6 +60,16 @@ class CartBloc extends Bloc<CartEvent, CartState> {
   Future<void> _onRemoveItem(RemoveCartItemEvent event, Emitter<CartState> emit) async {
     try {
       await _cartRepository.removeFromCart(event.itemId);
+      final cart = await _cartRepository.getCart();
+      emit(CartLoaded(cart: cart));
+    } catch (e) {
+      emit(CartError(e.toString()));
+    }
+  }
+
+  Future<void> _onClearCart(ClearCartEvent event, Emitter<CartState> emit) async {
+    try {
+      await _cartRepository.clearCart();
       final cart = await _cartRepository.getCart();
       emit(CartLoaded(cart: cart));
     } catch (e) {

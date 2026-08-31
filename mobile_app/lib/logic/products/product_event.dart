@@ -38,3 +38,19 @@ class SearchQueryChangedEvent extends ProductEvent {
   @override
   List<Object?> get props => [query];
 }
+
+class SortChangedEvent extends ProductEvent {
+  final String sortBy;
+  const SortChangedEvent(this.sortBy);
+
+  @override
+  List<Object?> get props => [sortBy];
+}
+
+class PageChangedEvent extends ProductEvent {
+  final int page;
+  const PageChangedEvent(this.page);
+
+  @override
+  List<Object?> get props => [page];
+}

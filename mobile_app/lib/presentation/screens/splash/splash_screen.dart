@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/logic/auth/auth_bloc.dart';
 import 'package:mobile_app/logic/auth/auth_state.dart';
 
@@ -19,41 +20,41 @@ class SplashScreen extends StatelessWidget {
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: C.base,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  color: AppColors.signal,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Icon(Icons.bolt, color: AppColors.signalInk, size: 54),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'FLASH SALE ENGINE',
-                style: TextStyle(
-                  color: AppColors.ink,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2.0,
-                ),
+              // Wordmark
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'FLASH',
+                    style: GoogleFonts.sora(fontSize: 28, fontWeight: FontWeight.w800, color: C.text),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(width: 8, height: 8, decoration: const BoxDecoration(color: C.amber, shape: BoxShape.circle)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'SALE',
+                    style: GoogleFonts.sora(fontSize: 28, fontWeight: FontWeight.w400, color: C.textDim),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
-              const Text(
-                'High-Concurrency Live Drops',
-                style: TextStyle(
-                  color: AppColors.graphite,
-                  fontSize: 14,
+              Text(
+                'HIGH VELOCITY TRADING FLOOR',
+                style: GoogleFonts.jetBrainsMono(
+                  color: C.textMute,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
                 ),
               ),
               const SizedBox(height: 48),
               const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.signal),
+                valueColor: AlwaysStoppedAnimation<Color>(C.amber),
               ),
             ],
           ),

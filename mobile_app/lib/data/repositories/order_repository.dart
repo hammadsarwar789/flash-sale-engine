@@ -60,7 +60,7 @@ class OrderRepository {
     }
   }
 
-  Future<OrderModel> getOrderDetail(int orderId) async {
+  Future<OrderModel> getOrderDetail(dynamic orderId) async {
     try {
       final response = await _apiClient.dio.get(ApiConstants.orderDetail(orderId));
       return OrderModel.fromJson(response.data as Map<String, dynamic>);
@@ -70,7 +70,7 @@ class OrderRepository {
   }
 
   Future<void> payOrder({
-    required int orderId,
+    required dynamic orderId,
     required String paymentMethod,
   }) async {
     try {
@@ -80,6 +80,14 @@ class OrderRepository {
           'payment_method': paymentMethod,
         },
       );
+    } on DioException catch (e) {
+      throw _apiClient.handleDioError(e);
+    }
+  }
+
+  Future<void> cancelOrder(dynamic orderId) async {
+    try {
+      await _apiClient.dio.post(ApiConstants.cancelOrder(orderId));
     } on DioException catch (e) {
       throw _apiClient.handleDioError(e);
     }

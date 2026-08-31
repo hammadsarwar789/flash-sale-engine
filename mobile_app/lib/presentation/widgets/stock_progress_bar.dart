@@ -1,30 +1,75 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../core/theme/tokens.dart';
+
+enum StockBarVariant { segmented, continuous }
 
 class StockProgressBar extends StatelessWidget {
   final int stock;
   final int initialStock;
+  final StockBarVariant variant;
 
   const StockProgressBar({
     super.key,
     required this.stock,
-    this.initialStock = 100,
+    this.initialStock = 50,
+    this.variant = StockBarVariant.continuous,
   });
 
   @override
   Widget build(BuildContext context) {
-    final max = initialStock > 0 ? initialStock : 100;
+    final max = initialStock > 0 ? initialStock : 50;
     final ratio = (stock / max).clamp(0.0, 1.0);
-    final isLowStock = stock <= 10 && stock > 0;
     final isSoldOut = stock <= 0;
+    final isUrgent = stock > 0 && (stock <= 5 || ratio <= 0.15);
+    final isMedium = !isUrgent && !isSoldOut && ratio <= 0.4;
 
-    Color progressColor;
+    Color barColor;
+    String statusText;
+
     if (isSoldOut) {
-      progressColor = AppColors.textMuted;
-    } else if (isLowStock) {
-      progressColor = AppColors.accentFlash;
+      barColor = C.rose;
+      statusText = 'SOLD OUT';
+    } else if (isUrgent) {
+      barColor = C.amber;
+      statusText = 'CRITICAL: $stock LEFT';
+    } else if (isMedium) {
+      barColor = C.amber;
+      statusText = '$stock UNITS REMAINING';
     } else {
-      progressColor = AppColors.secondary;
+      barColor = C.mint;
+      statusText = 'IN STOCK ($stock UNITS)';
+    }
+
+    if (variant == StockBarVariant.segmented) {
+      const totalBlocks = 8;
+      final filledBlocks = isSoldOut ? 0 : (ratio * totalBlocks).ceil().clamp(1, totalBlocks);
+      final segmentStr = '▓' * filledBlocks + '░' * (totalBlocks - filledBlocks);
+
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            segmentStr,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 11,
+              color: barColor,
+              letterSpacing: 1,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '$stock LEFT',
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 10,
+              color: barColor,
+              fontWeight: FontWeight.w700,
+              fontFeatures: [const FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      );
     }
 
     return Column(
@@ -34,33 +79,34 @@ class StockProgressBar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              isSoldOut
-                  ? 'SOLD OUT'
-                  : (isLowStock ? '🔥 Only $stock left in stock!' : 'Available: $stock units'),
-              style: TextStyle(
-                color: isLowStock ? AppColors.accentFlash : AppColors.textSecondary,
-                fontSize: 12,
-                fontWeight: isLowStock ? FontWeight.bold : FontWeight.w500,
+              statusText,
+              style: GoogleFonts.jetBrainsMono(
+                color: isUrgent ? C.amber : C.textDim,
+                fontSize: 10,
+                fontWeight: isUrgent ? FontWeight.w800 : FontWeight.w600,
+                letterSpacing: 0.3,
+                fontFeatures: [const FontFeature.tabularFigures()],
               ),
             ),
             Text(
               '${(ratio * 100).toInt()}%',
-              style: TextStyle(
-                color: progressColor,
-                fontSize: 11,
+              style: GoogleFonts.jetBrainsMono(
+                color: barColor,
+                fontSize: 10,
                 fontWeight: FontWeight.bold,
+                fontFeatures: [const FontFeature.tabularFigures()],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(2),
           child: LinearProgressIndicator(
-            value: ratio,
-            minHeight: 6,
-            backgroundColor: AppColors.surfaceElevated,
-            valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+            value: isSoldOut ? 0.0 : ratio,
+            minHeight: 4,
+            backgroundColor: C.raised,
+            valueColor: AlwaysStoppedAnimation<Color>(barColor),
           ),
         ),
       ],

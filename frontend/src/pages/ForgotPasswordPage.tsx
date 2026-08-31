@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../api/auth';
+import { Eyebrow } from '../components/ui/Eyebrow';
 import { KeyRound, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 export const ForgotPasswordPage: React.FC = () => {
@@ -26,28 +27,31 @@ export const ForgotPasswordPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto py-12 space-y-8">
+    <div className="max-w-md mx-auto py-12 space-y-6">
       <div className="text-center space-y-2">
-        <KeyRound className="w-10 h-10 text-cyan-400 mx-auto" />
-        <h1 className="text-3xl font-extrabold text-white">Reset Password</h1>
-        <p className="text-slate-400 text-sm">Enter your account email to generate a password reset token</p>
+        <div className="w-12 h-12 rounded-full bg-raised flex items-center justify-center mx-auto text-amber border border-line">
+          <KeyRound className="w-6 h-6" />
+        </div>
+        <Eyebrow className="text-amber block font-bold">RECOVERY PIPELINE</Eyebrow>
+        <h1 className="font-display text-3xl font-bold text-text">Reset Password</h1>
+        <p className="text-text-mute text-xs">Enter your account email to generate a password reset token.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-8 rounded-3xl glass-panel border border-slate-800 space-y-5">
+      <form onSubmit={handleSubmit} className="p-8 rounded-card bg-surface border border-line space-y-5">
         {msg && (
-          <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold flex items-center space-x-2">
+          <div className="p-3.5 rounded-card bg-mint-soft border border-mint/30 text-mint text-xs font-mono flex items-center space-x-2">
             <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
             <span>{msg}</span>
           </div>
         )}
 
         {resetToken && (
-          <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-            <span className="text-xs text-slate-400">Generated Demo Token:</span>
-            <p className="font-mono text-cyan-400 font-bold text-sm select-all">{resetToken}</p>
+          <div className="p-4 rounded-card bg-raised border border-line space-y-2">
+            <span className="text-xs font-mono text-text-mute">Generated Demo Token:</span>
+            <p className="font-mono text-amber font-bold text-sm select-all">{resetToken}</p>
             <Link
               to={`/reset-password?token=${resetToken}`}
-              className="block text-xs font-bold text-slate-950 bg-cyan-500 hover:bg-cyan-400 text-center py-2 rounded-lg mt-2"
+              className="block text-xs font-bold text-on-amber bg-amber hover:bg-amber-press text-center py-2.5 rounded-card mt-2 transition-colors uppercase tracking-wider"
             >
               Proceed to Reset Form
             </Link>
@@ -55,9 +59,7 @@ export const ForgotPasswordPage: React.FC = () => {
         )}
 
         <div>
-          <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-            Email Address
-          </label>
+          <Eyebrow className="text-text-mute mb-1.5 block">EMAIL ADDRESS</Eyebrow>
           <div className="relative">
             <input
               type="email"
@@ -65,24 +67,24 @@ export const ForgotPasswordPage: React.FC = () => {
               placeholder="user@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+              className="w-full bg-raised border border-line rounded-card pl-10 pr-4 py-2.5 text-sm font-mono text-text placeholder:text-text-mute focus:outline-none focus:border-sky transition-colors"
             />
-            <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+            <Mail className="w-4 h-4 text-text-mute absolute left-3.5 top-3" />
           </div>
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black py-3.5 rounded-xl transition-all disabled:opacity-50"
+          className="w-full bg-amber hover:bg-amber-press text-on-amber font-sans font-bold text-xs uppercase tracking-wider py-3 rounded-card transition-colors disabled:opacity-50 shadow-sm"
         >
-          {isSubmitting ? 'Sending Request...' : 'Send Reset Link'}
+          {isSubmitting ? 'GENERATING TOKEN...' : 'SEND RESET INSTRUCTIONS'}
         </button>
 
         <div className="text-center pt-2">
-          <Link to="/login" className="inline-flex items-center space-x-1 text-xs font-semibold text-slate-400 hover:text-white">
+          <Link to="/login" className="inline-flex items-center space-x-1 text-xs font-mono text-text-mute hover:text-text transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Login</span>
+            <span>Return to Login</span>
           </Link>
         </div>
       </form>

@@ -2,64 +2,138 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Day Mode (Light) Variables */
-:root, .light {
-  --bone: #F4F1EA;
-  --paper: #FBF9F4;
-  --paper-sunk: #EDE8DC;
-  --ink: #111111;
-  --graphite: #3A3A38;
-  --ash: #59564E;
-  --rule: #DCD6C8;
-  --signal: #E5321B;
-  --signal-ink: #FFFFFF;
-  --gain: #1F6B3A;
-  --warn: #B8791A;
-  --loss: #8A1A12;
-  --marker: #F5E6A8;
+/* Design System v3 "Obsidian Market" — Dark is canonical default */
+:root, .dark {
+  /* Surface ladder */
+  --base: #0B0D0C;
+  --surface: #131715;
+  --raised: #1B211E;
+  --overlay: #232B27;
+
+  /* Line & borders */
+  --line: #2A332E;
+  --line-strong: #3C4841;
+
+  /* Text hierarchy */
+  --text: #EDEFEA;
+  --text-dim: #A6AFA7;
+  --text-mute: #6E7A72;
+
+  /* Accents & semantics */
+  --amber: #F2A03D;
+  --amber-press: #D8862A;
+  --on-amber: #1A1207;
+  --amber-soft: #2A2113;
+
+  --mint: #4FD4A0;
+  --mint-soft: #12271F;
+
+  --sky: #5AA9F2;
+  --sky-soft: #0F1F2E;
+
+  --rose: #F2685E;
+  --rose-soft: #2B1614;
+
+  --violet: #A98BF0;
+  --violet-soft: #1D1730;
+
+  /* Compatibility aliases for seamless transitions */
+  --bone: var(--base);
+  --paper: var(--surface);
+  --paper-sunk: var(--raised);
+  --ink: var(--text);
+  --graphite: var(--text-dim);
+  --ash: var(--text-mute);
+  --rule: var(--line);
+  --signal: var(--amber);
+  --signal-ink: var(--on-amber);
+  --gain: var(--mint);
+  --warn: var(--amber);
+  --loss: var(--rose);
+  --marker: var(--amber-soft);
 }
 
-/* Night Mode (Dark) Variables */
-.dark {
-  --bone: #0E0E0C;
-  --paper: #161613;
-  --paper-sunk: #1F1F1B;
-  --ink: #F1EEE6;
-  --graphite: #C8C4B8;
-  --ash: #B5B2A3;
-  --rule: #3A3935;
-  --signal: #FF4A32;
-  --signal-ink: #0E0E0C;
-  --gain: #4FBE7B;
-  --warn: #E0A44A;
-  --loss: #E5321B;
-  --marker: #5A4A18;
+/* Light theme counterpart */
+.light {
+  --base: #F7F6F3;
+  --surface: #FFFFFF;
+  --raised: #F1EFEA;
+  --overlay: #FFFFFF;
+
+  --line: #E2DED5;
+  --line-strong: #C9C3B6;
+
+  --text: #14100B;
+  --text-dim: #5B5A54;
+  --text-mute: #8C8A82;
+
+  --amber: #C2721A;
+  --amber-press: #A65E12;
+  --on-amber: #FFFFFF;
+  --amber-soft: #FBEEDC;
+
+  --mint: #127A55;
+  --mint-soft: #DEF3E9;
+
+  --sky: #1667B8;
+  --sky-soft: #E1EEFB;
+
+  --rose: #C0362B;
+  --rose-soft: #FBE4E1;
+
+  --violet: #6844C4;
+  --violet-soft: #EEE8FC;
+
+  /* Compatibility aliases */
+  --bone: var(--base);
+  --paper: var(--surface);
+  --paper-sunk: var(--raised);
+  --ink: var(--text);
+  --graphite: var(--text-dim);
+  --ash: var(--text-mute);
+  --rule: var(--line);
+  --signal: var(--amber);
+  --signal-ink: var(--on-amber);
+  --gain: var(--mint);
+  --warn: var(--amber);
+  --loss: var(--rose);
+  --marker: var(--amber-soft);
 }
 
 @layer base {
   body {
-    background-color: var(--bone);
-    color: var(--ink);
-    font-family: 'Inter Tight', system-ui, sans-serif;
+    background-color: var(--base);
+    color: var(--text);
+    font-family: 'Manrope', system-ui, sans-serif;
     font-size: 15px;
     line-height: 24px;
     letter-spacing: 0;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
-    transition: background-color 0.25s ease, color 0.25s ease;
+    transition: background-color 0.2s cubic-bezier(0.2, 0, 0, 1), color 0.2s cubic-bezier(0.2, 0, 0, 1);
   }
 
   /* Structural 1px Hairline Rule Defaults */
   hr {
     border: 0;
-    border-top: 1px solid var(--rule);
+    border-top: 1px solid var(--line);
   }
 
-  /* Interactive Focus State */
+  /* Interactive Focus State: Sky ring with offset */
   *:focus-visible {
-    outline: 2px solid var(--signal);
+    outline: 2px solid var(--sky);
     outline-offset: 2px;
   }
+}
+
+/* Eyebrow utility */
+.eyebrow-label {
+  font-family: 'Manrope', system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
 }
 
 /* Custom Scrollbar Styles */
@@ -68,14 +142,14 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--paper-sunk);
+  background: var(--raised);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--ash);
-  border-radius: 0px;
+  background: var(--text-mute);
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--ink);
+  background: var(--text-dim);
 }
 
 /* Marquee Ticker Keyframes */
@@ -87,15 +161,34 @@
 .animate-marquee {
   display: flex;
   width: max-content;
-  animation: tickerMarquee 25s linear infinite;
+  animation: tickerMarquee 28s linear infinite;
 }
 
 .animate-marquee:hover {
   animation-play-state: paused;
 }
 
+/* Pulse animation for live and scarcity */
+@keyframes signalPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.animate-signal-pulse {
+  animation: signalPulse 1s ease-in-out infinite;
+}
+
 /* Tabular Numerics Utility */
 .numeric-tabular {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+  .animate-signal-pulse {
+    animation: none;
+  }
 }

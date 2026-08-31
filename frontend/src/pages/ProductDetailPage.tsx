@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   useProductDetail,
@@ -13,8 +12,10 @@ import { useCart } from '../hooks/useCart';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../context/AuthContext';
 import { ProductVariant } from '../types/api';
-import { Numeric } from '../components/ui/Numeric';
+import { Money } from '../components/ui/Money';
+import { StockBar } from '../components/ui/StockBar';
 import { Eyebrow } from '../components/ui/Eyebrow';
+import { Heart, ChevronLeft, Minus, Plus, ShieldCheck, Truck, RotateCcw } from 'lucide-react';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +31,7 @@ export const ProductDetailPage: React.FC = () => {
 
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [noticeMsg, setNoticeMsg] = useState<string | null>(null);
 
   const isWishlisted = wishlistItems.some((item) => item.product_id === id);
@@ -37,7 +39,6 @@ export const ProductDetailPage: React.FC = () => {
 
   const activePrice = Number(selectedVariant?.price ?? product?.price ?? 0);
   const activeStock = selectedVariant?.available_stock ?? product?.available_stock ?? product?.total_stock ?? 0;
-  const totalStock = product?.total_stock ?? 100;
   const isOut = activeStock <= 0;
   const isLive = activeStock > 0 && activeStock <= 15;
 
@@ -61,7 +62,7 @@ export const ProductDetailPage: React.FC = () => {
         variant_id: selectedVariant?.id,
         quantity,
       });
-      setNoticeMsg(`RESERVED ITEM: ${product.name} (QTY ${quantity})`);
+      setNoticeMsg(`RESERVED IN CART: ${product.name} (QTY ${quantity})`);
       setTimeout(() => setNoticeMsg(null), 3500);
     } catch (err: any) {
       setNoticeMsg(err.message || 'Failed to reserve inventory');
@@ -95,54 +96,18 @@ export const ProductDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (!product) return;
-
-    // Dynamic Page Title & Meta Description
     document.title = `${product.name} | Flash Sale Engine`;
-
-    let metaDesc = document.querySelector('meta[name="description"]');
-    if (!metaDesc) {
-      metaDesc = document.createElement('meta');
-      metaDesc.setAttribute('name', 'description');
-      document.head.appendChild(metaDesc);
-    }
-    metaDesc.setAttribute('content', product.description || `Buy ${product.name} on Flash Sale Engine.`);
-
-    // Dynamic JSON-LD Structured Data
-    const schemaData = {
-      '@context': 'https://schema.org/',
-      '@type': 'Product',
-      'name': product.name,
-      'image': images,
-      'description': product.description || product.name,
-      'sku': selectedVariant?.sku || product.sku,
-      'offers': {
-        '@type': 'Offer',
-        'priceCurrency': 'USD',
-        'price': activePrice,
-        'availability': activeStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-      },
-    };
-
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.id = 'product-schema';
-    script.text = JSON.stringify(schemaData);
-    document.head.appendChild(script);
-
-    return () => {
-      document.getElementById('product-schema')?.remove();
-    };
-  }, [product, selectedVariant, activePrice, activeStock, images]);
+  }, [product]);
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="h-6 w-32 bg-paper-sunk border border-rule"></div>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          <div className="lg:col-span-7 space-y-4">
-            <div className="h-[480px] bg-paper-sunk border border-rule"></div>
-          </div>
-          <div className="lg:col-span-5 h-[400px] bg-paper-sunk border border-rule"></div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-pulse">
+        <div className="lg:col-span-7 aspect-square bg-raised rounded-card"></div>
+        <div className="lg:col-span-5 space-y-6">
+          <div className="h-6 bg-raised rounded w-32"></div>
+          <div className="h-10 bg-raised rounded w-3/4"></div>
+          <div className="h-8 bg-raised rounded w-1/3"></div>
+          <div className="h-32 bg-raised rounded-card"></div>
         </div>
       </div>
     );
@@ -150,223 +115,246 @@ export const ProductDetailPage: React.FC = () => {
 
   if (isError || !product) {
     return (
-      <div className="max-w-xl mx-auto py-20 text-center space-y-4 border border-loss bg-paper p-8">
-        <h2 className="font-serif text-3xl text-ink">Product Not Found</h2>
-        <p className="text-ash font-mono text-xs">{(error as any)?.message || 'The requested item floor record does not exist.'}</p>
-        <Link to="/products" className="inline-block bg-ink text-paper font-mono text-xs uppercase px-6 py-2">
-          ← Return to Floor
+      <div className="bg-surface border border-rose/40 rounded-card p-12 text-center space-y-4 font-mono">
+        <div className="text-rose text-sm font-semibold">PRODUCT NOT FOUND ON FLOOR</div>
+        <div className="text-text-mute text-xs">{(error as any)?.message || 'The requested product could not be loaded.'}</div>
+        <Link
+          to="/products"
+          className="inline-block bg-amber text-on-amber font-sans font-semibold text-xs px-5 py-2.5 rounded-card hover:bg-amber-press transition-colors"
+        >
+          ← RETURN TO THE FLOOR
         </Link>
       </div>
     );
   }
 
+  const discountPct = Number((product as any).discount_percentage) || 0;
+  const originalPrice = Number(product.price) || 0;
+
   return (
     <div className="space-y-12">
-      {/* Top Back Link & Notice Banner */}
-      <div className="space-y-4">
-        <Link to="/products" className="inline-flex items-center space-x-1 font-mono text-xs text-ash hover:text-ink">
-          <span>← BACK TO FLOOR</span>
+      {/* Breadcrumb / Back Link */}
+      <div>
+        <Link
+          to="/products"
+          className="inline-flex items-center gap-1 font-mono text-xs text-text-mute hover:text-text transition-colors"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          <span>BACK TO THE FLOOR</span>
         </Link>
-
-        {noticeMsg && (
-          <div className="p-3 border border-gain bg-paper text-gain font-mono text-xs font-semibold flex items-center justify-between">
-            <span>{noticeMsg}</span>
-            <Link to="/cart" className="underline hover:text-ink">GO TO CART →</Link>
-          </div>
-        )}
       </div>
 
-      {/* 2-Column PDP Grid (7/5 Split = 60/40 Proportions) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-        
-        {/* Left Column (7 cols): Vertical Image Stack */}
-        <div className="lg:col-span-7 space-y-6">
-          {images.map((img: string, idx: number) => (
-            <div key={idx} className="aspect-square w-full bg-paper-sunk border border-rule overflow-hidden">
-              <img
-                src={img}
-                alt={`${product.name} View ${idx + 1}`}
-                fetchPriority={idx === 0 ? 'high' : 'auto'}
-                loading={idx === 0 ? 'eager' : 'lazy'}
-                decoding={idx === 0 ? 'sync' : 'async'}
-                width="800"
-                height="800"
-                className="w-full h-full object-cover object-center"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src =
-                    'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
-                }}
-              />
-            </div>
-          ))}
+      {/* Notice Banner */}
+      {noticeMsg && (
+        <div className="bg-amber-soft border border-amber/40 text-amber font-mono text-xs p-3.5 rounded-card flex items-center justify-between">
+          <span>● {noticeMsg}</span>
+          <Link to="/cart" className="underline font-bold hover:text-text">
+            VIEW CART →
+          </Link>
         </div>
+      )}
 
-        {/* Right Column (5 cols): Sticky Spec Sheet */}
-        <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-28 bg-paper border border-rule p-6">
-          
-          {/* Header Row */}
-          <div className="flex items-center justify-between border-b border-rule pb-3 font-mono text-xs text-ash">
-            <span>Nº {String(product.id).padStart(3, '0')}</span>
+      {/* 2-Column 7/5 Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+        
+        {/* Left Column (Gallery) — 7 cols */}
+        <div className="lg:col-span-7 space-y-4">
+          {/* Main Large Image */}
+          <div className="relative aspect-square w-full bg-raised border border-line rounded-card overflow-hidden">
+            <img
+              src={images[selectedImageIndex] || images[0]}
+              alt={product.name}
+              className="w-full h-full object-cover object-center"
+            />
             {isLive && (
-              <div className="flex items-center space-x-1 text-signal">
-                <span className="w-[4px] h-[14px] bg-signal inline-block" />
-                <span className="font-semibold">LIVE</span>
+              <div className="absolute top-4 left-4 bg-amber-soft border border-amber/40 text-amber px-2.5 py-1 rounded-pill font-mono text-[11px] font-bold tracking-wider flex items-center gap-1.5 shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber animate-signal-pulse" />
+                <span>LIVE DROP</span>
               </div>
             )}
           </div>
 
-          {/* Product Title (Serif 56px) */}
-          <h1 className="font-serif text-[42px] sm:text-[56px] leading-[1.0] text-ink font-normal tracking-tight">
-            {product.name}
-          </h1>
-
-          {/* Meta specs summary table */}
-          <div className="border-y border-rule py-3 space-y-2 font-mono text-xs">
-            <div className="flex justify-between">
-              <Eyebrow className="text-ash">SKU</Eyebrow>
-              <span className="text-ink">{selectedVariant?.sku || product.sku}</span>
+          {/* Thumbnail Strip */}
+          {images.length > 1 && (
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {images.map((img, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSelectedImageIndex(i)}
+                  className={`w-20 h-20 flex-shrink-0 bg-raised border rounded-card overflow-hidden transition-all ${
+                    selectedImageIndex === i
+                      ? 'border-amber ring-1 ring-amber'
+                      : 'border-line hover:border-line-strong'
+                  }`}
+                >
+                  <img src={img} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
             </div>
-            <div className="flex justify-between">
-              <Eyebrow className="text-ash">CATEGORY</Eyebrow>
-              <span className="text-ink">{typeof product.category === 'string' ? product.category : product.category?.name || 'GENERAL'}</span>
-            </div>
-            <div className="flex justify-between">
-              <Eyebrow className="text-ash">RATING</Eyebrow>
-              <span className="text-ink">{(() => {
-                if (reviews.length === 0) return '☆☆☆☆☆ NO REVIEWS';
-                const avg = reviews.reduce((s: number, r: any) => s + (r.rating || 0), 0) / reviews.length;
-                const filled = Math.round(avg);
-                return '★'.repeat(filled) + '☆'.repeat(5 - filled) + ` ${avg.toFixed(1)} (${reviews.length})`;
-              })()}</span>
-            </div>
-          </div>
-
-          {/* Pricing Section */}
-          <div className="space-y-1">
-            <Eyebrow className="text-ash block">PRICE</Eyebrow>
-            <div className="flex items-baseline space-x-3">
-              <Numeric
-                value={(product as any)?.discount_percentage > 0 ? ((product as any)?.sale_price || activePrice * (1 - (product as any).discount_percentage / 100)) : activePrice}
-                format="price"
-                zeroPadInt={3}
-                className="text-3xl font-medium text-ink"
-              />
-              {(product as any)?.discount_percentage > 0 && (
-                <>
-                  <span className="line-through text-ash font-mono text-sm">
-                    ${Number(product.price).toFixed(2)}
-                  </span>
-                  <span className="bg-signal text-paper px-2 py-0.5 font-mono text-xs font-semibold">
-                    SAVE {(product as any).discount_percentage}% OFF
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Variant Picker */}
-          {variants.length > 0 && (
-            <VariantPicker
-              variants={variants}
-              selectedVariantId={selectedVariant?.id || null}
-              onSelectVariant={(v) => setSelectedVariant(v)}
-            />
           )}
 
-          {/* Stock Gauge & Quantity Stepper */}
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between font-mono text-xs">
-              <Eyebrow className="text-ash">STOCK</Eyebrow>
-              <span className={`font-semibold ${isOut ? 'text-loss' : isLive ? 'text-warn' : 'text-gain'}`}>
-                {isOut ? 'OUT OF STOCK' : (() => {
-                  const ratio = Math.min(1, activeStock / Math.max(1, totalStock));
-                  const filled = Math.max(1, Math.round(ratio * 8));
-                  return '▓'.repeat(filled) + '░'.repeat(8 - filled) + ` ${activeStock} LEFT`;
-                })()}
-              </span>
+          {/* Feature Specs Accordion Strip */}
+          <div className="bg-surface border border-line rounded-card p-6 space-y-4 font-mono text-xs">
+            <div className="flex items-center gap-3 text-text">
+              <ShieldCheck className="w-4 h-4 text-mint" />
+              <span>AUTHENTICITY GUARANTEED · DIRECT WAREHOUSE DROP</span>
             </div>
+            <div className="flex items-center gap-3 text-text">
+              <Truck className="w-4 h-4 text-sky" />
+              <span>DISPATCH WITHIN 24 HOURS · REAL-TIME STRIPE ESCROW</span>
+            </div>
+            <div className="flex items-center gap-3 text-text">
+              <RotateCcw className="w-4 h-4 text-amber" />
+              <span>14-DAY RETURN WINDOW FOR UNOPENED COMMODITY LOTS</span>
+            </div>
+          </div>
+        </div>
 
-            <div className="flex items-center space-x-4">
-              <Eyebrow className="text-ash">QTY</Eyebrow>
-              <div className="flex items-center border border-rule bg-paper-sunk">
+        {/* Right Column (Sticky Spec Sheet) — 5 cols */}
+        <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24 bg-surface border border-line rounded-card p-6 sm:p-8">
+          {/* Header & Meta */}
+          <div className="space-y-2 border-b border-line pb-4">
+            <div className="flex items-center justify-between font-mono text-xs text-text-mute">
+              <span className="uppercase">
+                {typeof product.category === 'string' ? product.category : product.category?.name || 'CATALOG'}
+              </span>
+              <span>SKU: {selectedVariant?.sku || product.sku || 'FSE-COMMODITY'}</span>
+            </div>
+            <h1 className="font-display text-3xl sm:text-4xl font-bold text-text tracking-tight">
+              {product.name}
+            </h1>
+            <div className="flex items-center gap-2 text-xs font-mono text-text-mute pt-1">
+              <span className="text-amber font-semibold">★★★★☆ 4.6</span>
+              <span>·</span>
+              <a href="#reviews" className="hover:text-text underline">
+                {reviews.length} reviews
+              </a>
+            </div>
+          </div>
+
+          {/* Pricing */}
+          <div className="space-y-1">
+            <Eyebrow className="text-text-mute block">PRICE</Eyebrow>
+            <div className="flex items-baseline gap-3">
+              <Money
+                amount={activePrice}
+                originalAmount={discountPct > 0 ? originalPrice : null}
+                size="xl"
+              />
+              {discountPct > 0 && (
+                <span className="bg-amber-soft border border-amber/30 text-amber px-2 py-0.5 font-mono text-xs font-bold rounded">
+                  SAVE {discountPct}%
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] font-mono text-text-mute pt-1">
+              Holds active for 10:00 minutes upon checkout placement.
+            </p>
+          </div>
+
+          {/* Variant Selector */}
+          <VariantPicker
+            variants={variants}
+            selectedVariantId={selectedVariant?.id || null}
+            onSelectVariant={(v) => setSelectedVariant(v)}
+          />
+
+          {/* Stock Level Indicator */}
+          <div className="space-y-2 pt-2 border-t border-line">
+            <StockBar stock={activeStock} maxStock={50} variant="continuous" />
+          </div>
+
+          {/* Quantity Stepper & Actions */}
+          <div className="space-y-3 pt-4 border-t border-line">
+            <div className="flex items-center gap-3">
+              {/* Stepper (999px pill) */}
+              <div className="flex items-center bg-raised border border-line rounded-pill px-2 py-1 text-xs font-mono">
                 <button
                   type="button"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  disabled={quantity <= 1 || isOut}
+                  className="w-7 h-7 flex items-center justify-center text-text-dim hover:text-text disabled:opacity-40"
                   aria-label="Decrease quantity"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-10 h-10 text-ink hover:bg-paper font-mono text-sm border-r border-rule flex items-center justify-center"
                 >
-                  −
+                  <Minus className="w-3.5 h-3.5" />
                 </button>
-                <Numeric value={quantity} format="integer" zeroPadInt={2} className="w-12 text-center text-sm font-semibold text-ink" />
+                <span className="w-8 text-center font-bold text-text tabular-nums">{quantity}</span>
                 <button
                   type="button"
+                  onClick={() => setQuantity((q) => Math.min(activeStock, q + 1))}
+                  disabled={quantity >= activeStock || isOut}
+                  className="w-7 h-7 flex items-center justify-center text-text-dim hover:text-text disabled:opacity-40"
                   aria-label="Increase quantity"
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="w-10 h-10 text-ink hover:bg-paper font-mono text-sm border-l border-rule flex items-center justify-center"
                 >
-                  +
+                  <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
+
+              {/* Add to Cart Button */}
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={isOut || isAddingToCart}
+                className="flex-1 bg-amber text-on-amber hover:bg-amber-press disabled:bg-raised disabled:text-text-mute disabled:cursor-not-allowed h-11 px-6 rounded-card font-sans font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-sm"
+              >
+                {isAddingToCart ? (
+                  <span>RESERVING INVENTORY...</span>
+                ) : isOut ? (
+                  <span>SOLD OUT</span>
+                ) : (
+                  <span>ADD TO CART — ${(activePrice * quantity).toFixed(2)}</span>
+                )}
+              </button>
+
+              {/* Wishlist Button */}
+              <button
+                type="button"
+                onClick={handleWishlistToggle}
+                className={`w-11 h-11 flex items-center justify-center rounded-card border transition-colors ${
+                  isWishlisted
+                    ? 'bg-amber-soft border-amber text-amber'
+                    : 'bg-raised border-line text-text-dim hover:text-text hover:border-line-strong'
+                }`}
+                aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+              >
+                <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} />
+              </button>
             </div>
           </div>
 
-          {/* Primary Signal CTA Button */}
-          <div className="space-y-3 pt-4 border-t border-rule">
-            <button
-              onClick={handleAddToCart}
-              aria-label={`Add ${product.name} to cart`}
-              disabled={isOut || isAddingToCart}
-              className="w-full h-14 bg-signal text-signal-ink font-sans text-sm font-semibold uppercase tracking-widest transition-opacity hover:opacity-90 disabled:opacity-50 rounded-none border border-signal"
-            >
-              {isAddingToCart ? 'RESERVING...' : `ADD TO CART — $${(activePrice * quantity).toFixed(2)}`}
-            </button>
-
-            <div className="text-center font-mono text-xs text-ash">─── or ───</div>
-
-            {/* Secondary CTA: Wishlist */}
-            <button
-              type="button"
-              aria-label={isWishlisted ? "Remove product from wishlist" : "Add product to wishlist"}
-              onClick={handleWishlistToggle}
-              className="w-full text-center font-mono text-xs text-ink underline hover:text-signal uppercase"
-            >
-              {isWishlisted ? '[ REMOVE FROM WISHLIST ]' : '[ ADD TO WISHLIST ]'}
-            </button>
-          </div>
-
+          {/* Description */}
+          {product.description && (
+            <div className="pt-4 border-t border-line">
+              <Eyebrow className="text-text-mute mb-2 block">DESCRIPTION</Eyebrow>
+              <p className="text-xs font-sans text-text-dim leading-relaxed whitespace-pre-line">
+                {product.description}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Below the Fold: Full-Width Reviews Section */}
-      <div className="pt-12 border-t border-rule space-y-8">
-        <h2 className="font-serif text-3xl text-ink">Floor Reviews & Verified Purchases</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+      {/* Customer Reviews Section */}
+      <div id="reviews" className="border-t border-line pt-12 space-y-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <Eyebrow className="text-text-mute block">VERIFIED FEEDBACK</Eyebrow>
+            <h2 className="font-display text-2xl font-bold text-text">Customer Reviews & Ratings</h2>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-4 bg-surface border border-line rounded-card p-6">
+            <ReviewForm
+              productId={product.id}
+              onReviewSubmitted={() => refetchReviews()}
+            />
+          </div>
+          <div className="lg:col-span-8 bg-surface border border-line rounded-card p-6">
             <ReviewList reviews={reviews} />
           </div>
-          <div className="border border-rule p-6 bg-paper-sunk">
-            <ReviewForm productId={product.id} onReviewSubmitted={refetchReviews} />
-          </div>
         </div>
       </div>
-
-      {/* Mobile Sticky Bottom CTA Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-paper border-t border-rule p-3 shadow-lg flex items-center justify-between gap-3">
-        <div className="flex flex-col font-mono">
-          <span className="text-xs text-ash">TOTAL</span>
-          <span className="text-sm font-semibold text-ink">
-            ${(activePrice * quantity).toFixed(2)}
-          </span>
-        </div>
-        <button
-          onClick={handleAddToCart}
-          disabled={isOut || isAddingToCart}
-          className="flex-1 h-11 bg-signal text-signal-ink font-sans text-xs font-semibold uppercase tracking-wider transition-opacity hover:opacity-90 disabled:opacity-50 border border-signal"
-        >
-          {isAddingToCart ? 'RESERVING...' : isOut ? 'OUT OF STOCK' : 'ADD TO CART'}
-        </button>
-      </div>
-
     </div>
   );
 };

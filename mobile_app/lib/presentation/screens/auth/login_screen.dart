@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/logic/auth/auth_bloc.dart';
 import 'package:mobile_app/logic/auth/auth_event.dart';
 import 'package:mobile_app/logic/auth/auth_state.dart';
@@ -46,13 +47,14 @@ class _LoginScreenState extends State<LoginScreen> {
         } else if (state is AuthFailure) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
-              backgroundColor: AppColors.accentFlash,
+              content: Text(state.message, style: GoogleFonts.manrope(color: C.text)),
+              backgroundColor: C.rose,
             ),
           );
         }
       },
       child: Scaffold(
+        backgroundColor: C.base,
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -63,74 +65,101 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Brand Icon
+                    // Brand Wordmark
                     Center(
-                      child: Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          color: AppColors.signal,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Icon(Icons.bolt, color: AppColors.signalInk, size: 40),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'FLASH',
+                            style: GoogleFonts.sora(fontSize: 24, fontWeight: FontWeight.w800, color: C.text),
+                          ),
+                          const SizedBox(width: 5),
+                          Container(width: 8, height: 8, decoration: const BoxDecoration(color: C.amber, shape: BoxShape.circle)),
+                          const SizedBox(width: 5),
+                          Text(
+                            'SALE',
+                            style: GoogleFonts.sora(fontSize: 24, fontWeight: FontWeight.w400, color: C.textDim),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'Welcome Back',
+                    Text(
+                      'Identity Access',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 28,
+                      style: GoogleFonts.sora(
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.ink,
+                        color: C.text,
+                        letterSpacing: -0.3,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Sign in to access lightning deals & instant flash checkout',
+                    const SizedBox(height: 6),
+                    Text(
+                      'Sign in to access real-time commodity trading drops.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                      style: GoogleFonts.manrope(fontSize: 13, color: C.textMute),
                     ),
-                    const SizedBox(height: 36),
+                    const SizedBox(height: 32),
 
                     // Email Field
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
+                      style: GoogleFonts.jetBrainsMono(fontSize: 13, color: C.text),
                       decoration: const InputDecoration(
                         labelText: 'Email Address',
-                        prefixIcon: Icon(Icons.email_outlined, color: AppColors.textMuted),
+                        prefixIcon: Icon(Icons.mail_outline, size: 18, color: C.textMute),
                       ),
-                      validator: (val) {
-                        if (val == null || val.trim().isEmpty) return 'Please enter your email';
-                        if (!val.contains('@')) return 'Enter a valid email';
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) return 'Email is required';
+                        if (!value.contains('@')) return 'Enter a valid email';
                         return null;
                       },
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
                     // Password Field
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
+                      style: GoogleFonts.jetBrainsMono(fontSize: 13, color: C.text),
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textMuted),
+                        prefixIcon: const Icon(Icons.lock_outline, size: 18, color: C.textMute),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                            color: AppColors.textMuted,
+                            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            size: 18,
+                            color: C.textMute,
                           ),
                           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                         ),
                       ),
-                      validator: (val) {
-                        if (val == null || val.isEmpty) return 'Please enter your password';
-                        if (val.length < 6) return 'Password must be at least 6 characters';
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Password is required';
                         return null;
                       },
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 8),
+
+                    // Forgot Password
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => context.push('/forgot-password'),
+                        child: Text(
+                          'Forgot Password?',
+                          style: GoogleFonts.manrope(
+                            color: C.amber,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
                     // Submit Button
                     BlocBuilder<AuthBloc, AuthState>(
@@ -138,36 +167,42 @@ class _LoginScreenState extends State<LoginScreen> {
                         final isLoading = state is AuthLoading;
                         return ElevatedButton(
                           onPressed: isLoading ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: C.amber,
+                            foregroundColor: C.onAmber,
+                            minimumSize: const Size.fromHeight(48),
+                          ),
                           child: isLoading
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.signalInk),
-                                  ),
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: C.onAmber),
                                 )
-                              : const Text('Sign In'),
+                              : Text(
+                                  'AUTHENTICATE →',
+                                  style: GoogleFonts.manrope(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
                         );
                       },
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
-                    // Register Switch Link
+                    // Register Link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          "Don't have an account? ",
-                          style: TextStyle(color: AppColors.textSecondary),
+                        Text(
+                          'No account record? ',
+                          style: GoogleFonts.manrope(color: C.textMute, fontSize: 13),
                         ),
                         GestureDetector(
                           onTap: () => context.push('/register'),
-                          child: const Text(
-                            'Sign Up',
-                            style: TextStyle(
-                              color: AppColors.signal,
+                          child: Text(
+                            'Register Here',
+                            style: GoogleFonts.manrope(
+                              color: C.amber,
                               fontWeight: FontWeight.bold,
+                              fontSize: 13,
                             ),
                           ),
                         ),

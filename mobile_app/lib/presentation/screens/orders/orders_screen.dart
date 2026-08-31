@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile_app/core/theme/app_theme.dart';
-import 'package:mobile_app/core/utils/formatters.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/data/models/order_model.dart';
 import 'package:mobile_app/logic/orders/order_bloc.dart';
 import 'package:mobile_app/logic/orders/order_event.dart';
 import 'package:mobile_app/logic/orders/order_state.dart';
+import 'package:mobile_app/presentation/widgets/price_text.dart';
+import 'package:mobile_app/presentation/widgets/status_pill_widget.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -16,186 +18,203 @@ class OrdersScreen extends StatefulWidget {
 }
 
 class _OrdersScreenState extends State<OrdersScreen> {
+  String _filterStatus = 'ALL';
+
   @override
   void initState() {
     super.initState();
     context.read<OrderBloc>().add(LoadOrdersEvent());
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'completed':
-      case 'paid':
-        return AppColors.success;
-      case 'processing':
-      case 'pending':
-        return AppColors.warning;
-      case 'cancelled':
-      case 'expired':
-        return AppColors.accentFlash;
-      default:
-        return AppColors.textMuted;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: C.base,
       appBar: AppBar(
-        title: const Text('My Orders'),
+        backgroundColor: C.surface,
+        title: Text(
+          'Order Ledger',
+          style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.w700, color: C.text),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: C.text),
           onPressed: () => context.go('/home'),
         ),
       ),
       body: RefreshIndicator(
+        color: C.amber,
+        backgroundColor: C.raised,
         onRefresh: () async {
           context.read<OrderBloc>().add(LoadOrdersEvent());
         },
-        child: BlocBuilder<OrderBloc, OrderState>(
-          builder: (context, state) {
-            if (state is OrderLoading) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.accentFlash),
-              );
-            } else if (state is OrderError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: AppColors.accentFlash),
-                      const SizedBox(height: 12),
-                      Text(state.message, textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => context.read<OrderBloc>().add(LoadOrdersEvent()),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            } else if (state is OrdersLoaded) {
-              if (state.orders.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.textMuted),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No orders placed yet',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.ink),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Your flash sale purchases will appear here.',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: () => context.go('/home'),
-                        child: const Text('Explore Flash Sales'),
-                      ),
-                    ],
-                  ),
-                );
-              }
+        child: Column(
+          children: [
+            // Status Filter Chips
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: C.raised,
+              child: SizedBox(
+                height: 32,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: 6,
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  itemBuilder: (context, idx) {
+                    final statuses = ['ALL', 'PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+                    final s = statuses[idx];
+                    final isSelected = _filterStatus == s;
 
-              return ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: state.orders.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final order = state.orders[index];
-                  return _buildOrderCard(order);
+                    return ChoiceChip(
+                      label: Text(s),
+                      selected: isSelected,
+                      selectedColor: C.amber,
+                      backgroundColor: C.surface,
+                      labelStyle: GoogleFonts.jetBrainsMono(
+                        fontSize: 10,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isSelected ? C.onAmber : C.textDim,
+                      ),
+                      side: BorderSide(color: isSelected ? C.amber : C.line),
+                      onSelected: (_) => setState(() => _filterStatus = s),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            // Orders List
+            Expanded(
+              child: BlocBuilder<OrderBloc, OrderState>(
+                builder: (context, state) {
+                  if (state is OrderLoading) {
+                    return const Center(child: CircularProgressIndicator(color: C.amber));
+                  } else if (state is OrderError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, size: 44, color: C.rose),
+                            const SizedBox(height: 12),
+                            Text(state.message, textAlign: TextAlign.center, style: GoogleFonts.manrope(color: C.textMute)),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () => context.read<OrderBloc>().add(LoadOrdersEvent()),
+                              child: const Text('RETRY'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  } else if (state is OrdersLoaded) {
+                    final filtered = _filterStatus == 'ALL'
+                        ? state.orders
+                        : state.orders.where((o) => o.status.toUpperCase() == _filterStatus).toList();
+
+                    if (filtered.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.receipt_long_outlined, size: 48, color: C.textMute),
+                            const SizedBox(height: 12),
+                            Text(
+                              'NO ORDERS RECORDED',
+                              style: GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.bold, color: C.textDim),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'No transactions match the selected filter.',
+                              style: GoogleFonts.manrope(fontSize: 12, color: C.textMute),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, i) {
+                        final order = filtered[i];
+                        return _buildOrderCard(order);
+                      },
+                    );
+                  }
+                  return const SizedBox.shrink();
                 },
-              );
-            }
-            return const SizedBox.shrink();
-          },
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildOrderCard(OrderModel order) {
-    final statusColor = _getStatusColor(order.status);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'ORDER #${order.id}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                  fontFamily: 'monospace',
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
-                  border: Border.all(color: statusColor.withOpacity(0.4)),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  order.status.toUpperCase(),
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 11,
+    final idStr = order.id.toString();
+    return GestureDetector(
+      onTap: () => context.push('/order/${order.id}'),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: C.surface,
+          borderRadius: BorderRadius.circular(C.radiusCard),
+          border: Border.all(color: C.line),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'ORD-${idStr.length > 8 ? idStr.substring(0, 8).toUpperCase() : idStr}',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
+                    color: C.text,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const Divider(height: 20, color: AppColors.border),
-          if (order.productName != null)
-            Text(
-              order.productName!,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ink),
+                StatusPillWidget(status: order.status),
+              ],
             ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Quantity: ${order.quantity}',
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-              ),
-              Text(
-                AppFormatters.formatCurrency(order.totalAmount),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.accentFlash,
+            const SizedBox(height: 10),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${order.items.length} ITEM(S)',
+                  style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.textMute),
                 ),
-              ),
-            ],
-          ),
-          if (order.createdAt != null) ...[
+                PriceText(amount: order.totalAmount, size: PriceTextSize.md),
+              ],
+            ),
             const SizedBox(height: 8),
-            Text(
-              AppFormatters.formatDate(order.createdAt),
-              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  order.createdAt?.toString() ?? 'RECENT',
+                  style: GoogleFonts.jetBrainsMono(fontSize: 10, color: C.textMute),
+                ),
+                Row(
+                  children: [
+                    Text(
+                      'VIEW TIMELINE',
+                      style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.bold, color: C.amber),
+                    ),
+                    const Icon(Icons.chevron_right, size: 16, color: C.amber),
+                  ],
+                ),
+              ],
             ),
           ],
-        ],
+        ),
       ),
     );
   }

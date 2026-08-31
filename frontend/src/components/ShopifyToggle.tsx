@@ -11,42 +11,29 @@ export const ShopifyToggle: React.FC<Props> = ({ productId, isListed, syncStatus
   const isCurrentlySynced = syncStatus.toUpperCase() === 'SYNCED';
   const isChecked = isListed || isCurrentlySynced;
 
-  const getBadgeStyle = (status: string) => {
-    switch (status.toUpperCase()) {
-      case 'SYNCED':
-        return { background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6' };
-      case 'PENDING':
-        return { background: '#fef7e0', color: '#b06000', border: '1px solid #feefc3' };
-      case 'FAILED':
-        return { background: '#fce8e6', color: '#c5221f', border: '1px solid #fad2cf' };
-      default:
-        return { background: '#f1f3f4', color: '#5f6368', border: '1px solid #dadce0' };
-    }
-  };
+  let badgeStyle = 'bg-raised text-text-mute border-line';
+  if (syncStatus.toUpperCase() === 'SYNCED') {
+    badgeStyle = 'bg-mint-soft text-mint border-mint/40';
+  } else if (syncStatus.toUpperCase() === 'PENDING') {
+    badgeStyle = 'bg-amber-soft text-amber border-amber/40';
+  } else if (syncStatus.toUpperCase() === 'FAILED') {
+    badgeStyle = 'bg-rose-soft text-rose border-rose/40';
+  }
 
   return (
-    <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '4px', fontFamily: 'monospace' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '6px', userSelect: 'none' }}>
+    <div className="inline-flex flex-col gap-1 font-mono">
+      <div className="flex items-center gap-2">
+        <label className="flex items-center cursor-pointer gap-1.5 select-none">
           <input
             type="checkbox"
             checked={isChecked}
             onChange={(e) => onToggle(productId, e.target.checked)}
-            style={{ accentColor: '#10b981', cursor: 'pointer' }}
+            className="rounded border-line text-amber focus:ring-sky cursor-pointer"
           />
-          <span style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Publish to Shopify</span>
+          <span className="text-[11px] font-semibold text-text">Shopify Sync</span>
         </label>
-        <span
-          style={{
-            fontSize: '10px',
-            fontWeight: 700,
-            padding: '2px 6px',
-            borderRadius: '4px',
-            letterSpacing: '0.05em',
-            ...getBadgeStyle(syncStatus),
-          }}
-        >
-          [{syncStatus.toUpperCase()}]
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${badgeStyle}`}>
+          {syncStatus.toUpperCase()}
         </span>
       </div>
 
@@ -54,19 +41,9 @@ export const ShopifyToggle: React.FC<Props> = ({ productId, isListed, syncStatus
         <button
           type="button"
           onClick={() => onToggle(productId, false)}
-          style={{
-            fontSize: '10px',
-            color: '#dc2626',
-            background: 'none',
-            border: 'none',
-            textDecoration: 'underline',
-            cursor: 'pointer',
-            textAlign: 'left',
-            padding: 0,
-            fontFamily: 'monospace',
-          }}
+          className="text-[10px] text-rose hover:underline text-left p-0 font-mono transition-colors"
         >
-          ❌ Delete from Shopify
+          [ Remove from Shopify ]
         </button>
       )}
     </div>

@@ -77,4 +77,34 @@ class AuthRepository {
     await _apiClient.storage.delete(key: ApiConstants.tokenKey);
     await _apiClient.storage.delete(key: ApiConstants.userKey);
   }
+
+  Future<Map<String, dynamic>> forgotPassword({required String email}) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.forgotPassword,
+        data: {'email': email.trim().toLowerCase()},
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _apiClient.handleDioError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.resetPassword,
+        data: {
+          'reset_token': token,
+          'new_password': newPassword,
+        },
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _apiClient.handleDioError(e);
+    }
+  }
 }

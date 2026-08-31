@@ -18,6 +18,10 @@ class ProductLoaded extends ProductState {
   final List<CategoryModel> categories;
   final int? selectedCategoryId;
   final String searchQuery;
+  final String sortBy;
+  final int currentPage;
+  final int totalPages;
+  final int totalItems;
 
   const ProductLoaded({
     required this.products,
@@ -25,6 +29,10 @@ class ProductLoaded extends ProductState {
     this.categories = const [],
     this.selectedCategoryId,
     this.searchQuery = '',
+    this.sortBy = 'created_at',
+    this.currentPage = 1,
+    this.totalPages = 1,
+    this.totalItems = 0,
   });
 
   ProductLoaded copyWith({
@@ -34,6 +42,10 @@ class ProductLoaded extends ProductState {
     int? selectedCategoryId,
     bool clearCategory = false,
     String? searchQuery,
+    String? sortBy,
+    int? currentPage,
+    int? totalPages,
+    int? totalItems,
   }) {
     return ProductLoaded(
       products: products ?? this.products,
@@ -41,6 +53,10 @@ class ProductLoaded extends ProductState {
       categories: categories ?? this.categories,
       selectedCategoryId: clearCategory ? null : (selectedCategoryId ?? this.selectedCategoryId),
       searchQuery: searchQuery ?? this.searchQuery,
+      sortBy: sortBy ?? this.sortBy,
+      currentPage: currentPage ?? this.currentPage,
+      totalPages: totalPages ?? this.totalPages,
+      totalItems: totalItems ?? this.totalItems,
     );
   }
 
@@ -51,6 +67,10 @@ class ProductLoaded extends ProductState {
         categories,
         selectedCategoryId,
         searchQuery,
+        sortBy,
+        currentPage,
+        totalPages,
+        totalItems,
       ];
 }
 

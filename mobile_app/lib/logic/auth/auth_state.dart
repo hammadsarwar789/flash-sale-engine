@@ -40,3 +40,22 @@ class RegisterSuccess extends AuthState {
   @override
   List<Object?> get props => [message];
 }
+
+class PasswordResetRequestSuccess extends AuthState {
+  final String message;
+  final String? resetToken;
+
+  const PasswordResetRequestSuccess({required this.message, this.resetToken});
+
+  @override
+  List<Object?> get props => [message, resetToken];
+}
+
+class PasswordResetSuccess extends AuthState {
+  final String message;
+
+  const PasswordResetSuccess({this.message = 'Password reset successful! Please login.'});
+
+  @override
+  List<Object?> get props => [message];
+}

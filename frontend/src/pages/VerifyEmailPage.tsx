@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { authApi } from '../api/auth';
+import { Eyebrow } from '../components/ui/Eyebrow';
 import { MailCheck, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export const VerifyEmailPage: React.FC = () => {
@@ -28,22 +29,28 @@ export const VerifyEmailPage: React.FC = () => {
   }, [userId]);
 
   return (
-    <div className="max-w-md mx-auto py-16 text-center space-y-6 glass-card rounded-3xl p-8 border border-slate-800">
-      <div className="w-16 h-16 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto">
-        <MailCheck className="w-8 h-8" />
+    <div className="max-w-md mx-auto py-16 text-center space-y-6 bg-surface rounded-card p-8 border border-line">
+      <div className="w-14 h-14 rounded-full bg-raised text-amber flex items-center justify-center mx-auto border border-line">
+        <MailCheck className="w-7 h-7" />
       </div>
 
-      <h1 className="text-2xl font-black text-white">Email Verification</h1>
+      <div className="space-y-1">
+        <Eyebrow className="text-amber block font-bold">IDENTITY VERIFICATION</Eyebrow>
+        <h1 className="font-display text-2xl font-bold text-text">Email Confirmation</h1>
+      </div>
 
-      {status === 'loading' && <p className="text-slate-400 text-sm">Verifying your email address...</p>}
+      {status === 'loading' && <p className="text-text-mute font-mono text-xs">Verifying your email token with auth server...</p>}
 
       {status === 'success' && (
         <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-bold flex items-center justify-center space-x-2">
-            <CheckCircle2 className="w-5 h-5" />
+          <div className="p-3.5 rounded-card bg-mint-soft border border-mint/30 text-mint text-xs font-mono font-bold flex items-center justify-center space-x-2">
+            <CheckCircle2 className="w-4 h-4" />
             <span>{msg}</span>
           </div>
-          <Link to="/login" className="inline-block bg-cyan-500 font-bold px-6 py-2.5 rounded-xl text-slate-950">
+          <Link
+            to="/login"
+            className="inline-block bg-amber hover:bg-amber-press text-on-amber font-sans font-bold text-xs uppercase px-6 py-2.5 rounded-card transition-colors shadow-sm"
+          >
             Proceed to Sign In
           </Link>
         </div>
@@ -51,12 +58,15 @@ export const VerifyEmailPage: React.FC = () => {
 
       {status === 'error' && (
         <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold flex items-center justify-center space-x-2">
-            <AlertCircle className="w-5 h-5" />
+          <div className="p-3.5 rounded-card bg-rose-soft border border-rose/30 text-rose text-xs font-mono font-bold flex items-center justify-center space-x-2">
+            <AlertCircle className="w-4 h-4" />
             <span>{msg}</span>
           </div>
-          <Link to="/products" className="inline-block bg-slate-800 text-slate-200 font-bold px-6 py-2.5 rounded-xl">
-            Return to Homepage
+          <Link
+            to="/products"
+            className="inline-block bg-raised hover:bg-overlay text-text border border-line font-mono text-xs uppercase px-6 py-2.5 rounded-card transition-colors"
+          >
+            Return to Floor
           </Link>
         </div>
       )}

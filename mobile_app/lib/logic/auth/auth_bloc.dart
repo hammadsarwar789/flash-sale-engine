@@ -13,6 +13,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<LoginSubmittedEvent>(_onLoginSubmitted);
     on<RegisterSubmittedEvent>(_onRegisterSubmitted);
     on<LogoutEvent>(_onLogout);
+    on<ForgotPasswordEvent>(_onForgotPassword);
+    on<ResetPasswordEvent>(_onResetPassword);
   }
 
   Future<void> _onAppStarted(AppStartedEvent event, Emitter<AuthState> emit) async {
@@ -49,6 +51,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         email: event.email,
         password: event.password,
         fullName: event.fullName,
+        role: event.role,
       );
       emit(const RegisterSuccess());
     } catch (e) {
@@ -59,5 +62,30 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onLogout(LogoutEvent event, Emitter<AuthState> emit) async {
     await _authRepository.logout();
     emit(Unauthenticated());
+  }
+
+  Future<void> _onForgotPassword(ForgotPasswordEvent event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      final result = await _authRepository.forgotPassword(email: event.email);
+      final message = result['message'] as String? ?? 'Password reset instructions sent.';
+      final resetToken = result['reset_token'] as String?;
+      emit(PasswordResetRequestSuccess(message: message, resetToken: resetToken));
+    } catch (e) {
+      emit(AuthFailure(message: e.toString()));
+    }
+  }
+
+  Future<void> _onResetPassword(ResetPasswordEvent event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      await _authRepository.resetPassword(
+        token: event.token,
+        newPassword: event.newPassword,
+      );
+      emit(const PasswordResetSuccess());
+    } catch (e) {
+      emit(AuthFailure(message: e.toString()));
+    }
   }
 }

@@ -36,9 +36,9 @@ class CartRepository {
     }
   }
 
-  Future<void> updateQuantity({required int itemId, required int quantity}) async {
+  Future<void> updateQuantity({required dynamic itemId, required int quantity}) async {
     try {
-      await _apiClient.dio.put(
+      await _apiClient.dio.patch(
         ApiConstants.cartItem(itemId),
         data: {'quantity': quantity},
       );
@@ -47,9 +47,54 @@ class CartRepository {
     }
   }
 
-  Future<void> removeFromCart(int itemId) async {
+  Future<void> removeFromCart(dynamic itemId) async {
     try {
       await _apiClient.dio.delete(ApiConstants.cartItem(itemId));
+    } on DioException catch (e) {
+      throw _apiClient.handleDioError(e);
+    }
+  }
+
+  Future<void> clearCart() async {
+    try {
+      await _apiClient.dio.delete(ApiConstants.cart);
+    } on DioException catch (e) {
+      throw _apiClient.handleDioError(e);
+    }
+  }
+
+  Future<CouponValidationModel> validateCoupon(String code, double amount) async {
+    try {
+      final response = await _apiClient.dio.post(
+        '/commerce/coupons/validate',
+        data: {
+          'code': code.trim().toUpperCase(),
+          'amount': amount,
+        },
+      );
+      return CouponValidationModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _apiClient.handleDioError(e);
+    }
+  }
+
+  Future<List<ShippingAddressModel>> getShippingAddresses() async {
+    try {
+      final response = await _apiClient.dio.get('/commerce/shipping-addresses');
+      final List<dynamic> list = response.data is List ? response.data : [];
+      return list.map((a) => ShippingAddressModel.fromJson(a as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw _apiClient.handleDioError(e);
+    }
+  }
+
+  Future<ShippingAddressModel> createShippingAddress(ShippingAddressModel address) async {
+    try {
+      final response = await _apiClient.dio.post(
+        '/commerce/shipping-addresses',
+        data: address.toJson(),
+      );
+      return ShippingAddressModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw _apiClient.handleDioError(e);
     }

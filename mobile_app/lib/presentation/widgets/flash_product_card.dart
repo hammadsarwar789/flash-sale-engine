@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_app/core/theme/app_theme.dart';
-import 'package:mobile_app/core/utils/formatters.dart';
-import 'package:mobile_app/data/models/product_model.dart';
-import 'package:mobile_app/presentation/widgets/stock_progress_bar.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../core/theme/tokens.dart';
+import '../../data/models/product_model.dart';
+import 'price_text.dart';
+import 'stock_progress_bar.dart';
 
 class FlashProductCard extends StatelessWidget {
   final ProductModel product;
@@ -18,14 +20,17 @@ class FlashProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasDiscount = product.discountPercentage > 0 && product.salePrice != null;
+    final isLive = product.stock > 0 && product.stock <= 15;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(4),
+          color: C.surface,
+          borderRadius: BorderRadius.circular(C.radiusCard),
           border: Border.all(
-            color: product.isFlashSale ? AppColors.signal.withOpacity(0.5) : AppColors.rule,
+            color: product.isSoldOut ? C.line : (isLive ? C.amber.withValues(alpha: 0.4) : C.line),
             width: 1,
           ),
         ),
@@ -45,28 +50,46 @@ class FlashProductCard extends StatelessWidget {
                           errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
                         )
                       : _buildPlaceholder(),
-                  if (product.isFlashSale)
+                  if (hasDiscount)
                     Positioned(
                       top: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
-                          color: AppColors.signal,
-                          borderRadius: BorderRadius.circular(2),
+                          color: C.amber,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '-${product.discountPercentage}%',
+                          style: GoogleFonts.jetBrainsMono(
+                            color: C.onAmber,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            fontFeatures: [const FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (isLive)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: C.amberSoft,
+                          borderRadius: BorderRadius.circular(C.radiusPill),
+                          border: Border.all(color: C.amber.withValues(alpha: 0.5)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.bolt, color: AppColors.signalInk, size: 12),
-                            const SizedBox(width: 2),
+                            Container(width: 5, height: 5, decoration: const BoxDecoration(color: C.amber, shape: BoxShape.circle)),
+                            const SizedBox(width: 4),
                             Text(
-                              '-${product.discountPercentage}% OFF',
-                              style: const TextStyle(
-                                color: AppColors.signalInk,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              'LIVE',
+                              style: GoogleFonts.jetBrainsMono(color: C.amber, fontSize: 9, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -78,76 +101,67 @@ class FlashProductCard extends StatelessWidget {
 
             // Info Section
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (product.categoryName != null)
                     Text(
                       product.categoryName!.toUpperCase(),
-                      style: const TextStyle(
-                        color: AppColors.secondary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                      style: GoogleFonts.jetBrainsMono(
+                        color: C.textMute,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
                       ),
                     ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     product.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: C.text,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Text(
-                        AppFormatters.formatCurrency(product.currentPrice),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      if (product.isFlashSale && product.salePrice != null) ...[
-                        const SizedBox(width: 6),
-                        Text(
-                          AppFormatters.formatCurrency(product.price),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMuted,
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                      ],
-                    ],
+                  const SizedBox(height: 4),
+                  PriceText(
+                    amount: product.currentPrice,
+                    originalAmount: hasDiscount ? product.price : null,
+                    size: PriceTextSize.md,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   StockProgressBar(
                     stock: product.stock,
                     initialStock: product.initialStock,
+                    variant: StockBarVariant.continuous,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
+                    height: 32,
                     child: ElevatedButton(
-                      onPressed: product.isSoldOut ? null : onAddToCart,
+                      onPressed: product.isSoldOut
+                          ? null
+                          : () {
+                              HapticFeedback.lightImpact();
+                              onAddToCart();
+                            },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: product.isFlashSale ? AppColors.accentFlash : AppColors.primary,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        minimumSize: Size.zero,
+                        backgroundColor: isLive ? C.amber : C.raised,
+                        foregroundColor: isLive ? C.onAmber : C.text,
+                        padding: EdgeInsets.zero,
+                        elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(C.radiusCard),
+                          side: BorderSide(color: isLive ? Colors.transparent : C.line),
                         ),
                       ),
                       child: Text(
-                        product.isSoldOut ? 'Sold Out' : (product.isFlashSale ? '⚡ Quick Add' : 'Add to Cart'),
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        product.isSoldOut ? 'SOLD OUT' : (isLive ? '⚡ QUICK RESERVE' : 'ADD TO CART'),
+                        style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),
@@ -162,9 +176,9 @@ class FlashProductCard extends StatelessWidget {
 
   Widget _buildPlaceholder() {
     return Container(
-      color: AppColors.surfaceElevated,
+      color: C.raised,
       child: const Center(
-        child: Icon(Icons.shopping_bag_outlined, color: AppColors.textMuted, size: 40),
+        child: Icon(Icons.shopping_bag_outlined, color: C.textMute, size: 36),
       ),
     );
   }

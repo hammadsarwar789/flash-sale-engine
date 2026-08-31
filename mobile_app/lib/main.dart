@@ -5,11 +5,13 @@ import 'data/repositories/auth_repository.dart';
 import 'data/repositories/cart_repository.dart';
 import 'data/repositories/order_repository.dart';
 import 'data/repositories/product_repository.dart';
+import 'data/repositories/wishlist_repository.dart';
 import 'logic/auth/auth_bloc.dart';
 import 'logic/auth/auth_event.dart';
 import 'logic/cart/cart_bloc.dart';
 import 'logic/orders/order_bloc.dart';
 import 'logic/products/product_bloc.dart';
+import 'logic/wishlist/wishlist_bloc.dart';
 import 'presentation/routes/app_router.dart';
 
 void main() {
@@ -36,6 +38,9 @@ class FlashSaleApp extends StatelessWidget {
         RepositoryProvider<OrderRepository>(
           create: (_) => OrderRepository(),
         ),
+        RepositoryProvider<WishlistRepository>(
+          create: (_) => WishlistRepository(),
+        ),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -57,6 +62,11 @@ class FlashSaleApp extends StatelessWidget {
           BlocProvider<OrderBloc>(
             create: (context) => OrderBloc(
               orderRepository: context.read<OrderRepository>(),
+            ),
+          ),
+          BlocProvider<WishlistBloc>(
+            create: (context) => WishlistBloc(
+              wishlistRepository: context.read<WishlistRepository>(),
             ),
           ),
         ],

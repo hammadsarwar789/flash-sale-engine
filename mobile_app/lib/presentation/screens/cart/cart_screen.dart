@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile_app/core/theme/app_theme.dart';
-import 'package:mobile_app/core/utils/formatters.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/data/models/cart_model.dart';
+import 'package:mobile_app/data/models/order_model.dart';
+import 'package:mobile_app/data/repositories/cart_repository.dart';
 import 'package:mobile_app/logic/cart/cart_bloc.dart';
 import 'package:mobile_app/logic/cart/cart_event.dart';
 import 'package:mobile_app/logic/cart/cart_state.dart';
-import 'package:mobile_app/logic/orders/order_bloc.dart';
-import 'package:mobile_app/logic/orders/order_event.dart';
-import 'package:mobile_app/logic/orders/order_state.dart';
+import 'package:mobile_app/presentation/widgets/countdown_timer_widget.dart';
+import 'package:mobile_app/presentation/widgets/price_text.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -19,311 +20,399 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  final TextEditingController _couponController = TextEditingController();
+  String? _appliedCoupon;
+  double _discountAmount = 0.0;
+  bool _isValidatingCoupon = false;
+
   @override
   void initState() {
     super.initState();
     context.read<CartBloc>().add(LoadCartEvent());
   }
 
-  void _onCheckout(CartSummaryModel cart) {
-    if (cart.items.isEmpty) return;
-    final firstItem = cart.items.first;
-    context.read<OrderBloc>().add(
-          ReserveFlashSaleEvent(
-            productId: firstItem.productId,
-            quantity: firstItem.quantity,
-          ),
+  @override
+  void dispose() {
+    _couponController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _applyCoupon(double currentSubtotal) async {
+    final code = _couponController.text.trim();
+    if (code.isEmpty) return;
+
+    setState(() => _isValidatingCoupon = true);
+    try {
+      final repo = context.read<CartRepository>();
+      final res = await repo.validateCoupon(code, currentSubtotal);
+      if (res.valid) {
+        setState(() {
+          _appliedCoupon = code;
+          _discountAmount = res.calculatedDiscount > 0 ? res.calculatedDiscount : res.discountValue;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('PROMO APPLIED: $code', style: GoogleFonts.jetBrainsMono(color: C.mint)),
+              backgroundColor: C.raised,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(res.message.isNotEmpty ? res.message : 'Invalid coupon code'), backgroundColor: C.rose),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to validate promo code: $e'), backgroundColor: C.rose),
         );
+      }
+    } finally {
+      if (mounted) setState(() => _isValidatingCoupon = false);
+    }
+  }
+
+  void _onProceedToCheckout(CartSummaryModel cart) {
+    final order = OrderModel(
+      id: 0,
+      userId: 1,
+      totalAmount: cart.subtotal,
+      status: 'pending',
+      items: cart.items
+          .map((i) => OrderItemModel(
+                id: i.id,
+                productId: i.productId,
+                productName: i.productName.isNotEmpty ? i.productName : (i.product?.name ?? 'Flash Item'),
+                unitPrice: i.unitPrice,
+                quantity: i.quantity,
+                subtotal: i.subtotal,
+              ))
+          .toList(),
+      createdAt: DateTime.now().toIso8601String(),
+    );
+
+    context.push(
+      '/checkout',
+      extra: {
+        'order': order,
+        'couponCode': _appliedCoupon,
+        'discount': _discountAmount,
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<OrderBloc, OrderState>(
-      listener: (context, state) {
-        if (state is ReservationSuccess) {
-          context.push('/checkout', extra: state.response.order);
-        } else if (state is OrderError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: AppColors.accentFlash,
-            ),
-          );
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Shopping Cart'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
-          ),
+    return Scaffold(
+      backgroundColor: C.base,
+      appBar: AppBar(
+        backgroundColor: C.surface,
+        title: Text(
+          'Hold Vault / Cart',
+          style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.w700, color: C.text),
         ),
-        body: BlocBuilder<CartBloc, CartState>(
-          builder: (context, state) {
-            if (state is CartLoading) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.accentFlash),
-              );
-            } else if (state is CartError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: AppColors.accentFlash),
-                      const SizedBox(height: 12),
-                      Text(state.message, textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => context.read<CartBloc>().add(LoadCartEvent()),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            } else if (state is CartLoaded) {
-              final cart = state.cart;
-              if (cart.items.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.shopping_cart_outlined, size: 64, color: AppColors.textMuted),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Your cart is empty',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.ink),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Explore live flash deals and add items to your cart.',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: () => context.go('/home'),
-                        child: const Text('Browse Deals'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return Column(
-                children: [
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: cart.items.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final item = cart.items[index];
-                        return _buildCartItemTile(context, item);
-                      },
-                    ),
-                  ),
-                  _buildCartSummaryFooter(context, cart),
-                ],
-              );
-            }
-            return const SizedBox.shrink();
-          },
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: C.text),
+          onPressed: () => context.pop(),
         ),
       ),
-    );
-  }
-
-  Widget _buildCartItemTile(BuildContext context, CartItemModel item) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              width: 70,
-              height: 70,
-              color: AppColors.surfaceElevated,
-              child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                  ? Image.network(
-                      item.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.shopping_bag, color: AppColors.textMuted),
-                    )
-                  : const Icon(Icons.shopping_bag, color: AppColors.textMuted),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.productName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  AppFormatters.formatCurrency(item.unitPrice),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.secondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
+      body: BlocBuilder<CartBloc, CartState>(
+        builder: (context, state) {
+          if (state is CartLoading) {
+            return const Center(child: CircularProgressIndicator(color: C.amber));
+          } else if (state is CartError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildQuantityBtn(
-                      icon: Icons.remove,
-                      onTap: () {
-                        context.read<CartBloc>().add(
-                              UpdateCartItemQuantityEvent(
-                                itemId: item.id,
-                                quantity: item.quantity - 1,
-                              ),
-                            );
-                      },
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        '${item.quantity}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                    ),
-                    _buildQuantityBtn(
-                      icon: Icons.add,
-                      onTap: () {
-                        context.read<CartBloc>().add(
-                              UpdateCartItemQuantityEvent(
-                                itemId: item.id,
-                                quantity: item.quantity + 1,
-                              ),
-                            );
-                      },
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: AppColors.textMuted, size: 20),
-                      onPressed: () {
-                        context.read<CartBloc>().add(RemoveCartItemEvent(item.id));
-                      },
+                    const Icon(Icons.error_outline, size: 44, color: C.rose),
+                    const SizedBox(height: 12),
+                    Text(state.message, textAlign: TextAlign.center, style: GoogleFonts.manrope(color: C.textMute)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => context.read<CartBloc>().add(LoadCartEvent()),
+                      child: const Text('RETRY'),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuantityBtn({required IconData icon, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Icon(icon, size: 16, color: AppColors.ink),
-      ),
-    );
-  }
-
-  Widget _buildCartSummaryFooter(BuildContext context, CartSummaryModel cart) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Subtotal', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-                Text(
-                  AppFormatters.formatCurrency(cart.subtotal),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.ink),
+              ),
+            );
+          } else if (state is CartLoaded) {
+            if (state.cart.items.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.shopping_bag_outlined, size: 48, color: C.textMute),
+                    const SizedBox(height: 12),
+                    Text('YOUR HOLD VAULT IS EMPTY', style: GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.bold, color: C.textDim)),
+                    const SizedBox(height: 4),
+                    Text('Reserve stock from flash drops before timer expires.', style: GoogleFonts.manrope(fontSize: 12, color: C.textMute)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => context.go('/home'),
+                      child: const Text('RETURN TO THE FLOOR'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Express Flash Delivery', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-                Text('FREE', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const Divider(height: 24, color: AppColors.border),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total Amount',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink),
-                ),
-                Text(
-                  AppFormatters.formatCurrency(cart.subtotal),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.accentFlash,
+              );
+            }
+
+            final cart = state.cart;
+            final subtotal = cart.subtotal;
+            final total = (subtotal - _discountAmount).clamp(0.0, double.infinity);
+
+            return CustomScrollView(
+              slivers: [
+                // 10:00 Hold Countdown Strip
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: CountdownTimerWidget(
+                      targetEndTime: DateTime.now().add(const Duration(minutes: 10)),
+                      label: 'RESERVATION HOLD',
+                      onFinished: () {
+                        context.read<CartBloc>().add(LoadCartEvent());
+                      },
+                    ),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            BlocBuilder<OrderBloc, OrderState>(
-              builder: (context, state) {
-                final isReserving = state is ReservationInProgress;
-                return ElevatedButton(
-                  onPressed: isReserving ? null : () => _onCheckout(cart),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accentFlash,
-                  ),
-                  child: isReserving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.signalInk),
+
+                // Cart Line Items
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final item = cart.items[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: C.surface,
+                            borderRadius: BorderRadius.circular(C.radiusCard),
+                            border: Border.all(color: C.line),
                           ),
-                        )
-                      : const Text(
-                          '⚡ Flash Checkout & Lock Stock',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          child: Row(
+                            children: [
+                              // Product Thumbnail
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(C.radiusCard),
+                                child: Container(
+                                  width: 64,
+                                  height: 64,
+                                  color: C.raised,
+                                  child: item.product?.imageUrl != null && item.product!.imageUrl!.isNotEmpty
+                                      ? Image.network(
+                                          item.product!.imageUrl!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, color: C.textMute, size: 24),
+                                        )
+                                      : const Icon(Icons.shopping_bag_outlined, color: C.textMute, size: 24),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+
+                              // Info & Stepper
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.productName.isNotEmpty ? item.productName : (item.product?.name ?? 'Flash Item'),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: C.text),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    PriceText(amount: item.unitPrice, size: PriceTextSize.sm),
+                                    const SizedBox(height: 8),
+
+                                    // Stepper
+                                    Row(
+                                      children: [
+                                        Container(
+                                          height: 28,
+                                          decoration: BoxDecoration(
+                                            color: C.raised,
+                                            borderRadius: BorderRadius.circular(C.radiusPill),
+                                            border: Border.all(color: C.line),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(Icons.remove, size: 14, color: C.textDim),
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                                onPressed: () {
+                                                  if (item.quantity > 1) {
+                                                    context.read<CartBloc>().add(
+                                                          UpdateCartItemQuantityEvent(
+                                                            itemId: item.id,
+                                                            quantity: item.quantity - 1,
+                                                          ),
+                                                        );
+                                                  } else {
+                                                    context.read<CartBloc>().add(RemoveCartItemEvent(item.id));
+                                                  }
+                                                },
+                                              ),
+                                              Text(
+                                                '${item.quantity}',
+                                                style: GoogleFonts.jetBrainsMono(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: C.text,
+                                                  fontFeatures: [const FontFeature.tabularFigures()],
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.add, size: 14, color: C.textDim),
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                                onPressed: () {
+                                                  context.read<CartBloc>().add(
+                                                        UpdateCartItemQuantityEvent(
+                                                          itemId: item.id,
+                                                          quantity: item.quantity + 1,
+                                                        ),
+                                                      );
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline, size: 18, color: C.rose),
+                                          onPressed: () => context.read<CartBloc>().add(RemoveCartItemEvent(item.id)),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      childCount: cart.items.length,
+                    ),
+                  ),
+                ),
+
+                // Coupon Code Entry
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: C.surface,
+                        borderRadius: BorderRadius.circular(C.radiusCard),
+                        border: Border.all(color: C.line),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _couponController,
+                              style: GoogleFonts.jetBrainsMono(fontSize: 12, color: C.text),
+                              decoration: const InputDecoration(
+                                hintText: 'PROMO CODE (e.g. FLASH10)',
+                                prefixIcon: Icon(Icons.discount_outlined, size: 18, color: C.textMute),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: _isValidatingCoupon ? null : () => _applyCoupon(subtotal),
+                            child: _isValidatingCoupon
+                                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: C.onAmber))
+                                : const Text('APPLY'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Order Summary Card
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: C.surface,
+                        borderRadius: BorderRadius.circular(C.radiusCard),
+                        border: Border.all(color: C.line),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('SETTLEMENT SUMMARY', style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: C.textMute)),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('SUBTOTAL', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.textDim)),
+                              PriceText(amount: subtotal, size: PriceTextSize.sm),
+                            ],
+                          ),
+                          if (_discountAmount > 0) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('PROMO DISCOUNT', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.mint)),
+                                PriceText(amount: _discountAmount, size: PriceTextSize.sm, color: C.mint),
+                              ],
+                            ),
+                          ],
+                          const Divider(color: C.line, height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('TOTAL SETTLED', style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.bold, color: C.text)),
+                              PriceText(amount: total, size: PriceTextSize.lg, color: C.text),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Checkout Button
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () => _onProceedToCheckout(cart),
+                        style: ElevatedButton.styleFrom(backgroundColor: C.amber, foregroundColor: C.onAmber),
+                        child: Text(
+                          'PROCEED TO SETTLEMENT →',
+                          style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.bold),
                         ),
-                );
-              },
-            ),
-          ],
-        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }

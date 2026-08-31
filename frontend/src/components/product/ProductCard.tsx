@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../../types/api';
-import { Numeric } from '../ui/Numeric';
 import { Eyebrow } from '../ui/Eyebrow';
+import { Money } from '../ui/Money';
+import { StockBar } from '../ui/StockBar';
 
 interface ProductCardProps {
   product: Product;
@@ -12,7 +13,7 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }) => {
   const stock = product.available_stock ?? product.total_stock ?? 0;
   const isLive = stock > 0 && stock <= 15;
-  const issueLabel = issueNumber || (product.sku ? `SKU: ${product.sku.toUpperCase()}` : `Nº ${String(product.id).slice(0, 8).toUpperCase()}`);
+  const issueLabel = issueNumber || (product.sku ? `SKU ${product.sku.toUpperCase()}` : `ID #${String(product.id).slice(0, 8).toUpperCase()}`);
   const variantColors = Array.from(new Set((product.variants || []).map((variant) => variant.color).filter(Boolean))) as string[];
 
   const defaultImg =
@@ -27,17 +28,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }
     ? defaultImg.replace(/w=\d+/, 'w=800')
     : defaultImg;
 
-  // Compute monospace block character stock representation (8 characters total)
-  const maxStockReference = 50;
-  const filledBlocksCount = Math.min(8, Math.max(0, Math.ceil((stock / maxStockReference) * 8)));
-  const emptyBlocksCount = 8 - filledBlocksCount;
-  const stockBlocksStr = '▓'.repeat(filledBlocksCount) + '░'.repeat(emptyBlocksCount);
-
-  // Stock color logic: >30% -> --gain, 10-30% -> --warn, <10% -> --signal
-  let stockColorClass = 'text-gain';
-  if (stock <= 5) stockColorClass = 'text-signal';
-  else if (stock <= 15) stockColorClass = 'text-warn';
-
   const discountPct = Number((product as any).discount_percentage) || 0;
   const originalPrice = Number(product.price) || 0;
   const numericPrice = discountPct > 0
@@ -47,21 +37,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }
   return (
     <Link
       to={`/products/${product.id}`}
-      className="group relative bg-paper border border-rule rounded-none p-4 flex flex-col justify-between transition-colors hover:bg-paper-sunk/30 block"
+      className="group relative bg-surface border border-line rounded-card p-4 flex flex-col justify-between transition-colors hover:border-line-strong hover:bg-raised/40 block"
     >
-      {/* Header Row */}
-      <div className="flex items-center justify-between font-mono text-[11px] text-ash pb-3 border-b border-rule/50">
+      {/* Top Header Row */}
+      <div className="flex items-center justify-between font-mono text-[11px] text-text-mute pb-3 border-b border-line/60">
         <span>{issueLabel}</span>
         {isLive && (
-          <div className="flex items-center space-x-1.5 text-signal">
-            <span className="w-[4px] h-[14px] bg-signal inline-block" />
-            <span className="font-mono text-[11px] font-semibold tracking-wider">LIVE</span>
+          <div className="flex items-center space-x-1.5 text-amber">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber animate-signal-pulse inline-block" />
+            <span className="font-mono text-[11px] font-bold tracking-wider">LIVE</span>
           </div>
         )}
       </div>
 
-      {/* Image Well (Square 1:1) with Responsive Image Optimization */}
-      <div className="relative aspect-square w-full bg-paper-sunk border border-rule my-4 overflow-hidden">
+      {/* Product Image Well (10px radius) */}
+      <div className="relative aspect-square w-full bg-raised border border-line rounded-card my-4 overflow-hidden">
         <img
           src={img400}
           srcSet={`${img400} 400w, ${img800} 800w`}
@@ -71,7 +61,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }
           alt={product.name}
           width="400"
           height="400"
-          className="w-full h-full object-cover object-center"
+          className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.02]"
           onError={(e) => {
             (e.target as HTMLImageElement).src =
               'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80';
@@ -79,75 +69,67 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, issueNumber }
         />
 
         {/* Hover Crosshair Overlay */}
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-ink font-mono text-xs">
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-text font-mono text-xs">
           ┼
         </div>
       </div>
 
-      {/* Product Meta (Sequential H2 Heading) */}
+      {/* Meta info */}
       <div className="space-y-1">
-        <h2 className="font-sans text-[18px] leading-[24px] font-medium text-ink line-clamp-1">
+        <h2 className="font-sans text-[17px] leading-[22px] font-medium text-text line-clamp-1">
           {product.name}
         </h2>
-        <Eyebrow className="text-ash block">
+        <Eyebrow className="text-text-mute block">
           {typeof product.category === 'string' ? product.category : product.category?.name || 'CATALOG'}
         </Eyebrow>
+
         {variantColors.length > 0 && (
           <div className="flex items-center space-x-1.5 pt-1">
             {variantColors.slice(0, 4).map((color) => {
               const colorKey = color.toLowerCase();
               const swatch = colorKey.includes('black')
-                ? '#111111'
+                ? '#0B0D0C'
                 : colorKey.includes('gold')
                 ? '#B08D57'
                 : colorKey.includes('silver') || colorKey.includes('grey') || colorKey.includes('gray')
-                ? '#A8A8A8'
+                ? '#7A847E'
                 : colorKey.includes('white')
-                ? '#F5F1E8'
-                : '#3A3A38';
+                ? '#EDEFEA'
+                : '#2A332E';
 
               return (
                 <span
                   key={color}
                   title={color}
-                  className="inline-flex h-3.5 w-3.5 rounded-full border border-rule"
+                  className="inline-flex h-3.5 w-3.5 rounded-full border border-line"
                   style={{ backgroundColor: swatch }}
                 />
               );
             })}
-            {variantColors.length > 4 && <span className="text-[10px] text-ash font-mono">+{variantColors.length - 4}</span>}
+            {variantColors.length > 4 && (
+              <span className="text-[10px] text-text-mute font-mono">+{variantColors.length - 4}</span>
+            )}
           </div>
         )}
       </div>
 
-      {/* Pricing & Monospace Block Stock Gauge */}
-      <div className="pt-4 mt-4 border-t border-rule/50 space-y-2">
+      {/* Pricing & Monospace Stock Bar */}
+      <div className="pt-4 mt-4 border-t border-line/60 space-y-2">
         <div className="flex items-baseline justify-between">
-          <div className="flex items-baseline space-x-2">
-            <Numeric
-              value={numericPrice}
-              format="price"
-              zeroPadInt={3}
-              className="text-[20px] leading-[24px] text-ink font-medium"
-            />
-            {discountPct > 0 && (
-              <span className="line-through text-ash font-mono text-xs">
-                ${originalPrice.toFixed(2)}
-              </span>
-            )}
-          </div>
+          <Money
+            amount={numericPrice}
+            originalAmount={discountPct > 0 ? originalPrice : null}
+            size="inline"
+          />
           {discountPct > 0 && (
-            <span className="bg-signal text-paper px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider">
-              SAVE {discountPct}%
+            <span className="bg-amber-soft border border-amber/30 text-amber px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider rounded">
+              −{discountPct}%
             </span>
           )}
         </div>
 
-        {/* Monospace Block Characters Gauge */}
-        <div className={`flex items-center justify-between font-mono text-[12px] ${stockColorClass}`}>
-          <span className="tracking-widest">{stockBlocksStr}</span>
-          <Numeric value={stock} format="integer" zeroPadInt={2} className="ml-2 font-semibold" />
-        </div>
+        {/* Stock Gauge */}
+        <StockBar stock={stock} maxStock={50} variant="segmented" />
       </div>
     </Link>
   );

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Eyebrow } from '../ui/Eyebrow';
+import { ShieldCheck, Zap } from 'lucide-react';
 
 interface StripeCardFormProps {
   onPaymentSuccess: (paymentId: string) => void;
@@ -22,7 +23,7 @@ export const StripeCardForm: React.FC<StripeCardFormProps> = ({
     setCardHolder('JANE DOE');
     setCardNumber('4242 4242 4242 4242');
     setExpiry('12/28');
-    setCvc('123');
+    setCvc('888');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -36,45 +37,49 @@ export const StripeCardForm: React.FC<StripeCardFormProps> = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-2 font-mono text-xs">
-      <div className="flex justify-between items-center bg-paper-sunk p-2 border border-rule">
-        <span className="text-ash">DEMO STRIPE TESTING</span>
+      <div className="flex justify-between items-center bg-raised p-2.5 rounded-card border border-line">
+        <span className="text-text-mute flex items-center gap-1.5">
+          <ShieldCheck className="w-4 h-4 text-mint" />
+          STRIPE PAYMENTINTENT SANDBOX
+        </span>
         <button
           type="button"
           onClick={handleAutoFill}
-          className="text-ink underline hover:text-signal font-semibold"
+          className="text-amber hover:text-amber-press font-semibold flex items-center gap-1"
         >
-          [ ⚡ AUTO-FILL TEST CARD ]
+          <Zap className="w-3 h-3" />
+          <span>AUTO-FILL TEST CARD</span>
         </button>
       </div>
 
       <div>
-        <Eyebrow className="text-ash mb-1 block">CARDHOLDER NAME</Eyebrow>
+        <Eyebrow className="text-text-mute mb-1 block">CARDHOLDER NAME</Eyebrow>
         <input
           type="text"
           required
           placeholder="JANE DOE"
           value={cardHolder}
           onChange={(e) => setCardHolder(e.target.value)}
-          className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink placeholder-ash uppercase focus:outline-none rounded-none"
+          className="w-full bg-overlay border border-line focus:border-sky px-3.5 py-2.5 text-sm font-sans text-text placeholder:text-text-mute uppercase focus:outline-none rounded-card transition-colors"
         />
       </div>
 
       <div>
-        <Eyebrow className="text-ash mb-1 block">CARD NUMBER</Eyebrow>
+        <Eyebrow className="text-text-mute mb-1 block">CARD NUMBER</Eyebrow>
         <input
           type="text"
           required
           maxLength={19}
-          placeholder="4242 4242 4242 4242"
+          placeholder="4242 •••• •••• 4242"
           value={cardNumber}
           onChange={(e) => setCardNumber(e.target.value)}
-          className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink placeholder-ash focus:outline-none rounded-none"
+          className="w-full bg-overlay border border-line focus:border-sky px-3.5 py-2.5 text-sm font-mono text-text placeholder:text-text-mute focus:outline-none rounded-card transition-colors"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Eyebrow className="text-ash mb-1 block">EXPIRY (MM/YY)</Eyebrow>
+          <Eyebrow className="text-text-mute mb-1 block">EXPIRY (MM/YY)</Eyebrow>
           <input
             type="text"
             required
@@ -82,19 +87,19 @@ export const StripeCardForm: React.FC<StripeCardFormProps> = ({
             placeholder="12/28"
             value={expiry}
             onChange={(e) => setExpiry(e.target.value)}
-            className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink placeholder-ash focus:outline-none rounded-none"
+            className="w-full bg-overlay border border-line focus:border-sky px-3.5 py-2.5 text-sm font-mono text-text placeholder:text-text-mute focus:outline-none rounded-card transition-colors"
           />
         </div>
         <div>
-          <Eyebrow className="text-ash mb-1 block">CVC / CVV</Eyebrow>
+          <Eyebrow className="text-text-mute mb-1 block">CVC / CVV</Eyebrow>
           <input
             type="text"
             required
             maxLength={4}
-            placeholder="123"
+            placeholder="888"
             value={cvc}
             onChange={(e) => setCvc(e.target.value)}
-            className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink placeholder-ash focus:outline-none rounded-none"
+            className="w-full bg-overlay border border-line focus:border-sky px-3.5 py-2.5 text-sm font-mono text-text placeholder:text-text-mute focus:outline-none rounded-card transition-colors"
           />
         </div>
       </div>
@@ -102,9 +107,13 @@ export const StripeCardForm: React.FC<StripeCardFormProps> = ({
       <button
         type="submit"
         disabled={localProcessing || isProcessing}
-        className="w-full h-12 bg-ink text-paper font-sans text-xs font-semibold uppercase tracking-widest hover:bg-graphite transition-colors disabled:opacity-50 rounded-none mt-2"
+        className="w-full h-12 bg-amber text-on-amber font-sans text-xs font-bold uppercase tracking-wider hover:bg-amber-press transition-colors disabled:opacity-50 rounded-card mt-3 flex items-center justify-center gap-2 shadow-sm"
       >
-        {localProcessing ? 'PROCESSING PAYMENT...' : `AUTHORIZE PAYMENT — $${amount.toFixed(2)}`}
+        {localProcessing ? (
+          <span>AUTHORIZING TRANSACTION...</span>
+        ) : (
+          <span>PAY NOW — ${amount.toFixed(2)}</span>
+        )}
       </button>
     </form>
   );

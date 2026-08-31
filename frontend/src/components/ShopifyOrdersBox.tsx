@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { ordersApi } from '../api/orders';
+import { Eyebrow } from './ui/Eyebrow';
+import { Money } from './ui/Money';
+import { StatusPill } from './ui/StatusPill';
+import { RefreshCw, ShoppingCart } from 'lucide-react';
 
 interface Order {
   id: string;
@@ -37,67 +41,67 @@ export const ShopifyOrdersBox: React.FC = () => {
   }, []);
 
   return (
-    <div style={{ border: '1px solid #e5e7eb', padding: '20px', background: '#ffffff', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '20px' }}>🛍️</span>
-          <h3 style={{ margin: 0, fontSize: '15px', fontFamily: 'monospace', fontWeight: 700, color: '#111827', letterSpacing: '0.05em' }}>
-            SHOPIFY SALES CHANNEL ORDERS
-          </h3>
+    <div className="bg-surface border border-line rounded-card p-6 space-y-4 mb-6">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <ShoppingCart className="w-5 h-5 text-amber" />
+          <div>
+            <Eyebrow className="text-text-mute block">OMNI-CHANNEL INTEGRATION</Eyebrow>
+            <h3 className="font-display text-base font-bold text-text">
+              Shopify Sales Channel Stream
+            </h3>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '3px 10px', borderRadius: '12px', fontWeight: 700, fontFamily: 'monospace' }}>
-            {shopifyOrders.length} Direct Syncs
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono bg-sky-soft border border-sky/30 text-sky px-2.5 py-1 rounded-pill font-semibold">
+            {shopifyOrders.length} Synchronized Orders
           </span>
           <button
             onClick={fetchShopifyOrders}
-            style={{ background: '#f3f4f6', border: '1px solid #d1d5db', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontFamily: 'monospace' }}
+            className="flex items-center gap-1 bg-raised hover:bg-overlay border border-line text-text-dim hover:text-text px-2.5 py-1 rounded-card text-xs font-mono transition-colors"
           >
-            ↻ Refresh
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Sync</span>
           </button>
         </div>
       </div>
 
       {loading ? (
-        <p style={{ fontFamily: 'monospace', fontSize: '12px', color: '#6b7280' }}>Loading Shopify channel telemetry...</p>
+        <p className="font-mono text-xs text-text-mute">Polling Shopify webhook channel...</p>
       ) : error ? (
-        <p style={{ fontFamily: 'monospace', fontSize: '12px', color: '#ef4444' }}>{error}</p>
+        <p className="font-mono text-xs text-rose">{error}</p>
       ) : shopifyOrders.length === 0 ? (
-        <div style={{ padding: '24px', textAlign: 'center', background: '#f9fafb', borderRadius: '6px', border: '1px dashed #d1d5db' }}>
-          <p style={{ color: '#6b7280', fontSize: '13px', margin: 0, fontFamily: 'monospace' }}>
-            No orders received from Shopify yet. Inbound webhooks will stream orders here in real time.
+        <div className="p-6 text-center bg-raised rounded-card border border-dashed border-line">
+          <p className="text-text-mute text-xs font-mono">
+            No orders received from Shopify yet. Real-time webhooks will automatically push sales here.
           </p>
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '12px', fontFamily: 'monospace' }}>
+        <div className="overflow-x-auto border border-line rounded-card">
+          <table className="w-full text-left border-collapse text-xs font-mono">
             <thead>
-              <tr style={{ borderBottom: '2px solid #e5e7eb', color: '#4b5563' }}>
-                <th style={{ padding: '10px' }}>Shopify Order #</th>
-                <th style={{ padding: '10px' }}>Customer</th>
-                <th style={{ padding: '10px' }}>Status</th>
-                <th style={{ padding: '10px', textAlign: 'right' }}>Total Amount</th>
+              <tr className="bg-raised border-b border-line text-text-mute">
+                <th className="py-2.5 px-3.5"><Eyebrow>SHOPIFY ORDER #</Eyebrow></th>
+                <th className="py-2.5 px-3.5"><Eyebrow>CUSTOMER</Eyebrow></th>
+                <th className="py-2.5 px-3.5"><Eyebrow>STATUS</Eyebrow></th>
+                <th className="py-2.5 px-3.5 text-right"><Eyebrow>AMOUNT</Eyebrow></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-line">
               {shopifyOrders.map((ord) => (
-                <tr key={ord.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '10px', fontWeight: 700, color: '#111827' }}>
+                <tr key={ord.id} className="hover:bg-raised/40 transition-colors">
+                  <td className="py-2.5 px-3.5 font-bold text-text">
                     {ord.shopify_order_number || `#SH-${ord.shopify_order_id || ord.id.slice(0, 8)}`}
                   </td>
-                  <td style={{ padding: '10px', color: '#4b5563' }}>
+                  <td className="py-2.5 px-3.5 text-text-dim">
                     {ord.user_email || 'Shopify Customer'}
                   </td>
-                  <td style={{ padding: '10px' }}>
-                    <span style={{
-                      color: ord.status === 'PAID' ? '#059669' : (ord.status === 'CANCELLED' ? '#dc2626' : '#d97706'),
-                      fontWeight: 600
-                    }}>
-                      ● {ord.status}
-                    </span>
+                  <td className="py-2.5 px-3.5">
+                    <StatusPill status={ord.status} size="sm" />
                   </td>
-                  <td style={{ padding: '10px', textAlign: 'right', fontWeight: 700, color: '#111827' }}>
-                    ${typeof ord.total_amount === 'number' ? ord.total_amount.toFixed(2) : parseFloat(ord.total_amount || '0').toFixed(2)}
+                  <td className="py-2.5 px-3.5 text-right">
+                    <Money amount={Number(ord.total_amount || 0)} size="inline" className="font-bold text-text" />
                   </td>
                 </tr>
               ))}

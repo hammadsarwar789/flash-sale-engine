@@ -6,12 +6,11 @@ import { useOrders } from '../hooks/useOrders';
 import { commerceApi } from '../api/commerce';
 import { ordersApi } from '../api/orders';
 import { StripeCardForm } from '../components/checkout/StripeCardForm';
-import { CouponInput } from '../components/cart/CouponInput';
 import { ShippingAddress, Order, CartItem, CouponValidation } from '../types/api';
 import { Eyebrow } from '../components/ui/Eyebrow';
-import { Numeric } from '../components/ui/Numeric';
+import { Money } from '../components/ui/Money';
+import { ShieldCheck, ChevronLeft, Lock, CreditCard, Banknote } from 'lucide-react';
 
-// Exhaustive Worldwide Countries & Territories list (ISO 3166-1)
 const WORLD_COUNTRIES = [
   { code: 'US', name: 'UNITED STATES' },
   { code: 'CA', name: 'CANADA' },
@@ -48,25 +47,6 @@ const WORLD_COUNTRIES = [
   { code: 'EG', name: 'EGYPT' },
   { code: 'NG', name: 'NIGERIA' },
   { code: 'KE', name: 'KENYA' },
-  { code: 'PL', name: 'POLAND' },
-  { code: 'PT', name: 'PORTUGAL' },
-  { code: 'GR', name: 'GREECE' },
-  { code: 'TR', name: 'TURKEY' },
-  { code: 'IL', name: 'ISRAEL' },
-  { code: 'TH', name: 'THAILAND' },
-  { code: 'MY', name: 'MALAYSIA' },
-  { code: 'ID', name: 'INDONESIA' },
-  { code: 'PH', name: 'PHILIPPINES' },
-  { code: 'VN', name: 'VIETNAM' },
-  { code: 'CN', name: 'CHINA' },
-  { code: 'TW', name: 'TAIWAN' },
-  { code: 'CL', name: 'CHILE' },
-  { code: 'CO', name: 'COLOMBIA' },
-  { code: 'PE', name: 'PERU' },
-  { code: 'CZ', name: 'CZECH REPUBLIC' },
-  { code: 'HU', name: 'HUNGARY' },
-  { code: 'RO', name: 'ROMANIA' },
-  { code: 'UA', name: 'UKRAINE' },
 ];
 
 export const CheckoutPage: React.FC = () => {
@@ -102,9 +82,9 @@ export const CheckoutPage: React.FC = () => {
 
   const subtotal = cart?.subtotal || 0;
   const discount = appliedCoupon?.calculated_discount || 0;
-  const total = Math.max(0, subtotal - discount);
+  const tax = Math.round((subtotal - discount) * 0.08 * 100) / 100;
+  const total = Math.max(0, subtotal - discount + tax);
 
-  // Auto-validate coupon passed from Cart page location.state
   useEffect(() => {
     if (initialCouponCode && subtotal > 0 && !appliedCoupon) {
       commerceApi.validateCoupon(initialCouponCode, subtotal)
@@ -117,7 +97,6 @@ export const CheckoutPage: React.FC = () => {
     }
   }, [initialCouponCode, subtotal]);
 
-  // Load saved shipping addresses if authenticated
   useEffect(() => {
     if (isAuthenticated) {
       commerceApi.listShippingAddresses().then((addrs) => {
@@ -229,7 +208,6 @@ export const CheckoutPage: React.FC = () => {
       setCreatedOrder(orderRes);
       localStorage.removeItem('cart_hold_expires_at');
 
-      // If Cash on Delivery, complete immediately without credit card
       if (paymentMethod === 'cod') {
         setIsPaymentCompleted(true);
         setTimeout(() => {
@@ -267,10 +245,13 @@ export const CheckoutPage: React.FC = () => {
 
   if (items.length === 0 && !createdOrder) {
     return (
-      <div className="max-w-md mx-auto py-20 text-center space-y-4 border border-rule bg-paper">
-        <h2 className="font-serif text-3xl text-ink">Cart is empty</h2>
-        <p className="font-mono text-xs text-ash">Reserve items on the floor before entering checkout.</p>
-        <button onClick={() => navigate('/products')} className="bg-ink text-paper font-mono text-xs uppercase px-6 py-2">
+      <div className="max-w-md mx-auto py-20 text-center space-y-4 border border-line bg-surface rounded-card p-8">
+        <h2 className="font-display text-2xl font-bold text-text">Cart is empty</h2>
+        <p className="font-mono text-xs text-text-mute">Reserve items on the floor before entering checkout.</p>
+        <button
+          onClick={() => navigate('/products')}
+          className="bg-amber text-on-amber font-sans font-semibold text-xs uppercase tracking-wider px-6 py-2.5 rounded-card hover:bg-amber-press transition-colors"
+        >
           ← Return to Floor
         </button>
       </div>
@@ -278,372 +259,349 @@ export const CheckoutPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-[720px] mx-auto space-y-10">
-
+    <div className="max-w-[760px] mx-auto space-y-8">
       {/* Checkout Header */}
-      <div className="border-b border-rule pb-4 flex items-center justify-between">
+      <div className="border-b border-line pb-4 flex items-center justify-between">
         <div>
-          <button onClick={() => navigate('/cart')} className="font-mono text-xs text-ash hover:text-ink block">
-            ← BACK TO CART
+          <button
+            onClick={() => navigate('/cart')}
+            className="font-mono text-xs text-text-mute hover:text-text flex items-center gap-1"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            <span>BACK TO CART</span>
           </button>
-          <h1 className="font-serif text-[48px] text-ink font-normal leading-none mt-1">Checkout.</h1>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold text-text tracking-tight mt-1">Checkout</h1>
         </div>
-        <div className="font-mono text-xs text-ash">
-          WORLDWIDE DELIVERY · IDEMPOTENCY GUARANTEED
+        <div className="font-mono text-xs text-text-mute flex items-center gap-1.5">
+          <Lock className="w-3.5 h-3.5 text-mint" />
+          <span>256-BIT ENCRYPTED</span>
         </div>
       </div>
 
       {checkoutError && (
-        <div className="p-3 border border-loss bg-paper text-loss font-mono text-xs">
-          {checkoutError}
+        <div className="p-3.5 border border-rose/40 bg-rose-soft text-rose font-mono text-xs rounded-card">
+          ● {checkoutError}
         </div>
       )}
 
-      {/* Post-Checkout Order Confirmation Payment Block */}
+      {/* Post-Checkout Payment Modal / Block */}
       {createdOrder && (
-        <div className="border border-gain bg-paper p-8 space-y-6 text-center">
+        <div className="border border-mint/40 bg-surface rounded-card p-8 space-y-6 text-center">
           <div className="space-y-1">
-            <Eyebrow className="text-gain block">ORDER RESERVATION CONFIRMED</Eyebrow>
-            <h2 className="font-serif text-4xl text-ink">Order #{createdOrder.id}</h2>
-            <div className="font-mono text-xs text-ash">
-              Status: <span className="text-gain font-semibold">{createdOrder.status || 'PENDING'}</span>
+            <Eyebrow className="text-mint block">ORDER RESERVATION CONFIRMED</Eyebrow>
+            <h2 className="font-display text-3xl font-bold text-text">Order #{createdOrder.id}</h2>
+            <div className="font-mono text-xs text-text-mute">
+              Status: <span className="text-mint font-semibold">{createdOrder.status || 'PENDING'}</span>
             </div>
           </div>
 
           {paymentMethod === 'cod' ? (
-            <div className="font-mono text-xs text-gain p-4 border border-gain bg-paper-sunk space-y-2">
-              <p className="font-semibold">💵 CASH ON DELIVERY (COD) CONFIRMED</p>
-              <p className="text-ash">Please prepare <Numeric value={createdOrder.total_amount || total} format="price" zeroPadInt={3} /> in cash upon delivery arrival.</p>
-              <p className="text-ink pt-1">REDIRECTING TO ORDER TIMELINE...</p>
+            <div className="font-mono text-xs text-mint p-4 border border-mint/30 bg-mint-soft rounded-card space-y-2">
+              <p className="font-semibold">💵 CASH ON DELIVERY CONFIRMED</p>
+              <p className="text-text-dim">Please prepare <Money amount={createdOrder.total_amount || total} size="inline" /> in cash upon courier arrival.</p>
+              <p className="text-text pt-1">REDIRECTING TO ORDER TIMELINE...</p>
             </div>
           ) : !isPaymentCompleted ? (
-            <div className="border-t border-rule pt-6 text-left space-y-4">
-              <Eyebrow className="text-ash block">ENTER STRIPE PAYMENT CREDENTIALS</Eyebrow>
+            <div className="border-t border-line pt-6 text-left space-y-4">
+              <Eyebrow className="text-text-mute block">ENTER STRIPE PAYMENT CREDENTIALS</Eyebrow>
               <StripeCardForm
                 amount={createdOrder.total_amount || total}
                 isProcessing={false}
                 onPaymentSuccess={handlePaymentCompleted}
               />
-              <div className="border-t border-rule pt-4 text-center space-y-2 font-mono text-xs">
-                <p className="text-ash">
-                  Decided not to pay now? Cancel this temporary inventory reservation and put items back in your cart.
+              <div className="border-t border-line pt-4 text-center space-y-2 font-mono text-xs">
+                <p className="text-text-mute">
+                  Decided not to pay now? Cancel this hold and restore items to your cart.
                 </p>
                 <button
                   type="button"
                   onClick={handleRestoreCart}
-                  className="px-5 py-2 bg-paper border border-loss text-loss hover:bg-loss hover:text-paper font-semibold uppercase transition-colors"
+                  className="px-4 py-2 bg-raised border border-rose/30 text-rose hover:bg-rose-soft font-semibold uppercase transition-colors rounded-card"
                 >
-                  ← CANCEL RESERVATION & RETURN ITEMS TO CART
+                  ← CANCEL HOLD & RETURN ITEMS TO CART
                 </button>
               </div>
             </div>
           ) : (
-            <div className="font-mono text-xs text-gain p-4 border border-gain bg-paper-sunk">
+            <div className="font-mono text-xs text-mint p-4 border border-mint/40 bg-mint-soft rounded-card">
               PAYMENT AUTHORIZED. REDIRECTING TO ORDER FULFILLMENT TIMELINE...
             </div>
           )}
         </div>
       )}
 
-      {/* Single Column 720px Form Stack */}
+      {/* 3 Numbered Steps Form */}
       {!createdOrder && (
-        <form onSubmit={handlePlaceOrder} className="space-y-10">
-
-          {/* Nº 01 SHIPPING */}
-          <div className="space-y-4">
-            <div className="border-b border-rule pb-2 flex items-center justify-between">
-              <div className="flex items-baseline space-x-3">
-                <span className="font-mono text-xs text-ash">Nº 01</span>
-                <h2 className="font-mono text-sm font-semibold tracking-widest uppercase text-ink">WORLDWIDE SHIPPING ADDRESS</h2>
+        <form onSubmit={handlePlaceOrder} className="space-y-8">
+          
+          {/* Step 1: Contact / Guest */}
+          <div className="bg-surface border border-line rounded-card p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div className="flex items-center space-x-2">
+                <span className="w-6 h-6 rounded-full bg-raised text-amber font-mono text-xs font-bold flex items-center justify-center border border-line">1</span>
+                <h2 className="font-sans text-sm font-bold uppercase tracking-wider text-text">CONTACT INFORMATION</h2>
               </div>
               {!isAuthenticated && (
-                <label className="font-mono text-xs text-ash flex items-center space-x-2 cursor-pointer">
+                <label className="font-mono text-xs text-text-mute flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={isGuestMode}
                     onChange={(e) => setIsGuestMode(e.target.checked)}
-                    className="rounded-none border-rule text-ink focus:ring-0"
+                    className="rounded border-line text-amber focus:ring-sky"
                   />
-                  <span>CHECKOUT AS GUEST</span>
+                  <span>GUEST CHECKOUT</span>
                 </label>
               )}
             </div>
 
             {isGuestMode ? (
               <div>
-                <Eyebrow className="text-ash mb-1 block">GUEST EMAIL ADDRESS</Eyebrow>
+                <Eyebrow className="text-text-mute mb-1 block">GUEST EMAIL ADDRESS</Eyebrow>
                 <input
                   type="email"
                   required
                   placeholder="GUEST@EXAMPLE.COM"
                   value={guestEmail}
                   onChange={(e) => setGuestEmail(e.target.value)}
-                  className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink placeholder-ash focus:outline-none rounded-none"
+                  className="w-full bg-raised border border-line focus:border-sky px-3.5 py-2.5 text-sm font-mono text-text placeholder:text-text-mute focus:outline-none rounded-card transition-colors"
                 />
               </div>
             ) : (
-              <div className="font-mono text-xs text-ash border border-rule p-3 bg-paper-sunk flex justify-between">
+              <div className="font-mono text-xs text-text-dim border border-line p-3 bg-raised rounded-card flex justify-between items-center">
                 <span>ACCOUNT: {user?.email}</span>
-                <span className="text-gain font-semibold">AUTHENTICATED</span>
+                <span className="text-mint font-semibold">● AUTHENTICATED</span>
               </div>
             )}
+          </div>
 
-            {/* Saved Addresses Selector Cards */}
+          {/* Step 2: Shipping Address */}
+          <div className="bg-surface border border-line rounded-card p-6 space-y-4">
+            <div className="flex items-center space-x-2 border-b border-line pb-3">
+              <span className="w-6 h-6 rounded-full bg-raised text-amber font-mono text-xs font-bold flex items-center justify-center border border-line">2</span>
+              <h2 className="font-sans text-sm font-bold uppercase tracking-wider text-text">SHIPPING & DISPATCH ADDRESS</h2>
+            </div>
+
+            {/* Saved Addresses Picker */}
             {shippingAddresses.length > 0 && !isGuestMode && (
-              <div className="space-y-2 pt-2">
-                <Eyebrow className="text-ash block">SELECT SAVED ADDRESS</Eyebrow>
+              <div className="space-y-2">
+                <Eyebrow className="text-text-mute block">SELECT SAVED ADDRESS</Eyebrow>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {shippingAddresses.map((addr) => (
                     <button
                       key={addr.id}
                       type="button"
                       onClick={() => selectSavedAddress(addr)}
-                      className={`p-3 border text-left font-mono text-xs transition-colors rounded-none ${selectedAddressId === addr.id
-                        ? 'bg-ink text-paper border-ink font-semibold'
-                        : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
-                        }`}
+                      className={`p-3 border text-left font-mono text-xs transition-colors rounded-card ${
+                        selectedAddressId === addr.id
+                          ? 'bg-raised border-amber text-text ring-1 ring-amber'
+                          : 'bg-surface text-text border-line hover:border-line-strong'
+                      }`}
                     >
-                      <p className="font-sans font-semibold">{addr.recipient_name}</p>
-                      <p className="text-ash">{addr.address_line1}</p>
-                      <p className="text-ash">{addr.city}, {addr.state} {addr.postal_code} — {addr.country}</p>
+                      <p className="font-sans font-semibold text-text">{addr.recipient_name}</p>
+                      <p className="text-text-dim">{addr.address_line1}</p>
+                      <p className="text-text-mute">{addr.city}, {addr.state} {addr.postal_code} — {addr.country}</p>
                     </button>
                   ))}
                   <button
                     type="button"
                     onClick={handleAddNewAddressOption}
-                    className={`p-3 border border-dashed text-left font-mono text-xs transition-colors rounded-none flex items-center justify-center ${selectedAddressId === null
-                      ? 'bg-paper-sunk border-ink text-ink font-semibold'
-                      : 'border-rule text-ash hover:text-ink'
-                      }`}
+                    className={`p-3 border border-dashed text-left font-mono text-xs transition-colors rounded-card flex items-center justify-center ${
+                      selectedAddressId === null
+                        ? 'bg-raised border-amber text-text ring-1 ring-amber'
+                        : 'border-line text-text-mute hover:text-text'
+                    }`}
                   >
-                    + ENTER NEW SHIPPING ADDRESS
+                    + USE NEW SHIPPING ADDRESS
                   </button>
                 </div>
               </div>
             )}
 
             {/* Address Input Fields */}
-            <div className="space-y-4 pt-2">
+            <div className="space-y-4 pt-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Eyebrow className="text-ash mb-1 block">FULL NAME</Eyebrow>
+                  <Eyebrow className="text-text-mute mb-1 block">FULL NAME</Eyebrow>
                   <input
                     type="text"
                     required
-                    placeholder="ENTER RECIPIENT NAME (E.G. JANE DOE)"
+                    placeholder="JANE DOE"
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
-                    className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
+                    className="w-full bg-raised border border-line focus:border-sky px-3.5 py-2.5 text-sm font-sans text-text focus:outline-none rounded-card transition-colors"
                   />
                 </div>
                 <div>
-                  <Eyebrow className="text-ash mb-1 block">PHONE NO. (FOR COURIER DISPATCH, NOTIFICATIONS)</Eyebrow>
+                  <Eyebrow className="text-text-mute mb-1 block">PHONE NUMBER</Eyebrow>
                   <input
                     type="tel"
                     required
-                    placeholder="E.G. +1 555-0199 OR +92 300-1234567"
+                    placeholder="+1 555-0199"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink focus:outline-none rounded-none"
+                    className="w-full bg-raised border border-line focus:border-sky px-3.5 py-2.5 text-sm font-mono text-text focus:outline-none rounded-card transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <Eyebrow className="text-ash mb-1 block">STREET ADDRESS / BUILDING / SUITE</Eyebrow>
+                <Eyebrow className="text-text-mute mb-1 block">STREET ADDRESS</Eyebrow>
                 <input
                   type="text"
                   required
-                  placeholder="ENTER STREET ADDRESS (E.G. 123 MARKET STREET, SUITE 400)"
+                  placeholder="100 WALL STREET, SUITE 400"
                   value={addressLine1}
                   onChange={(e) => setAddressLine1(e.target.value)}
-                  className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
+                  className="w-full bg-raised border border-line focus:border-sky px-3.5 py-2.5 text-sm font-sans text-text focus:outline-none rounded-card transition-colors"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <Eyebrow className="text-ash mb-1 block">CITY / POSTAL ZIP CODE</Eyebrow>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      required
-                      placeholder="CITY (E.G. TOKYO, PARIS)"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-2/3 bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
-                    />
-                    <input
-                      type="text"
-                      required
-                      placeholder="POSTAL/ZIP"
-                      value={postalCode}
-                      onChange={(e) => setPostalCode(e.target.value)}
-                      className="w-1/3 bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-mono text-ink uppercase focus:outline-none rounded-none"
-                    />
-                  </div>
+                  <Eyebrow className="text-text-mute mb-1 block">CITY</Eyebrow>
+                  <input
+                    type="text"
+                    required
+                    placeholder="NEW YORK"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="w-full bg-raised border border-line focus:border-sky px-3.5 py-2.5 text-sm font-sans text-text focus:outline-none rounded-card transition-colors"
+                  />
                 </div>
+                <div>
+                  <Eyebrow className="text-text-mute mb-1 block">STATE / PROVINCE</Eyebrow>
+                  <input
+                    type="text"
+                    required
+                    placeholder="NY"
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
+                    className="w-full bg-raised border border-line focus:border-sky px-3.5 py-2.5 text-sm font-sans text-text focus:outline-none rounded-card transition-colors"
+                  />
+                </div>
+                <div>
+                  <Eyebrow className="text-text-mute mb-1 block">POSTAL / ZIP CODE</Eyebrow>
+                  <input
+                    type="text"
+                    required
+                    placeholder="10005"
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value)}
+                    className="w-full bg-raised border border-line focus:border-sky px-3.5 py-2.5 text-sm font-mono text-text focus:outline-none rounded-card transition-colors"
+                  />
+                </div>
+              </div>
 
-                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3">
-                  <div>
-                    <Eyebrow className="text-ash mb-1 block">STATE / REGION</Eyebrow>
-                    <input
-                      type="text"
-                      required
-                      placeholder="STATE/PROVINCE"
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
-                    />
-                  </div>
-                  <div>
-                    <Eyebrow className="text-ash mb-1 block">COUNTRY (GLOBAL)</Eyebrow>
-                    <input
-                      type="text"
-                      required
-                      list="worldwide-countries-list"
-                      placeholder="SELECT COUNTRY..."
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value.toUpperCase())}
-                      className="w-full bg-paper-sunk border-0 border-b-2 border-rule focus:border-ink px-3 py-2.5 text-sm font-sans text-ink uppercase focus:outline-none rounded-none"
-                    />
-                    <datalist id="worldwide-countries-list">
-                      {WORLD_COUNTRIES.map((c) => (
-                        <option key={c.code} value={c.name} />
-                      ))}
-                    </datalist>
-                  </div>
-                </div>
+              <div>
+                <Eyebrow className="text-text-mute mb-1 block">COUNTRY</Eyebrow>
+                <select
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className="w-full bg-raised border border-line focus:border-sky px-3.5 py-2.5 text-sm font-mono text-text focus:outline-none rounded-card transition-colors cursor-pointer"
+                >
+                  {WORLD_COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
 
-          {/* Nº 02 PAYMENT METHOD SELECTION */}
-          <div className="space-y-4">
-            <div className="border-b border-rule pb-2 flex items-baseline space-x-3">
-              <span className="font-mono text-xs text-ash">Nº 02</span>
-              <h2 className="font-mono text-sm font-semibold tracking-widest uppercase text-ink">PAYMENT METHOD</h2>
+          {/* Step 3: Payment Method Selection */}
+          <div className="bg-surface border border-line rounded-card p-6 space-y-4">
+            <div className="flex items-center space-x-2 border-b border-line pb-3">
+              <span className="w-6 h-6 rounded-full bg-raised text-amber font-mono text-xs font-bold flex items-center justify-center border border-line">3</span>
+              <h2 className="font-sans text-sm font-bold uppercase tracking-wider text-text">PAYMENT SETTLEMENT</h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-mono text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setPaymentMethod('card')}
-                className={`p-4 border text-left flex flex-col justify-between space-y-2 rounded-none transition-colors ${paymentMethod === 'card'
-                  ? 'bg-ink text-paper border-ink font-semibold'
-                  : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
-                  }`}
+                className={`p-4 border rounded-card text-left transition-colors flex items-center gap-3 ${
+                  paymentMethod === 'card'
+                    ? 'bg-raised border-amber text-text ring-1 ring-amber'
+                    : 'bg-surface text-text-dim border-line hover:border-line-strong'
+                }`}
               >
-                <div className="flex items-center justify-between w-full">
-                  <span>💳 CREDIT / DEBIT CARD</span>
-                  <span>{paymentMethod === 'card' ? '●' : '○'}</span>
+                <CreditCard className="w-5 h-5 text-amber" />
+                <div>
+                  <span className="font-sans font-bold text-xs block text-text">STRIPE CREDIT / DEBIT CARD</span>
+                  <span className="font-mono text-[10px] text-text-mute">Instant Authorization</span>
                 </div>
-                <span className="text-[11px] opacity-80">Stripe encrypted payment (Visa, Mastercard, Amex)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setPaymentMethod('cod')}
-                className={`p-4 border text-left flex flex-col justify-between space-y-2 rounded-none transition-colors ${paymentMethod === 'cod'
-                  ? 'bg-ink text-paper border-ink font-semibold'
-                  : 'bg-paper text-ink border-rule hover:bg-paper-sunk'
-                  }`}
+                className={`p-4 border rounded-card text-left transition-colors flex items-center gap-3 ${
+                  paymentMethod === 'cod'
+                    ? 'bg-raised border-amber text-text ring-1 ring-amber'
+                    : 'bg-surface text-text-dim border-line hover:border-line-strong'
+                }`}
               >
-                <div className="flex items-center justify-between w-full">
-                  <span>💵 CASH ON DELIVERY (COD)</span>
-                  <span>{paymentMethod === 'cod' ? '●' : '○'}</span>
+                <Banknote className="w-5 h-5 text-mint" />
+                <div>
+                  <span className="font-sans font-bold text-xs block text-text">CASH ON DELIVERY (COD)</span>
+                  <span className="font-mono text-[10px] text-text-mute">Pay upon courier arrival</span>
                 </div>
-                <span className="text-[11px] opacity-80">Pay cash directly to the courier upon delivery</span>
               </button>
             </div>
           </div>
 
-          {/* Nº 03 REVIEW & PLACE ORDER */}
-          <div className="space-y-4 pt-2">
-            <div className="border-b border-rule pb-2 flex items-baseline space-x-3">
-              <span className="font-mono text-xs text-ash">Nº 03</span>
-              <h2 className="font-mono text-sm font-semibold tracking-widest uppercase text-ink">REVIEW & SUBMIT</h2>
+          {/* Order Summary Spec & Submit */}
+          <div className="bg-surface border border-line rounded-card p-6 space-y-4">
+            <div className="flex items-center justify-between font-mono text-xs text-text-dim">
+              <span>ITEMS RESERVED ({items.length})</span>
+              <Money amount={subtotal} size="inline" />
             </div>
 
-            {/* Coupon Code Input / Applied Summary */}
-            <div className="border border-rule p-4 bg-paper">
-              <CouponInput
-                cartSubtotal={subtotal}
-                appliedCoupon={appliedCoupon}
-                onCouponApplied={(coupon) => setAppliedCoupon(coupon.valid ? coupon : null)}
-              />
+            {appliedCoupon && (
+              <div className="flex items-center justify-between font-mono text-xs text-mint">
+                <span>COUPON DISCOUNT ({appliedCoupon.code})</span>
+                <span>−${discount.toFixed(2)}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between font-mono text-xs text-text-dim">
+              <span>ESTIMATED TAX (8%)</span>
+              <span>${tax.toFixed(2)}</span>
             </div>
 
-            <div className="font-mono text-xs text-graphite border border-rule p-4 bg-paper space-y-3">
-              {/* Multi-Vendor Store Fulfillment Branches */}
-              <div className="border-b border-rule pb-2 space-y-2">
-                <span className="text-ash font-semibold block text-[11px] uppercase">FULFILLMENT BRANCHES BY SELLER</span>
-                {Object.entries(
-                  items.reduce((acc: Record<string, any[]>, item: any) => {
-                    const seller = item.product?.seller_name || item.product?.vendor_name || 'Central Platform Store';
-                    if (!acc[seller]) acc[seller] = [];
-                    acc[seller].push(item);
-                    return acc;
-                  }, {})
-                ).map(([sellerName, sellerItems]) => {
-                  const sTotal = sellerItems.reduce((s: number, i: any) => s + (i.product?.price || 0) * i.quantity, 0);
-                  return (
-                    <div key={sellerName} className="flex justify-between items-center bg-paper-sunk p-2 border border-rule/50">
-                      <div>
-                        <span className="font-semibold text-ink uppercase">🏪 {sellerName}</span>
-                        <span className="text-ash text-[10px] block">{sellerItems.length} line items → Independent fulfillment thread</span>
-                      </div>
-                      <span className="font-semibold text-ink">${sTotal.toFixed(2)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex justify-between">
-                <span>SUBTOTAL ({items.length} items)</span>
-                <Numeric value={subtotal} format="price" zeroPadInt={3} />
-              </div>
-              {discount > 0 && (
-                <div className="flex justify-between text-gain font-semibold">
-                  <span>PROMO DISCOUNT ({appliedCoupon?.code})</span>
-                  <Numeric value={-discount} format="price" zeroPadInt={2} />
-                </div>
-              )}
-              <div className="flex justify-between font-semibold text-ink border-t border-rule/50 pt-2 text-sm">
-                <span>ESTIMATED TOTAL</span>
-                <Numeric value={total} format="price" zeroPadInt={3} />
-              </div>
-              <div className="text-ash text-[11px] pt-1 uppercase">
-                METHOD: {paymentMethod === 'cod' ? '💵 CASH ON DELIVERY' : '💳 CREDIT/DEBIT CARD (STRIPE)'}
-              </div>
-              {addressLine1 && (
-                <div className="text-ash text-[11px] uppercase">
-                  DELIVERY DESTINATION: {recipientName ? `${recipientName}, ` : ''}{addressLine1}, {city} {state} {postalCode} — {country}
-                </div>
-              )}
+            <div className="flex items-center justify-between font-mono text-xs text-text-dim">
+              <span>COURIER SHIPPING</span>
+              <span className="text-mint font-semibold">FREE INCLUDED</span>
             </div>
 
-            {/* Single Signal Red CTA Button */}
+            <div className="border-t border-line pt-4 flex items-baseline justify-between">
+              <div>
+                <span className="font-display font-bold text-lg text-text">FINAL AMOUNT DUE</span>
+                <p className="font-mono text-[11px] text-text-mute">Includes all duties and taxes</p>
+              </div>
+              <Money amount={total} size="xl" />
+            </div>
+
             <button
               type="submit"
               disabled={isCheckingOut || isGuestCheckingOut}
-              className="w-full h-14 bg-signal text-signal-ink font-sans text-sm font-semibold uppercase tracking-widest transition-opacity hover:opacity-90 disabled:opacity-50 border border-signal rounded-none"
+              className="w-full bg-amber text-on-amber hover:bg-amber-press disabled:opacity-50 h-12 rounded-card font-sans font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-sm mt-4"
             >
-              {isCheckingOut || isGuestCheckingOut
-                ? 'RESERVING INVENTORY...'
-                : paymentMethod === 'cod'
-                  ? `PLACE COD ORDER — $${total.toFixed(2)}`
-                  : `PLACE ORDER — $${total.toFixed(2)}`}
+              {isCheckingOut || isGuestCheckingOut ? (
+                <span>IDEMPOTENT ORDER ALLOCATION IN PROGRESS...</span>
+              ) : (
+                <span>PLACE ORDER & RESERVE — ${total.toFixed(2)}</span>
+              )}
             </button>
 
-            <div className="text-center font-mono text-[11px] text-ash">
-              {paymentMethod === 'cod' ? 'Cash due upon courier arrival · Idempotency-key attached' : 'Secured by Stripe · Idempotency-key attached'}
+            <div className="font-mono text-[11px] text-text-mute text-center pt-2 flex items-center justify-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-mint" />
+              <span>Idempotency-Key attached · 10:00 reservation hold guarantees allocation</span>
             </div>
           </div>
-
         </form>
       )}
-
     </div>
   );
 };

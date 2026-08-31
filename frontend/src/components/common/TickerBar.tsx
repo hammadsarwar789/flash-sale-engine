@@ -17,7 +17,6 @@ export const TickerBar: React.FC = () => {
         if (!isMounted) return;
 
         if (products.length > 0) {
-          // 1. Identify products on sale (discount > 0 or low stock alert <= 20)
           const onSaleProducts = products.filter(
             (p) =>
               ((p as any).discount_percentage && (p as any).discount_percentage > 0) ||
@@ -25,7 +24,6 @@ export const TickerBar: React.FC = () => {
               (p.available_stock > 0 && p.available_stock <= 20)
           );
 
-          // 2. Display on-sale products if present; otherwise display top trending/in-stock products
           const selectedProducts =
             onSaleProducts.length > 0
               ? onSaleProducts
@@ -41,27 +39,27 @@ export const TickerBar: React.FC = () => {
             }
 
             if (discount && discount > 0) {
-              return `🔥 SALE: ${name} — ${discount}% OFF (${price})${product.available_stock > 0 ? ` — ONLY ${product.available_stock} LEFT` : ''}`;
+              return `DROP: ${name} — ${discount}% OFF (${price})${product.available_stock > 0 ? ` · ${product.available_stock} LEFT` : ''}`;
             }
 
             if (product.available_stock > 0 && product.available_stock <= 15) {
-              return `▲ LIMITED STOCK: ${name} — ONLY ${product.available_stock} LEFT (${price})`;
+              return `▲ SCARCITY: ${name} — ONLY ${product.available_stock} LEFT (${price})`;
             }
 
-            return `🔥 TRENDING: ${name} — ${price}${product.available_stock > 0 ? ` (${product.available_stock} IN STOCK)` : ''}`;
+            return `LIVE: ${name} · ${price} (${product.available_stock} IN STOCK)`;
           });
 
           setTickerItems(formattedEvents);
         }
       } catch (err) {
-        // Retain existing items on error
+        // Retain current items on error
       } finally {
         if (isMounted) setLoading(false);
       }
     };
 
     fetchProducts();
-    const interval = setInterval(fetchProducts, 60000);
+    const interval = setInterval(fetchProducts, 45000);
 
     return () => {
       isMounted = false;
@@ -72,32 +70,32 @@ export const TickerBar: React.FC = () => {
   const displayItems = tickerItems.length > 0
     ? tickerItems
     : loading
-      ? ['LOADING LIVE INVENTORY CATALOG...']
-      : ['FLASH SALE ENGINE LIVE — CATALOG READY'];
+      ? ['CONNECTING TO REAL-TIME COMMODITY FEED...', 'ORDERS/MIN: 428', 'NEXT DROP IN 00:14:22']
+      : ['FLASH SALE ENGINE LIVE', 'ORDERS/MIN: 428', 'SETTLEMENT: STRIPE WEBHOOK ACTIVE'];
 
   const fullMarqueeText = displayItems.join('  ·  ') + '  ·  ';
 
   return (
     <aside 
-      className="h-8 bg-ink text-signal-ink border-b border-rule flex items-center overflow-hidden text-[12px] font-mono uppercase tracking-wider relative z-50 select-none"
-      aria-label="Live Flash Sale Ticker"
+      className="h-9 bg-surface text-text-dim border-b border-line flex items-center overflow-hidden text-[12px] font-mono uppercase tracking-wider relative z-50 select-none"
+      aria-label="Live Commodity & Flash Sale Ticker"
     >
       {/* Static Left Badge */}
-      <div className="bg-ink px-3 py-1 flex items-center space-x-2 border-r border-rule flex-shrink-0 z-10">
-        <span className="w-1.5 h-1.5 bg-signal animate-pulse inline-block" aria-hidden="true" />
-        <span className="font-semibold text-signal-ink">LIVE</span>
+      <div className="bg-raised px-3 py-1.5 flex items-center space-x-2 border-r border-line flex-shrink-0 z-10">
+        <span className="w-1.5 h-1.5 bg-amber rounded-full animate-signal-pulse inline-block" aria-hidden="true" />
+        <span className="font-bold text-amber tracking-widest text-[11px]">LIVE</span>
       </div>
 
       {/* Screen Reader Summary */}
       <div className="sr-only" aria-live="polite">
-        Flash Sale Engine Live Ticker.
+        Flash Sale Engine Live Commodity Ticker.
       </div>
 
       {/* Scrolling Marquee */}
       <div className="overflow-hidden flex-1 relative flex items-center" aria-hidden="true">
         <div className="animate-marquee whitespace-nowrap">
-          <span>{fullMarqueeText}</span>
-          <span>{fullMarqueeText}</span>
+          <span className="text-text-dim">{fullMarqueeText}</span>
+          <span className="text-text-dim">{fullMarqueeText}</span>
         </div>
       </div>
     </aside>
