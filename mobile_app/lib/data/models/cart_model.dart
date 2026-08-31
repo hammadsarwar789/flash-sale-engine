@@ -31,27 +31,29 @@ class CartItemModel extends Equatable {
   });
 
   factory CartItemModel.fromJson(Map<String, dynamic> json) {
-    final productData = json['product'] as Map<String, dynamic>?;
+    final dynamic rawProduct = json['product'];
+    final productData = (rawProduct is Map) ? Map<String, dynamic>.from(rawProduct) : null;
     final rawId = json['id'] ?? json['item_id'] ?? '0';
     final rawProdId = json['product_id'] ?? (productData != null ? productData['id'] : '0') ?? '0';
     final rawVariantId = json['variant_id'] ?? (productData != null ? productData['variant_id'] : null);
 
     // Extract product name from flat or nested structure
-    final name = json['product_name'] as String? ??
-        json['name'] as String? ??
-        json['title'] as String? ??
-        (productData != null ? productData['name'] : '') ??
-        'Flash Item';
+    final name = (json['product_name']?.toString() ??
+            json['name']?.toString() ??
+            json['title']?.toString() ??
+            productData?['name']?.toString() ??
+            'Flash Item')
+        .trim();
 
     // Extract price
-    final rawPrice = json['unit_price'] ?? json['price'] ?? (productData != null ? productData['price'] : null);
+    final rawPrice = json['unit_price'] ?? json['price'] ?? productData?['price'];
     final parsedPrice = (rawPrice is num)
         ? rawPrice.toDouble()
         : double.tryParse(rawPrice?.toString() ?? '0.0') ?? 0.0;
 
     // Extract quantity
     final rawQty = json['quantity'] ?? json['qty'] ?? 1;
-    final parsedQty = rawQty is int ? rawQty : int.tryParse(rawQty.toString()) ?? 1;
+    final parsedQty = rawQty is int ? rawQty : int.tryParse(rawQty?.toString() ?? '1') ?? 1;
 
     // Extract subtotal
     final rawSubtotal = json['subtotal'] ?? json['total'];
@@ -60,11 +62,11 @@ class CartItemModel extends Equatable {
         : (double.tryParse(rawSubtotal?.toString() ?? '') ?? (parsedPrice * parsedQty));
 
     // Extract image URL
-    String? imgUrl = json['image_url'] as String? ?? json['image'] as String?;
+    String? imgUrl = json['image_url']?.toString() ?? json['image']?.toString();
     if (imgUrl == null && productData != null) {
-      imgUrl = productData['image_url'] as String?;
+      imgUrl = productData['image_url']?.toString();
       if (imgUrl == null && productData['images'] is List && (productData['images'] as List).isNotEmpty) {
-        imgUrl = productData['images'][0].toString();
+        imgUrl = productData['images'][0]?.toString();
       }
     }
 
@@ -75,13 +77,13 @@ class CartItemModel extends Equatable {
           ? ((rawVariantId is int) ? rawVariantId : (int.tryParse(rawVariantId.toString()) ?? rawVariantId.toString()))
           : null,
       productName: name.isNotEmpty ? name : 'Flash Item',
-      variantName: json['variant_name'] as String?,
-      variantSku: json['variant_sku'] as String?,
+      variantName: json['variant_name']?.toString(),
+      variantSku: json['variant_sku']?.toString(),
       unitPrice: parsedPrice,
       quantity: parsedQty,
       subtotal: parsedSubtotal,
       imageUrl: imgUrl,
-      expiresAt: json['expires_at'] as String? ?? json['hold_expires_at'] as String?,
+      expiresAt: json['expires_at']?.toString() ?? json['hold_expires_at']?.toString(),
       product: productData != null ? ProductModel.fromJson(productData) : null,
     );
   }
@@ -121,7 +123,10 @@ class CartSummaryModel extends Equatable {
         json['data'] as List<dynamic>? ??
         [];
 
-    final itemsList = rawList.map((e) => CartItemModel.fromJson(e as Map<String, dynamic>)).toList();
+    final itemsList = rawList
+        .where((e) => e != null && e is Map)
+        .map((e) => CartItemModel.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
 
     final rawSubtotal = json['subtotal'] ?? json['total'] ?? json['total_amount'];
     final calculatedSubtotal = itemsList.fold<double>(0.0, (sum, i) => sum + i.subtotal);

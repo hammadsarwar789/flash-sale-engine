@@ -43,9 +43,9 @@ class FlashProductCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  product.imageUrl != null && product.imageUrl!.isNotEmpty
+                  (product.imageUrl != null && (product.imageUrl?.isNotEmpty ?? false))
                       ? Image.network(
-                          product.imageUrl!,
+                          product.imageUrl ?? '',
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
                         )
@@ -106,9 +106,9 @@ class FlashProductCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (product.categoryName != null)
+                  if (product.categoryName != null && (product.categoryName?.isNotEmpty ?? false))
                     Text(
-                      product.categoryName!.toUpperCase(),
+                      (product.categoryName ?? '').toUpperCase(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.jetBrainsMono(

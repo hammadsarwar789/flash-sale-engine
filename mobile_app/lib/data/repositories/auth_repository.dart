@@ -23,10 +23,11 @@ class AuthRepository {
       
       // Persist Token & User profile
       await _apiClient.storage.write(key: ApiConstants.tokenKey, value: authResponse.accessToken);
-      if (authResponse.user != null) {
+      final user = authResponse.user;
+      if (user != null) {
         await _apiClient.storage.write(
           key: ApiConstants.userKey,
-          value: jsonEncode(authResponse.user!.toJson()),
+          value: jsonEncode(user.toJson()),
         );
       }
       return authResponse;

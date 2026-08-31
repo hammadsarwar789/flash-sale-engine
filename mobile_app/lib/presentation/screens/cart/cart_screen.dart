@@ -318,26 +318,30 @@ class _CartScreenState extends State<CartScreen> {
                   child: Row(
                     children: [
                       // Product Thumbnail
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(C.radiusCard),
-                        child: Container(
-                          width: 64,
-                          height: 64,
-                          color: C.raised,
-                          child: (item.imageUrl != null && item.imageUrl!.isNotEmpty)
-                              ? Image.network(
-                                  item.imageUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, color: C.textMute, size: 24),
-                                )
-                              : (item.product?.imageUrl != null && item.product!.imageUrl!.isNotEmpty
+                      Builder(
+                        builder: (_) {
+                          final itemImg = item.imageUrl;
+                          final prodImg = item.product?.imageUrl;
+                          final img = (itemImg != null && itemImg.isNotEmpty)
+                              ? itemImg
+                              : ((prodImg != null && prodImg.isNotEmpty) ? prodImg : null);
+
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(C.radiusCard),
+                            child: Container(
+                              width: 64,
+                              height: 64,
+                              color: C.raised,
+                              child: (img != null && img.isNotEmpty)
                                   ? Image.network(
-                                      item.product!.imageUrl!,
+                                      img,
                                       fit: BoxFit.cover,
                                       errorBuilder: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, color: C.textMute, size: 24),
                                     )
-                                  : const Icon(Icons.shopping_bag_outlined, color: C.textMute, size: 24)),
-                        ),
+                                  : const Icon(Icons.shopping_bag_outlined, color: C.textMute, size: 24),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(width: 12),
 
@@ -352,10 +356,10 @@ class _CartScreenState extends State<CartScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: C.text),
                             ),
-                            if (item.variantName != null && item.variantName!.isNotEmpty) ...[
+                            if (item.variantName != null && (item.variantName?.isNotEmpty ?? false)) ...[
                               const SizedBox(height: 2),
                               Text(
-                                item.variantName!,
+                                item.variantName ?? '',
                                 style: GoogleFonts.jetBrainsMono(fontSize: 10, color: C.textMute),
                               ),
                             ],

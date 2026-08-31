@@ -99,8 +99,8 @@ class ApiClient {
       );
     }
 
-    if (e.response != null && e.response?.data != null) {
-      final data = e.response!.data;
+    final data = e.response?.data;
+    if (data != null) {
       if (data is Map<String, dynamic>) {
         final detail = data['detail'] ?? data['message'] ?? data['title'] ?? data['error'];
         if (detail != null) {

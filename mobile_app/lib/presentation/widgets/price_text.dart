@@ -46,6 +46,8 @@ class PriceText extends StatelessWidget {
         break;
     }
 
+    final orig = originalAmount;
+
     return FittedBox(
       fit: BoxFit.scaleDown,
       alignment: Alignment.centerLeft,
@@ -63,10 +65,10 @@ class PriceText extends StatelessWidget {
               fontFeatures: [const FontFeature.tabularFigures()],
             ),
           ),
-          if (originalAmount != null && originalAmount! > amount) ...[
+          if (orig != null && orig > amount) ...[
             const SizedBox(width: 6),
             Text(
-              currencyFormatter.format(originalAmount),
+              currencyFormatter.format(orig),
               style: GoogleFonts.jetBrainsMono(
                 fontSize: fontSize * 0.75,
                 color: C.textMute,
