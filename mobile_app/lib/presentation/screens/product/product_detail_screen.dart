@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/data/models/product_model.dart';
 import 'package:mobile_app/data/repositories/product_repository.dart';
+import 'package:mobile_app/logic/auth/auth_bloc.dart';
+import 'package:mobile_app/logic/auth/auth_state.dart';
 import 'package:mobile_app/logic/cart/cart_bloc.dart';
 import 'package:mobile_app/logic/cart/cart_event.dart';
 import 'package:mobile_app/logic/wishlist/wishlist_bloc.dart';
@@ -92,6 +94,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   void _onAddToCart() {
     if (_product == null) return;
+
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! Authenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please sign in to reserve stock and add items to your cart.',
+            style: GoogleFonts.manrope(color: C.text),
+          ),
+          backgroundColor: C.raised,
+          action: SnackBarAction(
+            label: 'SIGN IN',
+            textColor: C.amber,
+            onPressed: () => context.push('/login'),
+          ),
+        ),
+      );
+      context.push('/login');
+      return;
+    }
+
     final variantIdInt = _selectedVariant?.id != null ? int.tryParse(_selectedVariant!.id.toString()) : null;
 
     context.read<CartBloc>().add(
@@ -318,6 +341,25 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   color: isSaved ? C.amber : C.textDim,
                 ),
                 onPressed: () {
+                  final authState = context.read<AuthBloc>().state;
+                  if (authState is! Authenticated) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Please sign in to save items to your wishlist.',
+                          style: GoogleFonts.manrope(color: C.text),
+                        ),
+                        backgroundColor: C.raised,
+                        action: SnackBarAction(
+                          label: 'SIGN IN',
+                          textColor: C.amber,
+                          onPressed: () => context.push('/login'),
+                        ),
+                      ),
+                    );
+                    context.push('/login');
+                    return;
+                  }
                   if (isSaved && wishlistItemId != null) {
                     context.read<WishlistBloc>().add(RemoveFromWishlistEvent(wishlistItemId));
                   } else {

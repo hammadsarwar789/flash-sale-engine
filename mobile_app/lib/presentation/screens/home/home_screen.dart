@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/data/models/product_model.dart';
+import 'package:mobile_app/logic/auth/auth_bloc.dart';
+import 'package:mobile_app/logic/auth/auth_state.dart';
 import 'package:mobile_app/logic/cart/cart_bloc.dart';
 import 'package:mobile_app/logic/cart/cart_event.dart';
 import 'package:mobile_app/logic/cart/cart_state.dart';
@@ -54,6 +56,26 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onAddToCart(ProductModel product) {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! Authenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please sign in to reserve stock and add items to your cart.',
+            style: GoogleFonts.manrope(color: C.text),
+          ),
+          backgroundColor: C.raised,
+          action: SnackBarAction(
+            label: 'SIGN IN',
+            textColor: C.amber,
+            onPressed: () => context.push('/login'),
+          ),
+        ),
+      );
+      context.push('/login');
+      return;
+    }
+
     context.read<CartBloc>().add(
           AddToCartEvent(
             productId: product.id,

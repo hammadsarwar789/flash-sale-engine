@@ -1,27 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../data/models/order_model.dart';
-import '../../logic/auth/auth_bloc.dart';
-import '../../logic/auth/auth_state.dart';
-import '../screens/auth/login_screen.dart';
-import '../screens/auth/register_screen.dart';
-import '../screens/auth/forgot_password_screen.dart';
-import '../screens/auth/reset_password_screen.dart';
-import '../screens/cart/cart_screen.dart';
-import '../screens/checkout/checkout_screen.dart';
-import '../screens/home/home_screen.dart';
-import '../screens/orders/orders_screen.dart';
-import '../screens/orders/order_detail_screen.dart';
-import '../screens/product/product_detail_screen.dart';
-import '../screens/profile/profile_screen.dart';
-import '../screens/splash/splash_screen.dart';
-import '../screens/vendor/vendor_dashboard_screen.dart';
-import '../screens/wishlist/wishlist_screen.dart';
+import 'package:mobile_app/data/models/order_model.dart';
+import 'package:mobile_app/logic/auth/auth_bloc.dart';
+import 'package:mobile_app/logic/auth/auth_state.dart';
+import 'package:mobile_app/presentation/screens/auth/forgot_password_screen.dart';
+import 'package:mobile_app/presentation/screens/auth/login_screen.dart';
+import 'package:mobile_app/presentation/screens/auth/register_screen.dart';
+import 'package:mobile_app/presentation/screens/auth/reset_password_screen.dart';
+import 'package:mobile_app/presentation/screens/cart/cart_screen.dart';
+import 'package:mobile_app/presentation/screens/checkout/checkout_screen.dart';
+import 'package:mobile_app/presentation/screens/home/home_screen.dart';
+import 'package:mobile_app/presentation/screens/orders/order_detail_screen.dart';
+import 'package:mobile_app/presentation/screens/orders/orders_screen.dart';
+import 'package:mobile_app/presentation/screens/product/product_detail_screen.dart';
+import 'package:mobile_app/presentation/screens/profile/profile_screen.dart';
+import 'package:mobile_app/presentation/screens/splash/splash_screen.dart';
+import 'package:mobile_app/presentation/screens/vendor/vendor_dashboard_screen.dart';
+import 'package:mobile_app/presentation/screens/wishlist/wishlist_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: '/',
+    initialLocation: '/home',
     redirect: _globalRedirect,
     routes: [
       GoRoute(
@@ -50,7 +50,7 @@ class AppRouter {
         },
       ),
 
-      // --- Public Routes ---
+      // --- Public Catalog Routes (open to everyone) ---
       GoRoute(
         path: '/home',
         builder: (context, state) => const HomeScreen(),
@@ -64,7 +64,7 @@ class AppRouter {
         },
       ),
 
-      // --- Protected Routes (require auth) ---
+      // --- Protected Routes (require authentication) ---
       GoRoute(
         path: '/cart',
         builder: (context, state) => const CartScreen(),
@@ -125,7 +125,7 @@ class AppRouter {
   );
 
   /// Global redirect: protect routes that need authentication.
-  /// Public routes (splash, login, register, forgot/reset password, home, product) are open.
+  /// Public routes (splash, login, register, forgot/reset password, home, product detail) are open.
   /// Everything else requires the user to be authenticated.
   static String? _globalRedirect(BuildContext context, GoRouterState state) {
     final authState = context.read<AuthBloc>().state;
@@ -142,8 +142,7 @@ class AppRouter {
       '/home',
     ];
 
-    final isPublic = publicPaths.contains(currentPath) ||
-        currentPath.startsWith('/product/');
+    final isPublic = publicPaths.contains(currentPath) || currentPath.startsWith('/product/');
 
     // If not authenticated and trying to access a protected route → redirect to login
     if (!isAuthenticated && !isPublic) {
@@ -151,11 +150,10 @@ class AppRouter {
     }
 
     // If authenticated and on login/register → redirect to home
-    if (isAuthenticated &&
-        (currentPath == '/login' || currentPath == '/register')) {
+    if (isAuthenticated && (currentPath == '/login' || currentPath == '/register')) {
       return '/home';
     }
 
-    return null; // No redirect needed
+    return null;
   }
 }
