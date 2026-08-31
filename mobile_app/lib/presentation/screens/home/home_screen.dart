@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -29,25 +28,21 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentNavIndex = 0;
   final TextEditingController _searchController = TextEditingController();
-  Timer? _liveSyncTimer;
 
   @override
   void initState() {
     super.initState();
-    context.read<ProductBloc>().add(const FetchProductsEvent());
-    context.read<CartBloc>().add(LoadCartEvent());
-    context.read<WishlistBloc>().add(LoadWishlistEvent());
-
-    _liveSyncTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<ProductBloc>().add(const FetchProductsEvent(isRefresh: true));
+        context.read<ProductBloc>().add(const FetchProductsEvent());
+        context.read<CartBloc>().add(LoadCartEvent());
+        context.read<WishlistBloc>().add(LoadWishlistEvent());
       }
     });
   }
 
   @override
   void dispose() {
-    _liveSyncTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }

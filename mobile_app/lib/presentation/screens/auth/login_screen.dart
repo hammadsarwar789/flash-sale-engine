@@ -6,6 +6,10 @@ import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/logic/auth/auth_bloc.dart';
 import 'package:mobile_app/logic/auth/auth_event.dart';
 import 'package:mobile_app/logic/auth/auth_state.dart';
+import 'package:mobile_app/logic/cart/cart_bloc.dart';
+import 'package:mobile_app/logic/cart/cart_event.dart';
+import 'package:mobile_app/logic/wishlist/wishlist_bloc.dart';
+import 'package:mobile_app/logic/wishlist/wishlist_event.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -43,6 +47,8 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is Authenticated) {
+          context.read<CartBloc>().add(LoadCartEvent());
+          context.read<WishlistBloc>().add(LoadWishlistEvent());
           context.go('/home');
         } else if (state is AuthFailure) {
           ScaffoldMessenger.of(context).showSnackBar(

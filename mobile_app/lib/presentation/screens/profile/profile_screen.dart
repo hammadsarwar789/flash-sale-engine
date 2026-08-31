@@ -9,10 +9,12 @@ import 'package:mobile_app/logic/auth/auth_bloc.dart';
 import 'package:mobile_app/logic/auth/auth_event.dart';
 import 'package:mobile_app/logic/auth/auth_state.dart';
 import 'package:mobile_app/logic/cart/cart_bloc.dart';
+import 'package:mobile_app/logic/cart/cart_event.dart';
 import 'package:mobile_app/logic/cart/cart_state.dart';
 import 'package:mobile_app/logic/orders/order_bloc.dart';
 import 'package:mobile_app/logic/orders/order_state.dart';
 import 'package:mobile_app/logic/wishlist/wishlist_bloc.dart';
+import 'package:mobile_app/logic/wishlist/wishlist_event.dart';
 import 'package:mobile_app/logic/wishlist/wishlist_state.dart';
 import 'package:mobile_app/presentation/widgets/status_pill_widget.dart';
 
@@ -368,13 +370,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           OutlinedButton.icon(
             onPressed: () {
               context.read<AuthBloc>().add(LogoutEvent());
+              context.read<CartBloc>().add(LoadCartEvent());
+              context.read<WishlistBloc>().add(LoadWishlistEvent());
               context.go('/login');
             },
             icon: const Icon(Icons.logout, size: 16, color: C.rose),
             label: Text('TERMINATE SESSION', style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: C.rose)),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: C.rose),
-              minimumSize: const Size.fromHeight(48),
+              minimumSize: const Size(0, 48),
             ),
           ),
           const SizedBox(height: 24),
