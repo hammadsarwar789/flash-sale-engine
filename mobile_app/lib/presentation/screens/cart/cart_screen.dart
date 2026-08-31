@@ -6,6 +6,8 @@ import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/data/models/cart_model.dart';
 import 'package:mobile_app/data/models/order_model.dart';
 import 'package:mobile_app/data/repositories/cart_repository.dart';
+import 'package:mobile_app/logic/auth/auth_bloc.dart';
+import 'package:mobile_app/logic/auth/auth_state.dart';
 import 'package:mobile_app/logic/cart/cart_bloc.dart';
 import 'package:mobile_app/logic/cart/cart_event.dart';
 import 'package:mobile_app/logic/cart/cart_state.dart';
@@ -28,7 +30,10 @@ class _CartScreenState extends State<CartScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<CartBloc>().add(LoadCartEvent());
+    final authState = context.read<AuthBloc>().state;
+    if (authState is Authenticated) {
+      context.read<CartBloc>().add(LoadCartEvent());
+    }
   }
 
   @override
@@ -120,8 +125,67 @@ class _CartScreenState extends State<CartScreen> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: BlocBuilder<CartBloc, CartState>(
-        builder: (context, state) {
+      body: BlocBuilder<AuthBloc, AuthState>(
+        builder: (context, authState) {
+          if (authState is! Authenticated) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: C.raised,
+                        borderRadius: BorderRadius.circular(C.radiusCard),
+                        border: Border.all(color: C.amber.withValues(alpha: 0.3)),
+                      ),
+                      child: const Icon(Icons.lock_clock_outlined, size: 32, color: C.amber),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Session Authentication Required',
+                      style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: C.text),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Please sign in to access your Hold Vault, reserved items, and checkout.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.manrope(fontSize: 12, color: C.textMute),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => context.go('/home'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: C.raised,
+                            foregroundColor: C.text,
+                          ),
+                          child: const Text('EXPLORE FLOOR'),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton(
+                          onPressed: () => context.push('/login'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: C.amber,
+                            foregroundColor: C.onAmber,
+                          ),
+                          child: const Text('SIGN IN'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return BlocBuilder<CartBloc, CartState>(
+            builder: (context, state) {
           if (state is CartLoading) {
             return const Center(child: CircularProgressIndicator(color: C.amber));
           } else if (state is CartError) {
@@ -478,7 +542,9 @@ class _CartScreenState extends State<CartScreen> {
           }
           return const SizedBox.shrink();
         },
-      ),
-    );
-  }
+      );
+    },
+  ),
+);
+}
 }

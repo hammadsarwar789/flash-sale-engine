@@ -9,14 +9,22 @@ class CartRepository {
   CartRepository({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
 
   Future<CartSummaryModel> getCart() async {
-    final token = await _apiClient.storage.read(key: ApiConstants.tokenKey);
-    if (token == null || token.trim().isEmpty) {
+    String? token;
+    try {
+      token = await _apiClient.storage.read(key: ApiConstants.tokenKey);
+    } catch (_) {}
+
+    if (token == null || token.trim().isEmpty || token == 'null' || token == 'undefined') {
       return const CartSummaryModel(items: [], subtotal: 0.0, itemCount: 0);
     }
+
     try {
       final response = await _apiClient.dio.get(ApiConstants.cart);
       return CartSummaryModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+        return const CartSummaryModel(items: [], subtotal: 0.0, itemCount: 0);
+      }
       throw _apiClient.handleDioError(e);
     }
   }

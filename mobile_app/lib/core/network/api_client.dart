@@ -41,10 +41,30 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await storage.read(key: ApiConstants.tokenKey);
-          if (token != null && token.trim().isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer ${token.trim()}';
+          String? token;
+          try {
+            token = await storage.read(key: ApiConstants.tokenKey);
+          } catch (e) {
+            log('⚠️ Error reading token from storage: $e');
           }
+
+          if (token != null) {
+            String cleanToken = token.trim();
+            if ((cleanToken.startsWith('"') && cleanToken.endsWith('"')) ||
+                (cleanToken.startsWith("'") && cleanToken.endsWith("'"))) {
+              cleanToken = cleanToken.substring(1, cleanToken.length - 1).trim();
+            }
+
+            if (cleanToken.isNotEmpty && cleanToken != 'null' && cleanToken != 'undefined') {
+              options.headers['Authorization'] = 'Bearer $cleanToken';
+              log('🔐 Outgoing Request with Bearer Token (${cleanToken.length > 12 ? "${cleanToken.substring(0, 8)}..." : cleanToken})');
+            } else {
+              options.headers.remove('Authorization');
+            }
+          } else {
+            options.headers.remove('Authorization');
+          }
+
           log('--> ${options.method} ${options.uri}');
           return handler.next(options);
         },
@@ -53,12 +73,16 @@ class ApiClient {
           return handler.next(response);
         },
         onError: (DioException e, handler) async {
-          log('ERROR [${e.response?.statusCode}] => PATH: ${e.requestOptions.path}');
+          final statusCode = e.response?.statusCode;
+          log('ERROR [$statusCode] => PATH: ${e.requestOptions.path}');
           log('Response Data: ${e.response?.data}');
-          if (e.response?.statusCode == 401) {
-            // Automatically clear stale or expired token credentials on 401
-            await storage.delete(key: ApiConstants.tokenKey);
-            await storage.delete(key: ApiConstants.userKey);
+          if (statusCode == 401 || statusCode == 403) {
+            // Automatically clear stale or expired token credentials on 401/403
+            try {
+              await storage.delete(key: ApiConstants.tokenKey);
+              await storage.delete(key: ApiConstants.userKey);
+              log('🧹 Cleared expired/invalid auth credentials from storage');
+            } catch (_) {}
           }
           return handler.next(e);
         },
@@ -67,10 +91,10 @@ class ApiClient {
   }
 
   ApiException handleDioError(DioException e) {
-    if (e.response?.statusCode == 401) {
+    if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
       return ApiException(
         message: 'Your session has expired. Please sign in to continue.',
-        statusCode: 401,
+        statusCode: e.response?.statusCode,
         details: e.response?.data,
       );
     }
