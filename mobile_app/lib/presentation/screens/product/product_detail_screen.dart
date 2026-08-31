@@ -131,26 +131,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return;
     }
 
-    final variantIdInt = _selectedVariant?.id != null ? int.tryParse(_selectedVariant!.id.toString()) : null;
-
     context.read<CartBloc>().add(
           AddToCartEvent(
             productId: _product!.id,
-            variantId: variantIdInt,
+            variantId: _selectedVariant?.id,
             quantity: _quantity,
           ),
         );
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
           'RESERVED: ${_product!.name} (QTY $_quantity)',
           style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold, color: C.text),
         ),
         backgroundColor: C.raised,
+        duration: const Duration(seconds: 3),
         action: SnackBarAction(
           label: 'VIEW CART',
           textColor: C.amber,
-          onPressed: () => context.push('/cart'),
+          onPressed: () {
+            messenger.hideCurrentSnackBar();
+            context.push('/cart');
+          },
         ),
       ),
     );

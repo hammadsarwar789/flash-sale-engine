@@ -337,13 +337,19 @@ class _CartScreenState extends State<CartScreen> {
                                   width: 64,
                                   height: 64,
                                   color: C.raised,
-                                  child: item.product?.imageUrl != null && item.product!.imageUrl!.isNotEmpty
+                                  child: (item.imageUrl != null && item.imageUrl!.isNotEmpty)
                                       ? Image.network(
-                                          item.product!.imageUrl!,
+                                          item.imageUrl!,
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, color: C.textMute, size: 24),
                                         )
-                                      : const Icon(Icons.shopping_bag_outlined, color: C.textMute, size: 24),
+                                      : (item.product?.imageUrl != null && item.product!.imageUrl!.isNotEmpty
+                                          ? Image.network(
+                                              item.product!.imageUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, color: C.textMute, size: 24),
+                                            )
+                                          : const Icon(Icons.shopping_bag_outlined, color: C.textMute, size: 24)),
                                 ),
                               ),
                               const SizedBox(width: 12),

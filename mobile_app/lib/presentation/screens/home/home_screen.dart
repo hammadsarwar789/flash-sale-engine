@@ -83,18 +83,23 @@ class _HomeScreenState extends State<HomeScreen> {
             quantity: 1,
           ),
         );
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
           'RESERVED: ${product.name}',
           style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold, color: C.text),
         ),
         backgroundColor: C.raised,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
         action: SnackBarAction(
           label: 'VIEW CART',
           textColor: C.amber,
-          onPressed: () => context.push('/cart'),
+          onPressed: () {
+            messenger.hideCurrentSnackBar();
+            context.push('/cart');
+          },
         ),
       ),
     );

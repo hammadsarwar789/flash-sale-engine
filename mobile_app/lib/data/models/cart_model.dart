@@ -4,47 +4,103 @@ import 'package:mobile_app/data/models/product_model.dart';
 class CartItemModel extends Equatable {
   final dynamic id;
   final dynamic productId;
+  final dynamic variantId;
   final String productName;
+  final String? variantName;
+  final String? variantSku;
   final double unitPrice;
   final int quantity;
   final double subtotal;
   final String? imageUrl;
+  final String? expiresAt;
   final ProductModel? product;
 
   const CartItemModel({
     required this.id,
     required this.productId,
+    this.variantId,
     required this.productName,
+    this.variantName,
+    this.variantSku,
     required this.unitPrice,
     required this.quantity,
     required this.subtotal,
     this.imageUrl,
+    this.expiresAt,
     this.product,
   });
 
   factory CartItemModel.fromJson(Map<String, dynamic> json) {
     final productData = json['product'] as Map<String, dynamic>?;
-    final rawId = json['id'] ?? '0';
+    final rawId = json['id'] ?? json['item_id'] ?? '0';
     final rawProdId = json['product_id'] ?? (productData != null ? productData['id'] : '0') ?? '0';
+    final rawVariantId = json['variant_id'] ?? (productData != null ? productData['variant_id'] : null);
+
+    // Extract product name from flat or nested structure
+    final name = json['product_name'] as String? ??
+        json['name'] as String? ??
+        json['title'] as String? ??
+        (productData != null ? productData['name'] : '') ??
+        'Flash Item';
+
+    // Extract price
+    final rawPrice = json['unit_price'] ?? json['price'] ?? (productData != null ? productData['price'] : null);
+    final parsedPrice = (rawPrice is num)
+        ? rawPrice.toDouble()
+        : double.tryParse(rawPrice?.toString() ?? '0.0') ?? 0.0;
+
+    // Extract quantity
+    final rawQty = json['quantity'] ?? json['qty'] ?? 1;
+    final parsedQty = rawQty is int ? rawQty : int.tryParse(rawQty.toString()) ?? 1;
+
+    // Extract subtotal
+    final rawSubtotal = json['subtotal'] ?? json['total'];
+    final parsedSubtotal = (rawSubtotal is num)
+        ? rawSubtotal.toDouble()
+        : (double.tryParse(rawSubtotal?.toString() ?? '') ?? (parsedPrice * parsedQty));
+
+    // Extract image URL
+    String? imgUrl = json['image_url'] as String? ?? json['image'] as String?;
+    if (imgUrl == null && productData != null) {
+      imgUrl = productData['image_url'] as String?;
+      if (imgUrl == null && productData['images'] is List && (productData['images'] as List).isNotEmpty) {
+        imgUrl = productData['images'][0].toString();
+      }
+    }
 
     return CartItemModel(
       id: (rawId is int) ? rawId : (int.tryParse(rawId.toString()) ?? rawId.toString()),
       productId: (rawProdId is int) ? rawProdId : (int.tryParse(rawProdId.toString()) ?? rawProdId.toString()),
-      productName: json['product_name'] as String? ?? (productData != null ? productData['name'] : '') ?? '',
-      unitPrice: (json['unit_price'] is num)
-          ? (json['unit_price'] as num).toDouble()
-          : double.tryParse(json['unit_price']?.toString() ?? '0.0') ?? 0.0,
-      quantity: json['quantity'] is int ? json['quantity'] : int.tryParse(json['quantity']?.toString() ?? '1') ?? 1,
-      subtotal: (json['subtotal'] is num)
-          ? (json['subtotal'] as num).toDouble()
-          : double.tryParse(json['subtotal']?.toString() ?? '0.0') ?? 0.0,
-      imageUrl: json['image_url'] as String? ?? (productData != null ? productData['image_url'] : null),
+      variantId: rawVariantId != null
+          ? ((rawVariantId is int) ? rawVariantId : (int.tryParse(rawVariantId.toString()) ?? rawVariantId.toString()))
+          : null,
+      productName: name.isNotEmpty ? name : 'Flash Item',
+      variantName: json['variant_name'] as String?,
+      variantSku: json['variant_sku'] as String?,
+      unitPrice: parsedPrice,
+      quantity: parsedQty,
+      subtotal: parsedSubtotal,
+      imageUrl: imgUrl,
+      expiresAt: json['expires_at'] as String? ?? json['hold_expires_at'] as String?,
       product: productData != null ? ProductModel.fromJson(productData) : null,
     );
   }
 
   @override
-  List<Object?> get props => [id, productId, productName, unitPrice, quantity, subtotal, imageUrl, product];
+  List<Object?> get props => [
+        id,
+        productId,
+        variantId,
+        productName,
+        variantName,
+        variantSku,
+        unitPrice,
+        quantity,
+        subtotal,
+        imageUrl,
+        expiresAt,
+        product,
+      ];
 }
 
 class CartSummaryModel extends Equatable {
@@ -59,16 +115,28 @@ class CartSummaryModel extends Equatable {
   });
 
   factory CartSummaryModel.fromJson(Map<String, dynamic> json) {
-    final itemsList = (json['items'] as List<dynamic>?)
-            ?.map((e) => CartItemModel.fromJson(e as Map<String, dynamic>))
-            .toList() ??
+    final rawList = json['items'] as List<dynamic>? ??
+        json['cart_items'] as List<dynamic>? ??
+        json['vault_items'] as List<dynamic>? ??
+        json['data'] as List<dynamic>? ??
         [];
+
+    final itemsList = rawList.map((e) => CartItemModel.fromJson(e as Map<String, dynamic>)).toList();
+
+    final rawSubtotal = json['subtotal'] ?? json['total'] ?? json['total_amount'];
+    final calculatedSubtotal = itemsList.fold<double>(0.0, (sum, i) => sum + i.subtotal);
+    final parsedSubtotal = (rawSubtotal is num)
+        ? rawSubtotal.toDouble()
+        : (double.tryParse(rawSubtotal?.toString() ?? '') ?? calculatedSubtotal);
+
+    final rawCount = json['item_count'] ?? json['total_items'];
+    final calculatedCount = itemsList.fold<int>(0, (sum, i) => sum + i.quantity);
+    final parsedCount = rawCount is int ? rawCount : (int.tryParse(rawCount?.toString() ?? '') ?? calculatedCount);
+
     return CartSummaryModel(
       items: itemsList,
-      subtotal: (json['subtotal'] is num)
-          ? (json['subtotal'] as num).toDouble()
-          : double.tryParse(json['subtotal']?.toString() ?? '0.0') ?? 0.0,
-      itemCount: json['item_count'] is int ? json['item_count'] : (json['total_items'] is int ? json['total_items'] : itemsList.length),
+      subtotal: parsedSubtotal,
+      itemCount: parsedCount,
     );
   }
 
@@ -86,7 +154,7 @@ class CouponValidationModel extends Equatable {
 
   const CouponValidationModel({
     required this.valid,
-    required this.code,
+    this.code = '',
     this.discountType = 'fixed',
     this.discountValue = 0.0,
     this.calculatedDiscount = 0.0,
@@ -95,7 +163,7 @@ class CouponValidationModel extends Equatable {
 
   factory CouponValidationModel.fromJson(Map<String, dynamic> json) {
     return CouponValidationModel(
-      valid: json['valid'] as bool? ?? false,
+      valid: json['valid'] as bool? ?? json['is_valid'] as bool? ?? false,
       code: json['code'] as String? ?? '',
       discountType: json['discount_type'] as String? ?? 'fixed',
       discountValue: (json['discount_value'] is num)
@@ -113,9 +181,10 @@ class CouponValidationModel extends Equatable {
 }
 
 class ShippingAddressModel extends Equatable {
-  final String id;
+  final dynamic id;
   final String recipientName;
   final String addressLine1;
+  final String? addressLine2;
   final String city;
   final String state;
   final String postalCode;
@@ -124,47 +193,54 @@ class ShippingAddressModel extends Equatable {
   final bool isDefault;
 
   const ShippingAddressModel({
-    required this.id,
+    this.id,
     required this.recipientName,
     required this.addressLine1,
+    this.addressLine2,
     required this.city,
     required this.state,
     required this.postalCode,
-    this.country = 'UNITED STATES',
+    required this.country,
     this.phone = '',
     this.isDefault = false,
   });
 
   factory ShippingAddressModel.fromJson(Map<String, dynamic> json) {
     return ShippingAddressModel(
-      id: json['id']?.toString() ?? '',
-      recipientName: json['recipient_name'] as String? ?? '',
-      addressLine1: json['address_line1'] as String? ?? '',
+      id: json['id'],
+      recipientName: json['recipient_name'] as String? ?? json['full_name'] as String? ?? json['name'] as String? ?? '',
+      addressLine1: json['address_line1'] as String? ?? json['address'] as String? ?? json['street'] as String? ?? '',
+      addressLine2: json['address_line2'] as String?,
       city: json['city'] as String? ?? '',
-      state: json['state'] as String? ?? '',
-      postalCode: json['postal_code'] as String? ?? '',
+      state: json['state'] as String? ?? json['province'] as String? ?? '',
+      postalCode: json['postal_code'] as String? ?? json['zip_code'] as String? ?? json['zip'] as String? ?? '',
       country: json['country'] as String? ?? 'UNITED STATES',
-      phone: json['phone'] as String? ?? '',
+      phone: json['phone'] as String? ?? json['phone_number'] as String? ?? '',
       isDefault: json['is_default'] as bool? ?? false,
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'recipient_name': recipientName,
-        'address_line1': addressLine1,
-        'city': city,
-        'state': state,
-        'postal_code': postalCode,
-        'country': country,
-        'phone': phone,
-        'is_default': isDefault,
-      };
+  Map<String, dynamic> toJson() {
+    return {
+      if (id != null) 'id': id,
+      'recipient_name': recipientName,
+      'address_line1': addressLine1,
+      if (addressLine2 != null) 'address_line2': addressLine2,
+      'city': city,
+      'state': state,
+      'postal_code': postalCode,
+      'country': country,
+      'phone': phone,
+      'is_default': isDefault,
+    };
+  }
 
   @override
   List<Object?> get props => [
         id,
         recipientName,
         addressLine1,
+        addressLine2,
         city,
         state,
         postalCode,

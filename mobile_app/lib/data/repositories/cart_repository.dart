@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:dio/dio.dart';
 import 'package:mobile_app/core/constants/api_constants.dart';
 import 'package:mobile_app/core/network/api_client.dart';
@@ -15,14 +16,19 @@ class CartRepository {
     } catch (_) {}
 
     if (token == null || token.trim().isEmpty || token == 'null' || token == 'undefined') {
+      log('🛒 CartRepository: No active token found, returning empty vault.');
       return const CartSummaryModel(items: [], subtotal: 0.0, itemCount: 0);
     }
 
     try {
       final response = await _apiClient.dio.get(ApiConstants.cart);
-      return CartSummaryModel.fromJson(response.data as Map<String, dynamic>);
+      log('🛒 CartRepository GET /cart RAW JSON: ${response.data}');
+      final summary = CartSummaryModel.fromJson(response.data as Map<String, dynamic>);
+      log('🛒 CartRepository parsed ${summary.items.length} items, subtotal: \$${summary.subtotal}, count: ${summary.itemCount}');
+      return summary;
     } on DioException catch (e) {
       if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+        log('🛒 CartRepository: Session unauthenticated (401/403), returning empty vault.');
         return const CartSummaryModel(items: [], subtotal: 0.0, itemCount: 0);
       }
       throw _apiClient.handleDioError(e);
@@ -35,7 +41,8 @@ class CartRepository {
     dynamic variantId,
   }) async {
     try {
-      await _apiClient.dio.post(
+      log('🛒 CartRepository POST /cart/items: productId=$productId, variantId=$variantId, quantity=$quantity');
+      final response = await _apiClient.dio.post(
         ApiConstants.cartItems,
         data: {
           'product_id': productId,
@@ -43,6 +50,7 @@ class CartRepository {
           if (variantId != null) 'variant_id': variantId,
         },
       );
+      log('🛒 CartRepository POST /cart/items SUCCESS: ${response.statusCode}');
     } on DioException catch (e) {
       throw _apiClient.handleDioError(e);
     }
