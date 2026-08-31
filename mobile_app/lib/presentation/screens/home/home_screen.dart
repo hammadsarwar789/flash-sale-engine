@@ -106,8 +106,11 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: C.base,
       appBar: AppBar(
         backgroundColor: C.surface,
+        elevation: 0,
+        automaticallyImplyLeading: false,
         titleSpacing: 16,
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'FLASH',
@@ -243,15 +246,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   onChanged: (val) {
                     context.read<ProductBloc>().add(SearchQueryChangedEvent(val));
                   },
+                  style: GoogleFonts.manrope(fontSize: 13, color: C.text),
                   decoration: InputDecoration(
-                    hintText: 'Search commodity drops, electronics, gear...',
-                    prefixIcon: const Icon(Icons.search, color: C.textMute, size: 20),
+                    hintText: 'SEARCH FLOORS & COMMODITIES...',
+                    hintStyle: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.textMute),
+                    prefixIcon: const Icon(Icons.search, size: 18, color: C.textMute),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18, color: C.textMute),
+                            icon: const Icon(Icons.close, size: 16, color: C.textMute),
                             onPressed: () {
                               _searchController.clear();
                               context.read<ProductBloc>().add(const SearchQueryChangedEvent(''));
+                              setState(() {});
                             },
                           )
                         : null,
@@ -260,30 +266,33 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // Category Chips Bar
-            BlocBuilder<ProductBloc, ProductState>(
-              builder: (context, state) {
-                if (state is ProductLoaded && state.categories.isNotEmpty) {
-                  return SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 38,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: state.categories.length + 1,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final isAll = index == 0;
-                          final isSelected = isAll
-                              ? state.selectedCategoryId == null
-                              : state.selectedCategoryId == state.categories[index - 1].id;
-                          final label = isAll ? 'ALL' : state.categories[index - 1].name.toUpperCase();
+            // Category Filter Chips
+            SliverToBoxAdapter(
+              child: BlocBuilder<ProductBloc, ProductState>(
+                builder: (context, state) {
+                  int? selectedId;
+                  List<dynamic> categories = [];
 
+                  if (state is ProductLoaded) {
+                    selectedId = state.selectedCategoryId;
+                    categories = state.categories;
+                  }
+
+                  return SizedBox(
+                    height: 38,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: categories.length + 1,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          final isSelected = selectedId == null;
                           return ChoiceChip(
-                            label: Text(label),
+                            label: const Text('ALL POOLS'),
                             selected: isSelected,
                             selectedColor: C.amber,
-                            backgroundColor: C.raised,
+                            backgroundColor: C.surface,
                             labelStyle: GoogleFonts.jetBrainsMono(
                               fontSize: 11,
                               fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
@@ -293,20 +302,37 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: isSelected ? C.amber : C.line,
                               width: 1,
                             ),
-                            onSelected: (_) {
-                              _onCategorySelected(isAll ? null : state.categories[index - 1].id);
-                            },
+                            onSelected: (_) => _onCategorySelected(null),
                           );
-                        },
-                      ),
+                        }
+
+                        final category = categories[index - 1];
+                        final isSelected = selectedId == category.id;
+
+                        return ChoiceChip(
+                          label: Text(category.name.toUpperCase()),
+                          selected: isSelected,
+                          selectedColor: C.amber,
+                          backgroundColor: C.surface,
+                          labelStyle: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            color: isSelected ? C.onAmber : C.textDim,
+                          ),
+                          side: BorderSide(
+                            color: isSelected ? C.amber : C.line,
+                            width: 1,
+                          ),
+                          onSelected: (_) => _onCategorySelected(category.id),
+                        );
+                      },
                     ),
                   );
-                }
-                return const SliverToBoxAdapter(child: SizedBox.shrink());
-              },
+                },
+              ),
             ),
 
-            // Product Grid or States
+            // Product Grid Area
             BlocBuilder<ProductBloc, ProductState>(
               builder: (context, state) {
                 if (state is ProductLoading) {
@@ -325,10 +351,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.warning_amber_rounded, color: C.rose, size: 44),
+                            const Icon(Icons.error_outline, size: 48, color: C.rose),
                             const SizedBox(height: 12),
                             Text(
-                              'Unable to load floor catalog',
+                              'Floor Feed Disconnected',
                               style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: C.text),
                             ),
                             const SizedBox(height: 6),
@@ -383,9 +409,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     sliver: SliverGrid(
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        childAspectRatio: 0.58,
+                        childAspectRatio: 0.64,
                         crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
+                        mainAxisSpacing: 12,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
@@ -410,11 +436,19 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
+          color: C.surface,
           border: Border(top: BorderSide(color: C.line, width: 1)),
         ),
         child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
           backgroundColor: C.surface,
           currentIndex: _currentNavIndex,
+          selectedItemColor: C.amber,
+          unselectedItemColor: C.textMute,
+          selectedFontSize: 10,
+          unselectedFontSize: 10,
+          selectedLabelStyle: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w800),
+          unselectedLabelStyle: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w600),
           onTap: (index) {
             setState(() => _currentNavIndex = index);
             if (index == 1) context.push('/wishlist');
@@ -424,23 +458,23 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.bolt),
-              label: 'The Floor',
+              icon: Icon(Icons.bolt, size: 20),
+              label: 'Floor',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.favorite_border),
+              icon: Icon(Icons.favorite_border, size: 20),
               label: 'Wishlist',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_bag_outlined),
+              icon: Icon(Icons.shopping_bag_outlined, size: 20),
               label: 'Cart',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long_outlined),
+              icon: Icon(Icons.receipt_long_outlined, size: 20),
               label: 'Orders',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
+              icon: Icon(Icons.person_outline, size: 20),
               label: 'Account',
             ),
           ],

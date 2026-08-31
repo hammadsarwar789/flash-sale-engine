@@ -46,34 +46,38 @@ class PriceText extends StatelessWidget {
         break;
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        Text(
-          formatted,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: fontSize,
-            fontWeight: fontWeight,
-            color: color ?? C.text,
-            fontFeatures: [const FontFeature.tabularFigures()],
-          ),
-        ),
-        if (originalAmount != null && originalAmount! > amount) ...[
-          const SizedBox(width: 6),
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
           Text(
-            currencyFormatter.format(originalAmount),
+            formatted,
             style: GoogleFonts.jetBrainsMono(
-              fontSize: fontSize * 0.75,
-              color: C.textMute,
-              decoration: TextDecoration.lineThrough,
-              decorationColor: C.textMute,
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+              color: color ?? C.text,
               fontFeatures: [const FontFeature.tabularFigures()],
             ),
           ),
+          if (originalAmount != null && originalAmount! > amount) ...[
+            const SizedBox(width: 6),
+            Text(
+              currencyFormatter.format(originalAmount),
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: fontSize * 0.75,
+                color: C.textMute,
+                decoration: TextDecoration.lineThrough,
+                decorationColor: C.textMute,
+                fontFeatures: [const FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
