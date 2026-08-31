@@ -42,8 +42,8 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final token = await storage.read(key: ApiConstants.tokenKey);
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
+          if (token != null && token.trim().isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer ${token.trim()}';
           }
           log('--> ${options.method} ${options.uri}');
           return handler.next(options);
@@ -52,9 +52,14 @@ class ApiClient {
           log('<-- ${response.statusCode} ${response.requestOptions.uri}');
           return handler.next(response);
         },
-        onError: (DioException e, handler) {
+        onError: (DioException e, handler) async {
           log('ERROR [${e.response?.statusCode}] => PATH: ${e.requestOptions.path}');
           log('Response Data: ${e.response?.data}');
+          if (e.response?.statusCode == 401) {
+            // Automatically clear stale or expired token credentials on 401
+            await storage.delete(key: ApiConstants.tokenKey);
+            await storage.delete(key: ApiConstants.userKey);
+          }
           return handler.next(e);
         },
       ),
@@ -62,10 +67,18 @@ class ApiClient {
   }
 
   ApiException handleDioError(DioException e) {
+    if (e.response?.statusCode == 401) {
+      return ApiException(
+        message: 'Your session has expired. Please sign in to continue.',
+        statusCode: 401,
+        details: e.response?.data,
+      );
+    }
+
     if (e.response != null && e.response?.data != null) {
       final data = e.response!.data;
       if (data is Map<String, dynamic>) {
-        final detail = data['detail'] ?? data['message'] ?? data['title'];
+        final detail = data['detail'] ?? data['message'] ?? data['title'] ?? data['error'];
         if (detail != null) {
           return ApiException(
             message: detail.toString(),
