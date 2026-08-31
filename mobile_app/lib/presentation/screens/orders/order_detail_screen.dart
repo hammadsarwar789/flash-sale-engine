@@ -229,7 +229,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   decoration: BoxDecoration(
                     color: C.roseSoft,
                     borderRadius: BorderRadius.circular(C.radiusCard),
-                    border: Border.all(color: C.rose.withValues(alpha: 0.3)),
+                    border: Border.all(color: C.rose.withOpacity(0.3)),
                   ),
                   child: Row(
                     children: [

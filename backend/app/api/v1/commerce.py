@@ -8,21 +8,25 @@ from app.models.wishlist import WishlistItem
 from app.models.shipping_address import ShippingAddress
 from app.api.decorators import jwt_required, admin_required
 
-commerce_bp = Blueprint("commerce", "commerce", url_prefix="/api/v1", description="Coupons, Reviews, Wishlists & Addresses")
+commerce_bp = Blueprint("commerce", "commerce", url_prefix="/api/v1/commerce", description="Coupons, Reviews, Wishlists & Addresses")
 
 
 # --- Coupon Endpoints ---
 
-@commerce_bp.route("/coupons", methods=["GET"])
+@commerce_bp.route("/coupons", methods=["GET", "OPTIONS"])
 def list_coupons():
     """List all promotional coupons."""
+    if request.method == "OPTIONS":
+        return "", 204
     coupons = db.session.query(Coupon).order_by(Coupon.created_at.desc()).all()
     return jsonify([c.to_dict() for c in coupons]), 200
 
 
-@commerce_bp.route("/coupons/validate", methods=["POST"])
+@commerce_bp.route("/coupons/validate", methods=["POST", "OPTIONS"])
 def validate_coupon():
     """Validate a promo code for discount applicability, global limits, and per-user limits."""
+    if request.method == "OPTIONS":
+        return "", 204
     data = request.get_json() or {}
     code = data.get("code")
     amount = float(data.get("amount", 0.0))
@@ -281,7 +285,7 @@ def add_product_review(product_id):
 
 # --- Wishlist Endpoints ---
 
-@commerce_bp.route("/wishlist", methods=["GET"])
+@commerce_bp.route("/wishlist", methods=["GET", "OPTIONS"])
 @jwt_required
 def get_wishlist():
     """Get the authenticated user's wishlist/favorites."""
@@ -290,7 +294,7 @@ def get_wishlist():
     return jsonify([i.to_dict() for i in items]), 200
 
 
-@commerce_bp.route("/wishlist/items", methods=["POST"])
+@commerce_bp.route("/wishlist/items", methods=["POST", "OPTIONS"])
 @jwt_required
 def add_to_wishlist():
     """Add a product to wishlist."""
@@ -310,7 +314,7 @@ def add_to_wishlist():
     return jsonify(item.to_dict()), 201
 
 
-@commerce_bp.route("/wishlist/items/<string:item_id>", methods=["DELETE"])
+@commerce_bp.route("/wishlist/items/<string:item_id>", methods=["DELETE", "OPTIONS"])
 @jwt_required
 def remove_from_wishlist(item_id):
     """Remove an item from wishlist."""
@@ -324,7 +328,7 @@ def remove_from_wishlist(item_id):
 
 # --- Shipping Address Endpoints ---
 
-@commerce_bp.route("/shipping-addresses", methods=["GET"])
+@commerce_bp.route("/shipping-addresses", methods=["GET", "OPTIONS"])
 @jwt_required
 def list_shipping_addresses():
     """List saved shipping addresses for user."""
@@ -333,7 +337,7 @@ def list_shipping_addresses():
     return jsonify([a.to_dict() for a in addresses]), 200
 
 
-@commerce_bp.route("/shipping-addresses", methods=["POST"])
+@commerce_bp.route("/shipping-addresses", methods=["POST", "OPTIONS"])
 @jwt_required
 def create_shipping_address():
     """Add a new shipping address."""

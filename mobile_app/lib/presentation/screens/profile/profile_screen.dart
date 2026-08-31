@@ -238,7 +238,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 decoration: BoxDecoration(
                   color: C.violetSoft,
                   borderRadius: BorderRadius.circular(C.radiusCard),
-                  border: Border.all(color: C.violet.withValues(alpha: 0.4)),
+                  border: Border.all(color: C.violet.withOpacity(0.4)),
                 ),
                 child: Row(
                   children: [

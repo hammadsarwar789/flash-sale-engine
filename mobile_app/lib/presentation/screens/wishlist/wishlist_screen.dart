@@ -201,7 +201,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
-                          color: C.base.withValues(alpha: 0.7),
+                          color: C.base.withOpacity(0.7),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.close, size: 14, color: C.textDim),
@@ -214,7 +214,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: C.base.withValues(alpha: 0.7),
+                        color: C.base.withOpacity(0.7),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.favorite, size: 14, color: C.amber),

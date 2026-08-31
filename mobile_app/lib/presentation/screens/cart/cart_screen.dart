@@ -210,7 +210,7 @@ class _CartScreenState extends State<CartScreen> {
               decoration: BoxDecoration(
                 color: C.raised,
                 borderRadius: BorderRadius.circular(C.radiusCard),
-                border: Border.all(color: C.amber.withValues(alpha: 0.3)),
+                border: Border.all(color: C.amber.withOpacity(0.3)),
               ),
               child: const Icon(Icons.lock_clock_outlined, size: 32, color: C.amber),
             ),
@@ -313,7 +313,7 @@ class _CartScreenState extends State<CartScreen> {
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                final item = cart.items[index];
+                final item = items[index];
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(12),
@@ -437,7 +437,7 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 );
               },
-              childCount: cart.items.length,
+              childCount: items.length,
             ),
           ),
         ),

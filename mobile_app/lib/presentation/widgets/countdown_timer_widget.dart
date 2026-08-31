@@ -102,7 +102,7 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
       decoration: BoxDecoration(
         color: C.amberSoft,
         borderRadius: BorderRadius.circular(C.radiusCard),
-        border: Border.all(color: C.amber.withValues(alpha: 0.3)),
+        border: Border.all(color: C.amber.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

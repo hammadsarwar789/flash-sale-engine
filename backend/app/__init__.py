@@ -48,18 +48,20 @@ def create_app(config_name: str = None) -> Flask:
         from flask_cors import CORS
         CORS(
             app,
-            supports_credentials=True,
             resources={r"/*": {"origins": "*"}},
-            allow_headers=["Content-Type", "Authorization", "Idempotency-Key"],
+            allow_headers=["Content-Type", "Authorization", "Idempotency-Key", "Accept", "Origin", "X-Requested-With"],
             methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            expose_headers=["Content-Type", "Authorization"],
         )
     except Exception:
-        @app.after_request
-        def add_cors_headers(response):
-            response.headers["Access-Control-Allow-Origin"] = "*"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Idempotency-Key"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-            return response
+        pass
+
+    @app.after_request
+    def add_cors_headers(response):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Idempotency-Key, Accept, Origin, X-Requested-With"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        return response
 
     # Initialize extensions
     from flask_smorest import Api

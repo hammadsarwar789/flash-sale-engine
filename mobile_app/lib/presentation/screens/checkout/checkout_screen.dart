@@ -181,7 +181,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 decoration: BoxDecoration(
                   color: C.amberSoft,
                   borderRadius: BorderRadius.circular(C.radiusCard),
-                  border: Border.all(color: C.amber.withValues(alpha: 0.4)),
+                  border: Border.all(color: C.amber.withOpacity(0.4)),
                 ),
                 child: Row(
                   children: [

@@ -19,28 +19,28 @@ class StatusPillWidget extends StatelessWidget {
     Color dotColor = C.amber;
     Color bgColor = C.amberSoft;
     Color textColor = C.amber;
-    Color borderColor = C.amber.withValues(alpha: 0.3);
+    Color borderColor = C.amber.withOpacity(0.3);
 
     if (['PAID', 'DELIVERED', 'SETTLED', 'ACTIVE', 'IN_STOCK', 'COMPLETED', 'SYNCED'].contains(s)) {
       dotColor = C.mint;
       bgColor = C.mintSoft;
       textColor = C.mint;
-      borderColor = C.mint.withValues(alpha: 0.3);
+      borderColor = C.mint.withOpacity(0.3);
     } else if (['SHIPPED', 'PROCESSING', 'INFO', 'OPEN'].contains(s)) {
       dotColor = C.sky;
       bgColor = C.skySoft;
       textColor = C.sky;
-      borderColor = C.sky.withValues(alpha: 0.3);
+      borderColor = C.sky.withOpacity(0.3);
     } else if (['CANCELLED', 'FAILED', 'REFUNDED', 'OUT_OF_STOCK', 'ERROR'].contains(s)) {
       dotColor = C.rose;
       bgColor = C.roseSoft;
       textColor = C.rose;
-      borderColor = C.rose.withValues(alpha: 0.3);
+      borderColor = C.rose.withOpacity(0.3);
     } else if (['ADMIN', 'VENDOR', 'MANAGER', 'STAFF'].contains(s)) {
       dotColor = C.violet;
       bgColor = C.violetSoft;
       textColor = C.violet;
-      borderColor = C.violet.withValues(alpha: 0.3);
+      borderColor = C.violet.withOpacity(0.3);
     }
 
     return Container(

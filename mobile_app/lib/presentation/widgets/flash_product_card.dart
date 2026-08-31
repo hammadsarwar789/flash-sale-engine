@@ -30,7 +30,7 @@ class FlashProductCard extends StatelessWidget {
           color: C.surface,
           borderRadius: BorderRadius.circular(C.radiusCard),
           border: Border.all(
-            color: product.isSoldOut ? C.line : (isLive ? C.amber.withValues(alpha: 0.4) : C.line),
+            color: product.isSoldOut ? C.line : (isLive ? C.amber.withOpacity(0.4) : C.line),
             width: 1,
           ),
         ),
@@ -58,20 +58,19 @@ class FlashProductCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                         decoration: BoxDecoration(
                           color: C.amber,
-                          borderRadius: BorderRadius.circular(3),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           '-${product.discountPercentage}%',
                           style: GoogleFonts.jetBrainsMono(
-                            color: C.onAmber,
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
-                            fontFeatures: [const FontFeature.tabularFigures()],
+                            color: C.onAmber,
                           ),
                         ),
                       ),
                     ),
-                  if (isLive)
+                  if (isLive && !product.isSoldOut)
                     Positioned(
                       top: 6,
                       right: 6,
@@ -80,7 +79,7 @@ class FlashProductCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: C.amberSoft,
                           borderRadius: BorderRadius.circular(C.radiusPill),
-                          border: Border.all(color: C.amber.withValues(alpha: 0.5)),
+                          border: Border.all(color: C.amber.withOpacity(0.5)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,

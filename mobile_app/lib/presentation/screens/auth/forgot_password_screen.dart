@@ -182,14 +182,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             decoration: BoxDecoration(
               color: C.mintSoft,
               borderRadius: BorderRadius.circular(C.radiusCard),
-              border: Border.all(color: C.mint.withValues(alpha: 0.4)),
+              border: Border.all(color: C.mint.withOpacity(0.4)),
             ),
             child: const Icon(Icons.check_circle_outline, color: C.mint, size: 32),
           ),
         ),
         const SizedBox(height: 20),
         Text(
-          _successMessage!,
+          _successMessage ?? '',
           textAlign: TextAlign.center,
           style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: C.mint),
         ),

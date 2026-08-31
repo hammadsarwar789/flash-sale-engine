@@ -14,7 +14,7 @@ from app.api.decorators import jwt_required, rate_limit
 cart_bp = Blueprint("cart", "cart", url_prefix="/api/v1/cart", description="Shopping Cart Operations")
 
 
-@cart_bp.route("", methods=["GET"])
+@cart_bp.route("", methods=["GET", "OPTIONS"])
 @jwt_required
 @cart_bp.response(200, CartResponseSchema)
 def get_cart():
@@ -32,7 +32,7 @@ def get_cart():
     }, 200
 
 
-@cart_bp.route("/items", methods=["POST"])
+@cart_bp.route("/items", methods=["POST", "OPTIONS"])
 @jwt_required
 @rate_limit(limit=30, period=60)
 @cart_bp.arguments(AddToCartSchema)
@@ -91,7 +91,7 @@ def add_to_cart(data):
     return cart_item.to_dict(), 201
 
 
-@cart_bp.route("/items/<string:item_id>", methods=["PATCH"])
+@cart_bp.route("/items/<string:item_id>", methods=["PATCH", "OPTIONS"])
 @jwt_required
 @cart_bp.arguments(UpdateCartItemSchema)
 @cart_bp.response(200, CartItemResponseSchema)
@@ -118,7 +118,7 @@ def update_cart_item(data, item_id):
     return cart_item.to_dict(), 200
 
 
-@cart_bp.route("/items/<string:item_id>", methods=["DELETE"])
+@cart_bp.route("/items/<string:item_id>", methods=["DELETE", "OPTIONS"])
 @jwt_required
 def delete_cart_item(item_id):
     """Remove a specific item from the cart."""
@@ -143,7 +143,7 @@ def delete_cart_item(item_id):
     return jsonify({"message": "Item removed from cart", "item_id": item_id}), 200
 
 
-@cart_bp.route("", methods=["DELETE"])
+@cart_bp.route("", methods=["DELETE", "OPTIONS"])
 @jwt_required
 def clear_cart():
     """Clear all items from user's shopping cart."""
