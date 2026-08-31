@@ -61,7 +61,7 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
           decoration: BoxDecoration(
             color: C.raised,
             borderRadius: BorderRadius.circular(C.radiusCard),
@@ -71,9 +71,9 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
             value,
             style: GoogleFonts.jetBrainsMono(
               color: isUrgent ? C.amber : C.text,
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.bold,
-              fontFeatures: [const FontFeature.tabularFigures()],
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
         ),
@@ -98,46 +98,66 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
     final isUrgent = _remaining.inSeconds <= 60 && _remaining.inSeconds > 0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: C.amberSoft,
         borderRadius: BorderRadius.circular(C.radiusCard),
         border: Border.all(color: C.amber.withOpacity(0.3)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: const BoxDecoration(
-              color: C.amber,
-              shape: BoxShape.circle,
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: C.amber,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.jetBrainsMono(
+                      color: C.amber,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                      letterSpacing: 0.5,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            widget.label,
-            style: GoogleFonts.jetBrainsMono(
-              color: C.amber,
-              fontWeight: FontWeight.w800,
-              fontSize: 11,
-              letterSpacing: 0.5,
-              fontFeatures: [const FontFeature.tabularFigures()],
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTimeBox(hours, 'HRS', isUrgent),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(':', style: GoogleFonts.jetBrainsMono(color: C.amber, fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+                _buildTimeBox(minutes, 'MIN', isUrgent),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(':', style: GoogleFonts.jetBrainsMono(color: C.amber, fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+                _buildTimeBox(seconds, 'SEC', isUrgent),
+              ],
             ),
           ),
-          const SizedBox(width: 10),
-          _buildTimeBox(hours, 'HRS', isUrgent),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3),
-            child: Text(':', style: GoogleFonts.jetBrainsMono(color: C.amber, fontWeight: FontWeight.bold)),
-          ),
-          _buildTimeBox(minutes, 'MIN', isUrgent),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3),
-            child: Text(':', style: GoogleFonts.jetBrainsMono(color: C.amber, fontWeight: FontWeight.bold)),
-          ),
-          _buildTimeBox(seconds, 'SEC', isUrgent),
         ],
       ),
     );
