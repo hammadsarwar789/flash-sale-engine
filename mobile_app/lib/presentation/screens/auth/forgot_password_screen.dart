@@ -6,6 +6,7 @@ import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/logic/auth/auth_bloc.dart';
 import 'package:mobile_app/logic/auth/auth_event.dart';
 import 'package:mobile_app/logic/auth/auth_state.dart';
+import 'package:mobile_app/presentation/widgets/app_toast.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -44,12 +45,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             _resetToken = state.resetToken;
           });
         } else if (state is AuthFailure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message, style: GoogleFonts.manrope(color: C.text)),
-              backgroundColor: C.rose,
-            ),
-          );
+          AppToast.showError(context, state.message);
         }
       },
       child: Scaffold(
@@ -182,7 +178,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             decoration: BoxDecoration(
               color: C.mintSoft,
               borderRadius: BorderRadius.circular(C.radiusCard),
-              border: Border.all(color: C.mint.withOpacity(0.4)),
+              border: Border.all(color: C.mint.withValues(alpha: 0.4)),
             ),
             child: const Icon(Icons.check_circle_outline, color: C.mint, size: 32),
           ),

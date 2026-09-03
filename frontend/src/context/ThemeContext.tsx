@@ -16,11 +16,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (saved === 'day' || saved === 'night') {
       return saved;
     }
-    // Default to night (dark) or system preference
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-      return 'day';
-    }
-    return 'night';
+    // Explicitly default to 'day' (Light Mode) on first boot, without system preference fallback
+    return 'day';
   });
 
   useEffect(() => {

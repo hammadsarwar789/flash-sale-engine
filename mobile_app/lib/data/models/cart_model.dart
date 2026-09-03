@@ -12,7 +12,7 @@ class CartItemModel extends Equatable {
   final int quantity;
   final double subtotal;
   final String? imageUrl;
-  final String? expiresAt;
+  final DateTime? expiresAt;
   final ProductModel? product;
 
   const CartItemModel({
@@ -29,6 +29,19 @@ class CartItemModel extends Equatable {
     this.expiresAt,
     this.product,
   });
+
+  int get availableStock {
+    if (product != null) {
+      if (variantId != null && product!.variants.isNotEmpty) {
+        final v = product!.variants.where((v) => v.id.toString() == variantId.toString()).firstOrNull;
+        if (v != null) return v.stock;
+      }
+      return product!.stock;
+    }
+    return 99;
+  }
+
+  bool get isLowStock => availableStock > 0 && availableStock <= 5;
 
   factory CartItemModel.fromJson(Map<String, dynamic> json) {
     final dynamic rawProduct = json['product'];
@@ -70,6 +83,12 @@ class CartItemModel extends Equatable {
       }
     }
 
+    DateTime? parsedItemExpiresAt;
+    final rawItemExpires = json['expires_at'] ?? json['hold_expires_at'] ?? json['expiresAt'];
+    if (rawItemExpires != null) {
+      parsedItemExpiresAt = DateTime.tryParse(rawItemExpires.toString())?.toUtc();
+    }
+
     return CartItemModel(
       id: (rawId is int) ? rawId : (int.tryParse(rawId.toString()) ?? rawId.toString()),
       productId: (rawProdId is int) ? rawProdId : (int.tryParse(rawProdId.toString()) ?? rawProdId.toString()),
@@ -83,7 +102,7 @@ class CartItemModel extends Equatable {
       quantity: parsedQty,
       subtotal: parsedSubtotal,
       imageUrl: imgUrl,
-      expiresAt: json['expires_at']?.toString() ?? json['hold_expires_at']?.toString(),
+      expiresAt: parsedItemExpiresAt,
       product: productData != null ? ProductModel.fromJson(productData) : null,
     );
   }
@@ -109,11 +128,13 @@ class CartSummaryModel extends Equatable {
   final List<CartItemModel> items;
   final double subtotal;
   final int itemCount;
+  final DateTime? expiresAt;
 
   const CartSummaryModel({
     this.items = const [],
     this.subtotal = 0.0,
     this.itemCount = 0,
+    this.expiresAt,
   });
 
   factory CartSummaryModel.fromJson(Map<String, dynamic> json) {
@@ -138,15 +159,27 @@ class CartSummaryModel extends Equatable {
     final calculatedCount = itemsList.fold<int>(0, (sum, i) => sum + i.quantity);
     final parsedCount = rawCount is int ? rawCount : (int.tryParse(rawCount?.toString() ?? '') ?? calculatedCount);
 
+    DateTime? parsedExpiresAt;
+    final rawExpires = json['expires_at'] ?? json['hold_expires_at'] ?? json['expiresAt'];
+    if (rawExpires != null) {
+      parsedExpiresAt = DateTime.tryParse(rawExpires.toString())?.toUtc();
+    } else if (itemsList.isNotEmpty) {
+      final itemDates = itemsList.map((i) => i.expiresAt).whereType<DateTime>().toList();
+      if (itemDates.isNotEmpty) {
+        parsedExpiresAt = itemDates.reduce((a, b) => a.isBefore(b) ? a : b);
+      }
+    }
+
     return CartSummaryModel(
       items: itemsList,
       subtotal: parsedSubtotal,
       itemCount: parsedCount,
+      expiresAt: parsedExpiresAt,
     );
   }
 
   @override
-  List<Object?> get props => [items, subtotal, itemCount];
+  List<Object?> get props => [items, subtotal, itemCount, expiresAt];
 }
 
 class CouponValidationModel extends Equatable {

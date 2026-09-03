@@ -1,6 +1,8 @@
 import React from 'react';
 import { CartItem } from '../../types/api';
 import { useCart } from '../../hooks/useCart';
+import { useToast } from '../../context/ToastContext';
+import { MAX_PER_ORDER } from '../../types/cart';
 import { Money } from '../ui/Money';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 
@@ -11,13 +13,26 @@ interface CartItemRowProps {
 
 export const CartItemRow: React.FC<CartItemRowProps> = ({ item, itemIndex }) => {
   const { updateCartItem, deleteCartItem, isUpdatingCartItem, isDeletingCartItem } = useCart();
+  const toast = useToast();
+
+  const availableStock = item.variant?.available_stock ?? item.product?.available_stock ?? 10;
+  const maxAllowed = Math.min(availableStock, MAX_PER_ORDER);
+  const isLowStock = availableStock > 0 && availableStock <= 5;
 
   const handleQuantityChange = async (newQty: number) => {
     if (newQty <= 0) {
       await deleteCartItem(item.id);
     } else {
-      await updateCartItem({ item_id: item.id, quantity: newQty });
+      await updateCartItem({ item_id: item.id, quantity: newQty, max_stock: availableStock });
     }
+  };
+
+  const handleIncrement = () => {
+    if (item.quantity >= maxAllowed) {
+      toast.info(`Maximum available stock reached (${availableStock} available in pool)`);
+      return;
+    }
+    handleQuantityChange(item.quantity + 1);
   };
 
   const productImg =
@@ -33,7 +48,11 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({ item, itemIndex }) => 
     <div className="py-5 border-b border-line space-y-3 bg-surface p-4 rounded-card border mb-3">
       <div className="font-mono text-[11px] text-text-mute flex items-center justify-between">
         <span>ITEM {issueNumber}</span>
-        <span>SKU: {item.variant?.sku || item.product?.sku || 'FSE-COMMODITY'}</span>
+        {isLowStock ? (
+          <span className="text-amber font-bold">⚡ ONLY {availableStock} LEFT</span>
+        ) : (
+          <span className="text-mint font-bold">● RESERVED IN HOLD</span>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -60,6 +79,13 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({ item, itemIndex }) => 
               {[item.variant?.color, item.variant?.size].filter(Boolean).join(' · ') || 'STANDARD EDITION'}
             </div>
 
+            {isLowStock && (
+              <div className="flex items-center gap-1 font-mono text-[10px] text-amber font-bold pt-0.5">
+                <span>⚡</span>
+                <span>Only {availableStock} left in pool</span>
+              </div>
+            )}
+
             <Money amount={Number(unitPrice)} size="inline" className="text-text-dim" />
           </div>
         </div>
@@ -78,8 +104,8 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({ item, itemIndex }) => 
             </button>
             <span className="w-7 text-center text-text font-bold tabular-nums">{item.quantity}</span>
             <button
-              onClick={() => handleQuantityChange(item.quantity + 1)}
-              disabled={isUpdatingCartItem}
+              onClick={handleIncrement}
+              disabled={isUpdatingCartItem || item.quantity >= maxAllowed}
               className="w-6 h-6 flex items-center justify-center text-text-dim hover:text-text disabled:opacity-40"
               aria-label="Increase quantity"
             >

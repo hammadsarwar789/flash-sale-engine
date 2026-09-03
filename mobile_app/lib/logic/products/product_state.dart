@@ -13,7 +13,9 @@ class ProductInitial extends ProductState {}
 class ProductLoading extends ProductState {}
 
 class ProductLoaded extends ProductState {
-  final List<ProductModel> products;
+  final List<ProductModel> allProducts;
+  final List<ProductModel> filteredProducts;
+  final String selectedCategory;
   final List<ProductModel> flashSaleProducts;
   final List<CategoryModel> categories;
   final dynamic selectedCategoryId;
@@ -23,8 +25,12 @@ class ProductLoaded extends ProductState {
   final int totalPages;
   final int totalItems;
 
+  List<ProductModel> get products => filteredProducts;
+
   const ProductLoaded({
-    required this.products,
+    required this.allProducts,
+    required this.filteredProducts,
+    this.selectedCategory = 'ALL POOLS',
     required this.flashSaleProducts,
     this.categories = const [],
     this.selectedCategoryId,
@@ -36,6 +42,9 @@ class ProductLoaded extends ProductState {
   });
 
   ProductLoaded copyWith({
+    List<ProductModel>? allProducts,
+    List<ProductModel>? filteredProducts,
+    String? selectedCategory,
     List<ProductModel>? products,
     List<ProductModel>? flashSaleProducts,
     List<CategoryModel>? categories,
@@ -47,8 +56,12 @@ class ProductLoaded extends ProductState {
     int? totalPages,
     int? totalItems,
   }) {
+    final updatedAll = allProducts ?? (products ?? this.allProducts);
+    final updatedFiltered = filteredProducts ?? (products ?? this.filteredProducts);
     return ProductLoaded(
-      products: products ?? this.products,
+      allProducts: updatedAll,
+      filteredProducts: updatedFiltered,
+      selectedCategory: selectedCategory ?? this.selectedCategory,
       flashSaleProducts: flashSaleProducts ?? this.flashSaleProducts,
       categories: categories ?? this.categories,
       selectedCategoryId: clearCategory ? null : (selectedCategoryId ?? this.selectedCategoryId),
@@ -62,7 +75,9 @@ class ProductLoaded extends ProductState {
 
   @override
   List<Object?> get props => [
-        products,
+        allProducts,
+        filteredProducts,
+        selectedCategory,
         flashSaleProducts,
         categories,
         selectedCategoryId,

@@ -98,13 +98,17 @@ class _MarqueeTickerWidgetState extends State<MarqueeTickerWidget> {
         final tickerItems = _buildTickerItems(liveProducts);
         final fullText = '${tickerItems.join('   ●   ')}   ●   ';
 
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final amberColor = isDark ? C.darkAmber : C.lightAmber;
+        final lineColor = isDark ? C.darkLine : const Color(0xFFE2DED5);
+
         return Container(
           height: 32,
-          decoration: const BoxDecoration(
-            color: C.raised,
+          decoration: BoxDecoration(
+            color: isDark ? C.darkRaised : const Color(0xFFF1EFEA),
             border: Border(
-              top: BorderSide(color: C.line, width: 1),
-              bottom: BorderSide(color: C.line, width: 1),
+              top: BorderSide(color: lineColor, width: 1),
+              bottom: BorderSide(color: lineColor, width: 1),
             ),
           ),
           child: Row(
@@ -113,9 +117,9 @@ class _MarqueeTickerWidgetState extends State<MarqueeTickerWidget> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 height: double.infinity,
-                decoration: const BoxDecoration(
-                  color: C.surface,
-                  border: Border(right: BorderSide(color: C.line, width: 1)),
+                decoration: BoxDecoration(
+                  color: isDark ? C.darkSurface : Colors.white,
+                  border: Border(right: BorderSide(color: lineColor, width: 1)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -123,8 +127,8 @@ class _MarqueeTickerWidgetState extends State<MarqueeTickerWidget> {
                     Container(
                       width: 6,
                       height: 6,
-                      decoration: const BoxDecoration(
-                        color: C.amber,
+                      decoration: BoxDecoration(
+                        color: amberColor,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -132,7 +136,7 @@ class _MarqueeTickerWidgetState extends State<MarqueeTickerWidget> {
                     Text(
                       'LIVE',
                       style: GoogleFonts.jetBrainsMono(
-                        color: C.amber,
+                        color: amberColor,
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.0,
@@ -156,7 +160,7 @@ class _MarqueeTickerWidgetState extends State<MarqueeTickerWidget> {
                           fullText,
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 10,
-                            color: C.textDim,
+                            color: isDark ? C.darkTextDim : const Color(0xFF4B5563),
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.5,
                           ),

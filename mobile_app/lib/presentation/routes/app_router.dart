@@ -15,13 +15,38 @@ import 'package:mobile_app/presentation/screens/orders/order_detail_screen.dart'
 import 'package:mobile_app/presentation/screens/orders/orders_screen.dart';
 import 'package:mobile_app/presentation/screens/product/product_detail_screen.dart';
 import 'package:mobile_app/presentation/screens/profile/profile_screen.dart';
+import 'package:mobile_app/presentation/screens/shell/main_layout_screen.dart';
 import 'package:mobile_app/presentation/screens/splash/splash_screen.dart';
 import 'package:mobile_app/presentation/screens/vendor/vendor_dashboard_screen.dart';
 import 'package:mobile_app/presentation/screens/wishlist/wishlist_screen.dart';
 
+class AppRouteObserver extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    AppRouter.scaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    AppRouter.scaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    AppRouter.scaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+  }
+}
+
 class AppRouter {
+  static final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+
   static final GoRouter router = GoRouter(
     initialLocation: '/home',
+    observers: [AppRouteObserver()],
     redirect: _globalRedirect,
     routes: [
       GoRoute(
@@ -32,7 +57,19 @@ class AppRouter {
       // --- Public Auth Routes ---
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        builder: (context, state) {
+          String? returnTo;
+          dynamic returnExtra;
+          if (state.extra is Map<String, dynamic>) {
+            final map = state.extra as Map<String, dynamic>;
+            returnTo = map['returnTo'] as String?;
+            returnExtra = map['checkoutData'] ?? map['extra'];
+          } else if (state.extra is String) {
+            returnTo = state.extra as String;
+          }
+          returnTo ??= state.uri.queryParameters['returnTo'];
+          return LoginScreen(returnTo: returnTo, returnExtra: returnExtra);
+        },
       ),
       GoRoute(
         path: '/register',
@@ -50,23 +87,67 @@ class AppRouter {
         },
       ),
 
-      // --- Public Catalog Routes (open to everyone) ---
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomeScreen(),
+      // --- Persistent Shell Navigation (5 Primary Tabs) ---
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return MainLayoutScreen(navigationShell: navigationShell);
+        },
+        branches: [
+          // Branch 0: Floor
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/home',
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
+          ),
+          // Branch 1: Wishlist / Saved Vault
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/wishlist',
+                builder: (context, state) => const WishlistScreen(),
+              ),
+            ],
+          ),
+          // Branch 2: Cart / Hold Vault
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/cart',
+                builder: (context, state) => const CartScreen(),
+              ),
+            ],
+          ),
+          // Branch 3: Orders
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/orders',
+                builder: (context, state) => const OrdersScreen(),
+              ),
+            ],
+          ),
+          // Branch 4: Profile / Account
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
+
+      // --- Pushed Detail Routes (Pushed on top of the shell with Back button) ---
       GoRoute(
         path: '/product/:id',
         builder: (context, state) {
           final id = state.pathParameters['id'] ?? '';
           return ProductDetailScreen(productId: id);
         },
-      ),
-
-      // --- Protected Routes (require authentication) ---
-      GoRoute(
-        path: '/cart',
-        builder: (context, state) => const CartScreen(),
       ),
       GoRoute(
         path: '/checkout',
@@ -97,10 +178,6 @@ class AppRouter {
         },
       ),
       GoRoute(
-        path: '/orders',
-        builder: (context, state) => const OrdersScreen(),
-      ),
-      GoRoute(
         path: '/order/:id',
         builder: (context, state) {
           final idStr = state.pathParameters['id'] ?? '0';
@@ -109,47 +186,36 @@ class AppRouter {
         },
       ),
       GoRoute(
-        path: '/wishlist',
-        builder: (context, state) => const WishlistScreen(),
-      ),
-      GoRoute(
-        path: '/profile',
-        builder: (context, state) => const ProfileScreen(),
-      ),
-      GoRoute(
         path: '/vendor',
         builder: (context, state) => const VendorDashboardScreen(),
       ),
     ],
   );
 
-  /// Global redirect: protect routes that need authentication.
-  /// Public routes (splash, login, register, forgot/reset password, home, product detail) are open.
-  /// Everything else requires the user to be authenticated.
+  /// Global redirect: protect only checkout and vendor routes.
+  /// Public routes (floor, product detail, wishlist, cart, orders tab, profile tab, auth) are accessible.
   static String? _globalRedirect(BuildContext context, GoRouterState state) {
     final authState = context.read<AuthBloc>().state;
     final isAuthenticated = authState is Authenticated;
     final currentPath = state.matchedLocation;
 
-    // Routes that don't require authentication
-    const publicPaths = [
-      '/',
-      '/login',
-      '/register',
-      '/forgot-password',
-      '/reset-password',
-      '/home',
-    ];
-
-    final isPublic = publicPaths.contains(currentPath) || currentPath.startsWith('/product/');
-
-    // If not authenticated and trying to access a protected route → redirect to login
-    if (!isAuthenticated && !isPublic) {
-      return '/login';
+    // Only protect routes that strictly require authentication if accessed directly via URL
+    if (!isAuthenticated) {
+      if (currentPath == '/checkout') {
+        return '/login?returnTo=/checkout';
+      }
+      if (currentPath == '/vendor') {
+        return '/login?returnTo=/vendor';
+      }
     }
 
-    // If authenticated and on login/register → redirect to home
+    // If authenticated and currently on login/register → redirect to returnTo or /home
     if (isAuthenticated && (currentPath == '/login' || currentPath == '/register')) {
+      final extraMap = state.extra is Map<String, dynamic> ? state.extra as Map<String, dynamic> : null;
+      final returnTo = extraMap?['returnTo'] as String? ?? state.uri.queryParameters['returnTo'];
+      if (returnTo != null && returnTo.isNotEmpty && returnTo != '/login' && returnTo != '/register') {
+        return returnTo;
+      }
       return '/home';
     }
 

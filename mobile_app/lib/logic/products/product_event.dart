@@ -31,6 +31,14 @@ class SelectCategoryEvent extends ProductEvent {
   List<Object?> get props => [categoryId];
 }
 
+class FilterByCategoryEvent extends ProductEvent {
+  final String category;
+  const FilterByCategoryEvent({required this.category});
+
+  @override
+  List<Object?> get props => [category];
+}
+
 class SearchQueryChangedEvent extends ProductEvent {
   final String query;
   const SearchQueryChangedEvent(this.query);

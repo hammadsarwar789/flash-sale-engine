@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/data/models/order_model.dart';
 import 'package:mobile_app/data/repositories/order_repository.dart';
+import 'package:mobile_app/presentation/widgets/app_toast.dart';
 import 'package:mobile_app/presentation/widgets/price_text.dart';
 import 'package:mobile_app/presentation/widgets/status_pill_widget.dart';
 
@@ -79,18 +80,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         await repo.cancelOrder(widget.orderId);
         await _loadOrderDetail();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Order hold cancelled. Inventory returned.', style: GoogleFonts.jetBrainsMono(color: C.rose)),
-              backgroundColor: C.raised,
-            ),
-          );
+          AppToast.showInfo(context, 'Order hold cancelled. Inventory returned.');
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString()), backgroundColor: C.rose),
-          );
+          AppToast.showError(context, e.toString());
         }
       } finally {
         if (mounted) setState(() => _isCancelling = false);
@@ -100,12 +94,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   void _copyTracking(String trackingId) {
     Clipboard.setData(ClipboardData(text: trackingId));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Tracking ID copied: $trackingId', style: GoogleFonts.jetBrainsMono(color: C.mint)),
-        backgroundColor: C.raised,
-        duration: const Duration(seconds: 2),
-      ),
+    AppToast.showSuccess(
+      context,
+      'Tracking ID copied: $trackingId',
+      duration: const Duration(seconds: 2),
     );
   }
 
@@ -169,6 +161,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final currentStepIndex = steps.indexOf(status);
 
     return ListView(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: const EdgeInsets.all(16),
       children: [
         // Header Card
@@ -186,20 +179,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'ORD-${idStr.length > 8 ? idStr.substring(0, 8).toUpperCase() : idStr}',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: C.text,
-                    ),
+                    'ORDER IDENTIFIER',
+                    style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: C.textMute),
                   ),
-                  StatusPillWidget(status: order.status),
+                  StatusPillWidget(status: status),
                 ],
               ),
               const SizedBox(height: 6),
               Text(
-                'PLACED ON: ${order.createdAt?.toString() ?? "RECENT"}',
-                style: GoogleFonts.jetBrainsMono(fontSize: 10, color: C.textMute),
+                '#$idStr',
+                style: GoogleFonts.jetBrainsMono(fontSize: 18, fontWeight: FontWeight.w800, color: C.text),
               ),
             ],
           ),
@@ -229,7 +218,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   decoration: BoxDecoration(
                     color: C.roseSoft,
                     borderRadius: BorderRadius.circular(C.radiusCard),
-                    border: Border.all(color: C.rose.withOpacity(0.3)),
+                    border: Border.all(color: C.rose.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -273,12 +262,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     return Column(
                       children: [
                         Container(
-                          width: 28,
-                          height: 28,
+                          width: 24,
+                          height: 24,
                           decoration: BoxDecoration(
                             color: nodeBg,
                             shape: BoxShape.circle,
-                            border: Border.all(color: nodeBorder, width: 2),
+                            border: Border.all(color: nodeBorder, width: 1.5),
                           ),
                           child: Center(
                             child: isPassed
@@ -286,14 +275,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                 : Text(
                                     '${idx + 1}',
                                     style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 11,
+                                      fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: nodeText,
                                     ),
                                   ),
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         Text(
                           stepName,
                           style: GoogleFonts.jetBrainsMono(
@@ -374,6 +363,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
               ...order.items.map((item) {
                 return Padding(
+                  key: ValueKey('order_item_${item.id}'),
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

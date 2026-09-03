@@ -12,13 +12,13 @@ export const Money: React.FC<MoneyProps> = ({
   amount,
   originalAmount,
   size = 'inline',
-  padZeros = true,
   className = '',
 }) => {
   const numericVal = typeof amount === 'number' ? amount : parseFloat(amount) || 0;
-  const parts = numericVal.toFixed(2).split('.');
-  const intPart = padZeros && parts[0].length < 3 ? parts[0].padStart(3, '0') : parts[0];
-  const formattedCurrent = `$${intPart}.${parts[1]}`;
+  const formattedCurrent = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(numericVal);
 
   const sizeClasses = {
     inline: 'text-[15px] leading-[20px] font-medium',
@@ -31,7 +31,10 @@ export const Money: React.FC<MoneyProps> = ({
       <span className={`text-text ${sizeClasses}`}>{formattedCurrent}</span>
       {originalAmount && Number(originalAmount) > numericVal && (
         <span className="text-text-mute line-through text-xs font-mono">
-          ${Number(originalAmount).toFixed(2)}
+          {new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+          }).format(Number(originalAmount))}
         </span>
       )}
     </div>

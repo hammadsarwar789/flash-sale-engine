@@ -6,6 +6,7 @@ import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/logic/auth/auth_bloc.dart';
 import 'package:mobile_app/logic/auth/auth_event.dart';
 import 'package:mobile_app/logic/auth/auth_state.dart';
+import 'package:mobile_app/presentation/widgets/app_toast.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String? initialToken;
@@ -53,20 +54,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is PasswordResetSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message, style: GoogleFonts.manrope(color: C.onMint)),
-              backgroundColor: C.mint,
-            ),
-          );
+          AppToast.showSuccess(context, state.message);
           context.go('/login');
         } else if (state is AuthFailure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message, style: GoogleFonts.manrope(color: C.text)),
-              backgroundColor: C.rose,
-            ),
-          );
+          AppToast.showError(context, state.message);
         }
       },
       child: Scaffold(

@@ -141,7 +141,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> with Sing
                               'stock': int.tryParse(stockCtrl.text) ?? 50,
                               'description': descCtrl.text.trim(),
                             });
-                            Navigator.pop(ctx);
+                            if (ctx.mounted) Navigator.pop(ctx);
                             _loadAllVendorData();
                           } catch (e) {
                             setSheetState(() => isSaving = false);
@@ -174,7 +174,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> with Sing
               decoration: BoxDecoration(
                 color: C.violetSoft,
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: C.violet.withOpacity(0.4)),
+                border: Border.all(color: C.violet.withValues(alpha: 0.4)),
               ),
               child: Text(
                 'MERCHANT',
@@ -268,9 +268,10 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> with Sing
     }
 
     return ListView.separated(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: const EdgeInsets.all(16),
       itemCount: _subOrders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final order = _subOrders[i];
         final rawId = order['id'] ?? '00$i';
@@ -280,6 +281,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> with Sing
         final isEven = i % 2 == 0;
 
         return Container(
+          key: ValueKey('suborder_${order['id'] ?? i}'),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: isEven ? C.surface : C.raised,
@@ -348,9 +350,10 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> with Sing
     }
 
     return ListView.separated(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: const EdgeInsets.all(16),
       itemCount: _products.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final p = _products[i];
         final name = p['name'] ?? 'SKU Item';
@@ -360,6 +363,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> with Sing
         final isEven = i % 2 == 0;
 
         return Container(
+          key: ValueKey('vendor_prod_${p['id'] ?? i}'),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: isEven ? C.surface : C.raised,

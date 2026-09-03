@@ -1943,13 +1943,16 @@ export interface Category {
 
 export interface ProductVariant {
   id: string;
-  product_id: string;
+  product_id?: string;
   sku: string;
-  name: string;
+  title?: string;
+  name?: string;
+  attributes?: Record<string, string>;
   size?: string;
   color?: string;
   price: number;
-  total_stock: number;
+  sale_price?: number;
+  total_stock?: number;
   available_stock: number;
 }
 
@@ -1959,10 +1962,12 @@ export interface Product {
   sku: string;
   description?: string;
   price: number;
+  sale_price?: number;
+  discount_percentage?: number;
   total_stock: number;
   available_stock: number;
   category_id?: string;
-  category?: Category;
+  category?: Category | string;
   vendor_id?: string;
   vendor_name?: string;
   seller_id?: string;
@@ -1984,12 +1989,18 @@ export interface CartItem {
   variant?: ProductVariant;
   unit_price: number;
   subtotal: number;
+  product_name?: string;
+  variant_name?: string;
+  variant_sku?: string;
+  image_url?: string;
+  created_at?: string;
 }
 
 export interface Cart {
   items: CartItem[];
   subtotal: number;
   item_count: number;
+  expires_at?: string | null;
 }
 
 export type OrderStatus = 'PENDING' | 'PAID' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED' | 'RETURNED';

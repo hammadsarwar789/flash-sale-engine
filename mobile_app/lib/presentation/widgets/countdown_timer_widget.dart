@@ -27,6 +27,20 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
   void initState() {
     super.initState();
     _updateRemaining();
+    _startTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant CountdownTimerWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.targetEndTime != widget.targetEndTime) {
+      _updateRemaining();
+      _startTimer();
+    }
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _updateRemaining();
     });
@@ -102,7 +116,7 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
       decoration: BoxDecoration(
         color: C.amberSoft,
         borderRadius: BorderRadius.circular(C.radiusCard),
-        border: Border.all(color: C.amber.withOpacity(0.3)),
+        border: Border.all(color: C.amber.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

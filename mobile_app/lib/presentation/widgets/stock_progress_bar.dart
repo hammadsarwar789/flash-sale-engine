@@ -24,20 +24,27 @@ class StockProgressBar extends StatelessWidget {
     final isUrgent = stock > 0 && (stock <= 5 || ratio <= 0.15);
     final isMedium = !isUrgent && !isSoldOut && ratio <= 0.4;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final roseColor = isDark ? C.darkRose : C.lightRose;
+    final amberColor = isDark ? C.darkAmber : C.lightAmber;
+    final mintColor = isDark ? C.darkMint : C.lightMint;
+    final textColor = isDark ? C.darkTextDim : const Color(0xFF4B5563);
+    final trackColor = isDark ? C.darkRaised : const Color(0xFFE5E7EB);
+
     Color barColor;
     String statusText;
 
     if (isSoldOut) {
-      barColor = C.rose;
+      barColor = roseColor;
       statusText = 'SOLD OUT';
     } else if (isUrgent) {
-      barColor = C.amber;
+      barColor = amberColor;
       statusText = 'CRITICAL · $stock LEFT';
     } else if (isMedium) {
-      barColor = C.amber;
+      barColor = amberColor;
       statusText = '$stock LEFT';
     } else {
-      barColor = C.mint;
+      barColor = mintColor;
       statusText = '$stock IN POOL';
     }
 
@@ -88,7 +95,7 @@ class StockProgressBar extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.jetBrainsMono(
-                  color: isUrgent ? C.amber : C.textDim,
+                  color: isUrgent ? amberColor : textColor,
                   fontSize: 10,
                   fontWeight: isUrgent ? FontWeight.w800 : FontWeight.w600,
                   letterSpacing: 0.2,
@@ -114,7 +121,7 @@ class StockProgressBar extends StatelessWidget {
           child: LinearProgressIndicator(
             value: isSoldOut ? 0.0 : ratio,
             minHeight: 4,
-            backgroundColor: C.raised,
+            backgroundColor: trackColor,
             valueColor: AlwaysStoppedAnimation<Color>(barColor),
           ),
         ),

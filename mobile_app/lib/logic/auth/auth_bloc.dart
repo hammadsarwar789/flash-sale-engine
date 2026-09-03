@@ -4,11 +4,10 @@ import 'package:mobile_app/logic/auth/auth_event.dart';
 import 'package:mobile_app/logic/auth/auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final AuthRepository _authRepository;
+  final AuthRepository authRepository;
 
-  AuthBloc({required AuthRepository authRepository})
-      : _authRepository = authRepository,
-        super(AuthInitial()) {
+  AuthBloc({required this.authRepository})
+      : super(AuthInitial()) {
     on<AppStartedEvent>(_onAppStarted);
     on<LoginSubmittedEvent>(_onLoginSubmitted);
     on<RegisterSubmittedEvent>(_onRegisterSubmitted);
@@ -19,9 +18,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onAppStarted(AppStartedEvent event, Emitter<AuthState> emit) async {
     try {
-      final token = await _authRepository.getToken();
+      final token = await authRepository.getToken();
       if (token != null && token.isNotEmpty) {
-        final user = await _authRepository.getCurrentUser();
+        final user = await authRepository.getCurrentUser();
         emit(Authenticated(token: token, user: user));
       } else {
         emit(Unauthenticated());
@@ -34,7 +33,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onLoginSubmitted(LoginSubmittedEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
-      final authResponse = await _authRepository.login(
+      final authResponse = await authRepository.login(
         email: event.email,
         password: event.password,
       );
@@ -47,7 +46,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onRegisterSubmitted(RegisterSubmittedEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
-      await _authRepository.register(
+      await authRepository.register(
         email: event.email,
         password: event.password,
         fullName: event.fullName,
@@ -60,14 +59,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onLogout(LogoutEvent event, Emitter<AuthState> emit) async {
-    await _authRepository.logout();
+    await authRepository.logout();
     emit(Unauthenticated());
   }
 
   Future<void> _onForgotPassword(ForgotPasswordEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
-      final result = await _authRepository.forgotPassword(email: event.email);
+      final result = await authRepository.forgotPassword(email: event.email);
       final message = result['message'] as String? ?? 'Password reset instructions sent.';
       final resetToken = result['reset_token'] as String?;
       emit(PasswordResetRequestSuccess(message: message, resetToken: resetToken));
@@ -79,7 +78,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onResetPassword(ResetPasswordEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
-      await _authRepository.resetPassword(
+      await authRepository.resetPassword(
         token: event.token,
         newPassword: event.newPassword,
       );

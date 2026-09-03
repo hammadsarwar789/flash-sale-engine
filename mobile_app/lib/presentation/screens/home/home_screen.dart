@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:mobile_app/core/theme/theme_controller.dart';
 import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/data/models/product_model.dart';
-import 'package:mobile_app/logic/auth/auth_bloc.dart';
-import 'package:mobile_app/logic/auth/auth_state.dart';
 import 'package:mobile_app/logic/cart/cart_bloc.dart';
 import 'package:mobile_app/logic/cart/cart_event.dart';
 import 'package:mobile_app/logic/cart/cart_state.dart';
@@ -15,6 +15,7 @@ import 'package:mobile_app/logic/products/product_state.dart';
 import 'package:mobile_app/logic/wishlist/wishlist_bloc.dart';
 import 'package:mobile_app/logic/wishlist/wishlist_event.dart';
 import 'package:mobile_app/logic/wishlist/wishlist_state.dart';
+import 'package:mobile_app/presentation/widgets/app_toast.dart';
 import 'package:mobile_app/presentation/widgets/flash_product_card.dart';
 import 'package:mobile_app/presentation/widgets/marquee_ticker_widget.dart';
 
@@ -26,7 +27,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentNavIndex = 0;
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -47,77 +47,47 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _onCategorySelected(int? categoryId) {
-    context.read<ProductBloc>().add(SelectCategoryEvent(categoryId));
-  }
-
   void _onAddToCart(ProductModel product) {
-    final authState = context.read<AuthBloc>().state;
-    if (authState is! Authenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Please sign in to reserve stock and add items to your cart.',
-            style: GoogleFonts.manrope(color: C.text),
-          ),
-          backgroundColor: C.raised,
-          action: SnackBarAction(
-            label: 'SIGN IN',
-            textColor: C.amber,
-            onPressed: () => context.push('/login'),
-          ),
-        ),
-      );
-      context.push('/login');
-      return;
-    }
-
     context.read<CartBloc>().add(
           AddToCartEvent(
             productId: product.id,
             quantity: 1,
+            product: product,
           ),
         );
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          'RESERVED: ${product.name}',
-          style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold, color: C.text),
-        ),
-        backgroundColor: C.raised,
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'VIEW CART',
-          textColor: C.amber,
-          onPressed: () {
-            messenger.hideCurrentSnackBar();
-            context.push('/cart');
-          },
-        ),
-      ),
+    AppToast.showReserved(
+      context,
+      productName: product.name,
+      quantity: 1,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final amberColor = isDark ? C.darkAmber : C.lightAmber;
+    final onAmberColor = isDark ? C.darkOnAmber : Colors.white;
+    final primaryTextColor = isDark ? C.darkText : const Color(0xFF111827);
+    final secondaryTextColor = isDark ? C.darkTextDim : const Color(0xFF4B5563);
+    final muteTextColor = isDark ? C.darkTextMute : const Color(0xFF6B7280);
+    final cardBg = isDark ? C.darkSurface : Colors.white;
+    final cardBorder = isDark ? C.darkLine : const Color(0xFFE5E7EB);
+
     return Scaffold(
-      backgroundColor: C.base,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: C.surface,
-        elevation: 0,
         automaticallyImplyLeading: false,
-        titleSpacing: 16,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
         title: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'FLASH',
               style: GoogleFonts.sora(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: C.text,
+                color: primaryTextColor,
                 letterSpacing: 0.5,
               ),
             ),
@@ -125,8 +95,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               width: 6,
               height: 6,
-              decoration: const BoxDecoration(
-                color: C.amber,
+              decoration: BoxDecoration(
+                color: amberColor,
                 shape: BoxShape.circle,
               ),
             ),
@@ -136,13 +106,33 @@ class _HomeScreenState extends State<HomeScreen> {
               style: GoogleFonts.sora(
                 fontSize: 17,
                 fontWeight: FontWeight.w400,
-                color: C.textDim,
+                color: secondaryTextColor,
                 letterSpacing: 0.5,
               ),
             ),
           ],
         ),
         actions: [
+          // Theme Toggle (Sun / Moon)
+          AnimatedBuilder(
+            animation: ThemeController.instance,
+            builder: (context, _) {
+              final isCurrentDark = ThemeController.instance.isDark;
+              return IconButton(
+                icon: Icon(
+                  isCurrentDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                  color: isCurrentDark ? amberColor : secondaryTextColor,
+                  size: 22,
+                ),
+                tooltip: isCurrentDark ? 'Switch to Day Mode' : 'Switch to Night Mode',
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  ThemeController.instance.toggleTheme();
+                },
+              );
+            },
+          ),
+
           // Wishlist Action with Badge
           BlocBuilder<WishlistBloc, WishlistState>(
             builder: (context, state) {
@@ -154,8 +144,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 alignment: Alignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.favorite_border, color: C.textDim, size: 22),
-                    onPressed: () => context.push('/wishlist'),
+                    icon: Icon(Icons.favorite_border, color: secondaryTextColor, size: 22),
+                    onPressed: () => context.go('/wishlist'),
                   ),
                   if (wishlistCount > 0)
                     Positioned(
@@ -163,8 +153,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       top: 8,
                       child: Container(
                         padding: const EdgeInsets.all(3),
-                        decoration: const BoxDecoration(
-                          color: C.amber,
+                        decoration: BoxDecoration(
+                          color: amberColor,
                           shape: BoxShape.circle,
                         ),
                         constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
@@ -172,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           '$wishlistCount',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.jetBrainsMono(
-                            color: C.onAmber,
+                            color: onAmberColor,
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
                           ),
@@ -195,8 +185,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 alignment: Alignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.shopping_bag_outlined, color: C.textDim, size: 22),
-                    onPressed: () => context.push('/cart'),
+                    icon: Icon(Icons.shopping_bag_outlined, color: secondaryTextColor, size: 22),
+                    onPressed: () => context.go('/cart'),
                   ),
                   if (count > 0)
                     Positioned(
@@ -204,8 +194,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       top: 8,
                       child: Container(
                         padding: const EdgeInsets.all(3),
-                        decoration: const BoxDecoration(
-                          color: C.amber,
+                        decoration: BoxDecoration(
+                          color: amberColor,
                           shape: BoxShape.circle,
                         ),
                         constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
@@ -213,7 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           '$count',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.jetBrainsMono(
-                            color: C.onAmber,
+                            color: onAmberColor,
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
                           ),
@@ -229,13 +219,14 @@ class _HomeScreenState extends State<HomeScreen> {
         bottom: const MarqueeTickerWidget(),
       ),
       body: RefreshIndicator(
-        color: C.amber,
-        backgroundColor: C.raised,
+        color: amberColor,
+        backgroundColor: cardBg,
         onRefresh: () async {
           context.read<ProductBloc>().add(const FetchProductsEvent(isRefresh: true));
           context.read<CartBloc>().add(LoadCartEvent());
         },
         child: CustomScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           slivers: [
             // Search Bar Header
             SliverToBoxAdapter(
@@ -246,14 +237,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   onChanged: (val) {
                     context.read<ProductBloc>().add(SearchQueryChangedEvent(val));
                   },
-                  style: GoogleFonts.manrope(fontSize: 13, color: C.text),
+                  style: GoogleFonts.manrope(fontSize: 13, color: primaryTextColor),
                   decoration: InputDecoration(
+                    filled: true,
+                    fillColor: cardBg,
                     hintText: 'SEARCH FLOORS & COMMODITIES...',
-                    hintStyle: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.textMute),
-                    prefixIcon: const Icon(Icons.search, size: 18, color: C.textMute),
+                    hintStyle: GoogleFonts.jetBrainsMono(fontSize: 11, color: muteTextColor),
+                    prefixIcon: Icon(Icons.search, size: 18, color: muteTextColor),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.close, size: 16, color: C.textMute),
+                            icon: Icon(Icons.close, size: 16, color: muteTextColor),
                             onPressed: () {
                               _searchController.clear();
                               context.read<ProductBloc>().add(const SearchQueryChangedEvent(''));
@@ -261,6 +254,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                           )
                         : null,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(C.radiusCard),
+                      borderSide: BorderSide(color: cardBorder, width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(C.radiusCard),
+                      borderSide: BorderSide(color: amberColor, width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
                 ),
               ),
@@ -270,60 +272,55 @@ class _HomeScreenState extends State<HomeScreen> {
             SliverToBoxAdapter(
               child: BlocBuilder<ProductBloc, ProductState>(
                 builder: (context, state) {
-                  int? selectedId;
-                  List<dynamic> categories = [];
+                  String selectedCategory = 'ALL POOLS';
+                  final List<String> chipCategories = ['ALL POOLS', 'FOOTWEAR', 'OUTERWEAR', 'TECH'];
 
                   if (state is ProductLoaded) {
-                    selectedId = state.selectedCategoryId;
-                    categories = state.categories;
+                    selectedCategory = state.selectedCategory;
+                    for (final c in state.categories) {
+                      final name = c.name.toUpperCase();
+                      if (!chipCategories.contains(name)) {
+                        chipCategories.add(name);
+                      }
+                    }
+                    for (final p in state.allProducts) {
+                      final cat = p.category.toUpperCase();
+                      if (cat.isNotEmpty && !chipCategories.contains(cat) && cat != 'CATALOG') {
+                        chipCategories.add(cat);
+                      }
+                    }
                   }
 
                   return SizedBox(
                     height: 38,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: categories.length + 1,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemCount: chipCategories.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 8),
                       itemBuilder: (context, index) {
-                        if (index == 0) {
-                          final isSelected = selectedId == null;
-                          return ChoiceChip(
-                            label: const Text('ALL POOLS'),
-                            selected: isSelected,
-                            selectedColor: C.amber,
-                            backgroundColor: C.surface,
-                            labelStyle: GoogleFonts.jetBrainsMono(
-                              fontSize: 11,
-                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                              color: isSelected ? C.onAmber : C.textDim,
-                            ),
-                            side: BorderSide(
-                              color: isSelected ? C.amber : C.line,
-                              width: 1,
-                            ),
-                            onSelected: (_) => _onCategorySelected(null),
-                          );
-                        }
-
-                        final category = categories[index - 1];
-                        final isSelected = selectedId == category.id;
+                        final chipCategory = chipCategories[index];
+                        final isSelected = selectedCategory.toUpperCase() == chipCategory.toUpperCase();
 
                         return ChoiceChip(
-                          label: Text(category.name.toUpperCase()),
+                          key: ValueKey('cat_chip_$chipCategory'),
+                          label: Text(chipCategory),
                           selected: isSelected,
-                          selectedColor: C.amber,
-                          backgroundColor: C.surface,
+                          selectedColor: amberColor,
+                          backgroundColor: cardBg,
                           labelStyle: GoogleFonts.jetBrainsMono(
                             fontSize: 11,
                             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                            color: isSelected ? C.onAmber : C.textDim,
+                            color: isSelected ? onAmberColor : secondaryTextColor,
                           ),
                           side: BorderSide(
-                            color: isSelected ? C.amber : C.line,
+                            color: isSelected ? amberColor : cardBorder,
                             width: 1,
                           ),
-                          onSelected: (_) => _onCategorySelected(category.id),
+                          onSelected: (_) {
+                            context.read<ProductBloc>().add(FilterByCategoryEvent(category: chipCategory));
+                          },
                         );
                       },
                     ),
@@ -336,14 +333,15 @@ class _HomeScreenState extends State<HomeScreen> {
             BlocBuilder<ProductBloc, ProductState>(
               builder: (context, state) {
                 if (state is ProductLoading) {
-                  return const SliverFillRemaining(
+                  return SliverFillRemaining(
                     child: Center(
-                      child: CircularProgressIndicator(color: C.amber),
+                      child: CircularProgressIndicator(color: amberColor),
                     ),
                   );
                 }
 
                 if (state is ProductError) {
+                  final roseColor = isDark ? C.darkRose : C.lightRose;
                   return SliverFillRemaining(
                     child: Center(
                       child: Padding(
@@ -351,24 +349,24 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.error_outline, size: 48, color: C.rose),
+                            Icon(Icons.error_outline, size: 48, color: roseColor),
                             const SizedBox(height: 12),
                             Text(
                               'Floor Feed Disconnected',
-                              style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: C.text),
+                              style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               state.message,
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.manrope(fontSize: 12, color: C.textMute),
+                              style: GoogleFonts.manrope(fontSize: 12, color: muteTextColor),
                             ),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: () => context.read<ProductBloc>().add(const FetchProductsEvent()),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: C.amber,
-                                foregroundColor: C.onAmber,
+                                backgroundColor: amberColor,
+                                foregroundColor: onAmberColor,
                                 minimumSize: const Size(140, 40),
                               ),
                               child: const Text('RETRY'),
@@ -381,48 +379,56 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
 
                 if (state is ProductLoaded) {
-                  if (state.products.isEmpty) {
+                  final displayProducts = state.filteredProducts;
+                  if (displayProducts.isEmpty) {
                     return SliverFillRemaining(
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.inventory_2_outlined, color: C.textMute, size: 48),
-                            const SizedBox(height: 12),
-                            Text(
-                              'NO PRODUCTS LOCATED',
-                              style: GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.bold, color: C.textDim),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Try adjusting your search query or category filters.',
-                              style: GoogleFonts.manrope(fontSize: 12, color: C.textMute),
-                            ),
-                          ],
+                      child: ScrollConfiguration(
+                        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.inventory_2_outlined, color: muteTextColor, size: 48),
+                              const SizedBox(height: 12),
+                              Text(
+                                'NO PRODUCTS LOCATED',
+                                style: GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.bold, color: secondaryTextColor),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Try adjusting your search query or category filters.',
+                                style: GoogleFonts.manrope(fontSize: 12, color: muteTextColor),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
                   }
 
+                  final screenWidth = MediaQuery.sizeOf(context).width;
+                  final crossAxisCount = screenWidth >= 1100 ? 4 : (screenWidth >= 700 ? 3 : 2);
+
                   return SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                     sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.64,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 12,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        mainAxisExtent: 295,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 14,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                          final product = state.products[index];
+                          final product = displayProducts[index];
                           return FlashProductCard(
+                            key: ValueKey('product_${product.id}'),
                             product: product,
                             onTap: () => context.push('/product/${product.id}'),
                             onAddToCart: () => _onAddToCart(product),
                           );
                         },
-                        childCount: state.products.length,
+                        childCount: displayProducts.length,
                       ),
                     ),
                   );
@@ -430,52 +436,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 return const SliverToBoxAdapter(child: SizedBox.shrink());
               },
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: C.surface,
-          border: Border(top: BorderSide(color: C.line, width: 1)),
-        ),
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: C.surface,
-          currentIndex: _currentNavIndex,
-          selectedItemColor: C.amber,
-          unselectedItemColor: C.textMute,
-          selectedFontSize: 10,
-          unselectedFontSize: 10,
-          selectedLabelStyle: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w800),
-          unselectedLabelStyle: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w600),
-          onTap: (index) {
-            setState(() => _currentNavIndex = index);
-            if (index == 1) context.push('/wishlist');
-            if (index == 2) context.push('/cart');
-            if (index == 3) context.push('/orders');
-            if (index == 4) context.push('/profile');
-          },
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bolt, size: 20),
-              label: 'Floor',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.favorite_border, size: 20),
-              label: 'Wishlist',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_bag_outlined, size: 20),
-              label: 'Cart',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long_outlined, size: 20),
-              label: 'Orders',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline, size: 20),
-              label: 'Account',
             ),
           ],
         ),

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/data/models/product_model.dart';
+import 'package:mobile_app/logic/wishlist/wishlist_bloc.dart';
+import 'package:mobile_app/logic/wishlist/wishlist_event.dart';
+import 'package:mobile_app/logic/wishlist/wishlist_state.dart';
+import 'package:mobile_app/presentation/widgets/app_toast.dart';
 import 'package:mobile_app/presentation/widgets/price_text.dart';
-import 'package:mobile_app/presentation/widgets/stock_progress_bar.dart';
 
 class FlashProductCard extends StatelessWidget {
   final ProductModel product;
@@ -20,36 +24,154 @@ class FlashProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     final hasDiscount = product.discountPercentage > 0 && product.salePrice != null;
     final isLive = product.stock > 0 && product.stock <= 15;
+
+    final cardBg = isDark ? C.darkSurface : Colors.white;
+    final cardBorder = isDark ? C.darkLine : const Color(0xFFE5E7EB);
+    final primaryTextColor = isDark ? C.darkText : const Color(0xFF111827);
+    final secondaryTextColor = isDark ? C.darkTextDim : const Color(0xFF4B5563);
+    final muteTextColor = isDark ? C.darkTextMute : const Color(0xFF6B7280);
+    final amberColor = isDark ? C.darkAmber : C.lightAmber;
+    final onAmberColor = isDark ? C.darkOnAmber : Colors.white;
+
+    final isLowStock = product.stock > 0 && product.stock <= 5;
+    final roseColor = isDark ? C.darkRose : C.lightRose;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: C.surface,
+          color: cardBg,
           borderRadius: BorderRadius.circular(C.radiusCard),
           border: Border.all(
-            color: product.isSoldOut ? C.line : (isLive ? C.amber.withOpacity(0.4) : C.line),
+            color: product.isSoldOut
+                ? cardBorder
+                : (isLive ? amberColor.withValues(alpha: 0.5) : cardBorder),
             width: 1,
           ),
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image & Badges
+            // Top Header Row (Status / Category + LIVE)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: cardBorder.withValues(alpha: 0.6))),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: product.isSoldOut
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 5,
+                                height: 5,
+                                decoration: BoxDecoration(color: roseColor, shape: BoxShape.circle),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'SOLD OUT',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 9,
+                                  color: roseColor,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          )
+                        : (isLowStock
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 5,
+                                    height: 5,
+                                    decoration: BoxDecoration(color: amberColor, shape: BoxShape.circle),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'ONLY ${product.stock} LEFT',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 9,
+                                      color: amberColor,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Text(
+                                (product.categoryName ?? 'FLASH SALE').toUpperCase(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 9,
+                                  color: muteTextColor,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.4,
+                                ),
+                              )),
+                  ),
+                  if (isLive && !product.isSoldOut)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: amberColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'LIVE',
+                          style: GoogleFonts.jetBrainsMono(
+                            color: amberColor,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+
+            // Image Well with Badges & Heart Action
             Expanded(
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  (product.imageUrl != null && (product.imageUrl?.isNotEmpty ?? false))
-                      ? Image.network(
-                          product.imageUrl ?? '',
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
-                        )
-                      : _buildPlaceholder(),
+                  Container(
+                    color: isDark ? C.darkRaised : const Color(0xFFF9FAFB),
+                    child: (product.imageUrl != null && (product.imageUrl?.isNotEmpty ?? false))
+                        ? Image.network(
+                            product.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => _buildPlaceholder(isDark),
+                          )
+                        : _buildPlaceholder(isDark),
+                  ),
+                  // Discount Tag
                   if (hasDiscount)
                     Positioned(
                       top: 6,
@@ -57,7 +179,7 @@ class FlashProductCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                         decoration: BoxDecoration(
-                          color: C.amber,
+                          color: amberColor,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -65,85 +187,155 @@ class FlashProductCard extends StatelessWidget {
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
-                            color: C.onAmber,
+                            color: onAmberColor,
                           ),
                         ),
                       ),
                     ),
-                  if (isLive && !product.isSoldOut)
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: C.amberSoft,
-                          borderRadius: BorderRadius.circular(C.radiusPill),
-                          border: Border.all(color: C.amber.withOpacity(0.5)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(width: 4, height: 4, decoration: const BoxDecoration(color: C.amber, shape: BoxShape.circle)),
-                            const SizedBox(width: 3),
-                            Text(
-                              'LIVE',
-                              style: GoogleFonts.jetBrainsMono(color: C.amber, fontSize: 8, fontWeight: FontWeight.w800),
+                  // Floating Wishlist Heart Action
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: BlocBuilder<WishlistBloc, WishlistState>(
+                      builder: (context, state) {
+                        bool isSaved = false;
+                        if (state is WishlistLoaded) {
+                          isSaved = state.items.any((i) => i.productId.toString() == product.id.toString());
+                        }
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            context.read<WishlistBloc>().add(ToggleWishlistEvent(product.id, product: product));
+                            if (!isSaved) {
+                              AppToast.showSuccess(context, 'SAVED: ${product.name}');
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xCC0B0D0C)
+                                  : Colors.white.withValues(alpha: 0.9),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: cardBorder),
                             ),
-                          ],
-                        ),
-                      ),
+                            child: Icon(
+                              isSaved ? Icons.favorite : Icons.favorite_border,
+                              size: 15,
+                              color: isSaved ? amberColor : secondaryTextColor,
+                            ),
+                          ),
+                        );
+                      },
                     ),
+                  ),
                 ],
               ),
             ),
 
             // Info Section
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (product.categoryName != null && (product.categoryName?.isNotEmpty ?? false))
-                    Text(
-                      (product.categoryName ?? '').toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.jetBrainsMono(
-                        color: C.textMute,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                      ),
+                  // Category Tag
+                  Text(
+                    (product.categoryName ?? 'CATALOG').toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.jetBrainsMono(
+                      color: muteTextColor,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
                     ),
-                  const SizedBox(height: 1),
+                  ),
+                  const SizedBox(height: 2),
+                  // Title
                   Text(
                     product.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
+                    style: GoogleFonts.sora(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: C.text,
+                      color: primaryTextColor,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
+                  // Price Row
                   PriceText(
                     amount: product.currentPrice,
                     originalAmount: hasDiscount ? product.price : null,
                     size: PriceTextSize.sm,
-                  ),
-                  const SizedBox(height: 5),
-                  StockProgressBar(
-                    stock: product.stock,
-                    initialStock: product.initialStock,
-                    variant: StockBarVariant.continuous,
+                    color: primaryTextColor,
                   ),
                   const SizedBox(height: 6),
+                  // Consumer-Facing Stock Status Badge
+                  if (product.isSoldOut)
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(color: roseColor, shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Sold Out',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: roseColor,
+                          ),
+                        ),
+                      ],
+                    )
+                  else if (product.stock > 0 && product.stock <= 5)
+                    Row(
+                      children: [
+                        Icon(Icons.bolt, size: 12, color: amberColor),
+                        const SizedBox(width: 2),
+                        Text(
+                          'Only ${product.stock} left!',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: amberColor,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: isDark ? C.darkMint : C.lightMint,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'In Stock',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? C.darkMint : C.lightMint,
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 8),
+                  // Action Button
                   SizedBox(
                     width: double.infinity,
-                    height: 28,
+                    height: 32,
                     child: ElevatedButton(
                       onPressed: product.isSoldOut
                           ? null
@@ -152,20 +344,34 @@ class FlashProductCard extends StatelessWidget {
                               onAddToCart();
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isLive ? C.amber : C.raised,
-                        foregroundColor: isLive ? C.onAmber : C.text,
+                        backgroundColor: product.isSoldOut
+                            ? (isDark ? C.darkRaised : const Color(0xFFE5E7EB))
+                            : (isLive ? amberColor : (isDark ? C.darkRaised : const Color(0xFFF3F4F6))),
+                        foregroundColor: product.isSoldOut
+                            ? muteTextColor
+                            : (isLive ? onAmberColor : primaryTextColor),
+                        disabledBackgroundColor: isDark ? C.darkRaised : const Color(0xFFE5E7EB),
+                        disabledForegroundColor: muteTextColor,
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(C.radiusCard),
-                          side: BorderSide(color: isLive ? Colors.transparent : C.line),
+                          side: BorderSide(
+                            color: product.isSoldOut ? Colors.transparent : (isLive ? Colors.transparent : cardBorder),
+                          ),
                         ),
                       ),
                       child: Text(
-                        product.isSoldOut ? 'SOLD OUT' : (isLive ? '⚡ QUICK RESERVE' : 'ADD TO CART'),
+                        product.isSoldOut
+                            ? 'SOLD OUT'
+                            : (isLive ? '⚡ QUICK RESERVE' : 'ADD TO CART'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800),
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.2,
+                        ),
                       ),
                     ),
                   ),
@@ -178,11 +384,15 @@ class FlashProductCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholder() {
+  Widget _buildPlaceholder(bool isDark) {
     return Container(
-      color: C.raised,
-      child: const Center(
-        child: Icon(Icons.shopping_bag_outlined, color: C.textMute, size: 32),
+      color: isDark ? C.darkRaised : const Color(0xFFF3F4F6),
+      child: Center(
+        child: Icon(
+          Icons.shopping_bag_outlined,
+          color: isDark ? C.darkTextMute : const Color(0xFF9CA3AF),
+          size: 34,
+        ),
       ),
     );
   }

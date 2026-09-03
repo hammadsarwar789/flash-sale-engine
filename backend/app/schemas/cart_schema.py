@@ -52,3 +52,4 @@ class CartResponseSchema(Schema):
     items = fields.Nested(CartItemResponseSchema, many=True, dump_only=True)
     subtotal = fields.Float(dump_only=True)
     item_count = fields.Integer(dump_only=True)
+    expires_at = fields.String(dump_only=True, allow_none=True, metadata={"description": "ISO 8601 UTC timestamp when active hold expires"})

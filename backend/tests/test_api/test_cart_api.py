@@ -109,3 +109,21 @@ def test_cart_checkout_multi_item(client, user_token, test_product, second_produ
     # Verify cart is cleared after checkout
     res_cart = client.get("/api/v1/cart", headers={"Authorization": f"Bearer {user_token}"})
     assert len(res_cart.get_json()["items"]) == 0
+
+
+def test_cart_exceeds_stock_conflict(client, user_token, test_product):
+    """Test that requesting more items than available stock returns 409 Conflict."""
+    headers = {"Authorization": f"Bearer {user_token}"}
+
+    # test_product has available_stock = 10 (or 50)
+    # Request an absurd amount
+    res = client.post(
+        "/api/v1/cart/items",
+        json={"product_id": test_product.id, "quantity": 999999},
+        headers=headers,
+    )
+    assert res.status_code == 409
+    data = res.get_json()
+    assert data["status"] == 409
+    assert "available_stock" in data
+

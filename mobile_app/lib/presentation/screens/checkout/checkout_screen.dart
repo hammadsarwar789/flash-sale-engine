@@ -9,6 +9,7 @@ import 'package:mobile_app/data/repositories/cart_repository.dart';
 import 'package:mobile_app/logic/orders/order_bloc.dart';
 import 'package:mobile_app/logic/orders/order_event.dart';
 import 'package:mobile_app/logic/orders/order_state.dart';
+import 'package:mobile_app/presentation/widgets/app_toast.dart';
 import 'package:mobile_app/presentation/widgets/price_text.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -138,23 +139,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return BlocListener<OrderBloc, OrderState>(
       listener: (context, state) {
         if (state is PaymentSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'PAYMENT AUTHORIZED: Order #${widget.order.id}',
-                style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold, color: C.mint),
-              ),
-              backgroundColor: C.raised,
-            ),
+          AppToast.showSuccess(
+            context,
+            'PAYMENT AUTHORIZED: Order #${widget.order.id}',
           );
           context.go('/order/${widget.order.id}');
         } else if (state is OrderError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: C.rose,
-            ),
-          );
+          AppToast.showError(context, state.message);
         }
       },
       child: Scaffold(
@@ -170,18 +161,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             onPressed: () => context.pop(),
           ),
         ),
-        body: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Order Hold Notice
-              Container(
+        body: Column(
+          children: [
+            // Pinned Order Hold Notice
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: C.amberSoft,
                   borderRadius: BorderRadius.circular(C.radiusCard),
-                  border: Border.all(color: C.amber.withOpacity(0.4)),
+                  border: Border.all(color: C.amber.withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   children: [
@@ -200,33 +190,43 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+            ),
 
-              // Step 1: Saved Addresses Picker
-              if (_savedAddresses.isNotEmpty) ...[
-                Text(
-                  '1 · SAVED DISPATCH PROFILES',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: C.textMute),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 90,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _savedAddresses.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (context, i) {
-                      final addr = _savedAddresses[i];
-                      return GestureDetector(
-                        onTap: () => _onSelectSavedAddress(addr),
-                        child: Container(
-                          width: 200,
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: C.surface,
-                            borderRadius: BorderRadius.circular(C.radiusCard),
-                            border: Border.all(color: C.line),
-                          ),
+            // Scrollable Form Content
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  children: [
+                    // Step 1: Saved Addresses Picker
+                    if (_savedAddresses.isNotEmpty) ...[
+                      Text(
+                        '1 · SAVED DISPATCH PROFILES',
+                        style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: C.textMute),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 90,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                          itemCount: _savedAddresses.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
+                          itemBuilder: (context, i) {
+                            final addr = _savedAddresses[i];
+                            return GestureDetector(
+                              key: ValueKey('addr_${addr.id}'),
+                              onTap: () => _onSelectSavedAddress(addr),
+                              child: Container(
+                                width: 200,
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: C.surface,
+                                  borderRadius: BorderRadius.circular(C.radiusCard),
+                                  border: Border.all(color: C.line),
+                                ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -526,6 +526,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         ),
       ),
-    );
+    ],
+  ),
+),
+);
   }
 }

@@ -107,14 +107,15 @@ export const VariantPicker: React.FC<VariantPickerProps> = ({
           </div>
         )}
 
-        {/* Full SKU variants list fallback */}
+        {/* Fallback variants list without visible SKU */}
         {colors.length === 0 && sizes.length === 0 && (
           <div>
-            <Eyebrow className="text-text-mute mb-2 block">SELECT SKU VARIANT</Eyebrow>
+            <Eyebrow className="text-text-mute mb-2 block">SELECT SPECIFICATION</Eyebrow>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {variants.map((v) => {
                 const isSelected = v.id === selectedVariantId;
                 const isOut = v.available_stock <= 0;
+                const isLow = v.available_stock > 0 && v.available_stock <= 5;
 
                 return (
                   <button
@@ -131,13 +132,12 @@ export const VariantPicker: React.FC<VariantPickerProps> = ({
                     }`}
                   >
                     <div>
-                      <span className="font-semibold block text-text">{v.name}</span>
-                      <span className="text-[10px] text-text-mute block">SKU: {v.sku}</span>
+                      <span className="font-semibold block text-text">{v.title || v.name || 'Option'}</span>
                     </div>
                     <div className="text-right">
                       <Money amount={Number(v.price)} size="inline" />
-                      <span className={`text-[10px] block ${isOut ? 'text-rose' : 'text-mint'}`}>
-                        {isOut ? 'SOLD OUT' : `${v.available_stock} LEFT`}
+                      <span className={`text-[10px] block font-bold ${isOut ? 'text-rose' : isLow ? 'text-amber' : 'text-mint'}`}>
+                        {isOut ? 'SOLD OUT' : isLow ? `ONLY ${v.available_stock} LEFT` : `${v.available_stock} IN POOL`}
                       </span>
                     </div>
                   </button>

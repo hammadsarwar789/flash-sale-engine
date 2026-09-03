@@ -48,6 +48,10 @@ class PriceText extends StatelessWidget {
 
     final orig = originalAmount;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final defaultColor = isDark ? C.darkText : const Color(0xFF111827);
+    final muteColor = isDark ? C.darkTextMute : const Color(0xFF9CA3AF);
+
     return FittedBox(
       fit: BoxFit.scaleDown,
       alignment: Alignment.centerLeft,
@@ -61,7 +65,7 @@ class PriceText extends StatelessWidget {
             style: GoogleFonts.jetBrainsMono(
               fontSize: fontSize,
               fontWeight: fontWeight,
-              color: color ?? C.text,
+              color: color ?? defaultColor,
               fontFeatures: [const FontFeature.tabularFigures()],
             ),
           ),
@@ -71,9 +75,9 @@ class PriceText extends StatelessWidget {
               currencyFormatter.format(orig),
               style: GoogleFonts.jetBrainsMono(
                 fontSize: fontSize * 0.75,
-                color: C.textMute,
+                color: muteColor,
                 decoration: TextDecoration.lineThrough,
-                decorationColor: C.textMute,
+                decorationColor: muteColor,
                 fontFeatures: [const FontFeature.tabularFigures()],
               ),
             ),

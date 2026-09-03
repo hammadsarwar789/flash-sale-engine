@@ -10,9 +10,20 @@ import 'package:mobile_app/logic/cart/cart_bloc.dart';
 import 'package:mobile_app/logic/cart/cart_event.dart';
 import 'package:mobile_app/logic/wishlist/wishlist_bloc.dart';
 import 'package:mobile_app/logic/wishlist/wishlist_event.dart';
+import 'package:mobile_app/presentation/widgets/app_toast.dart';
+
+import 'package:mobile_app/data/repositories/cart_repository.dart';
+import 'package:mobile_app/data/repositories/wishlist_repository.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? returnTo;
+  final dynamic returnExtra;
+
+  const LoginScreen({
+    super.key,
+    this.returnTo,
+    this.returnExtra,
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -44,23 +55,47 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryTextColor = isDark ? C.darkText : const Color(0xFF111827);
+
     return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
+      listener: (context, state) async {
         if (state is Authenticated) {
+          final cartRepo = context.read<CartRepository>();
+          final wishlistRepo = context.read<WishlistRepository>();
+          try {
+            await cartRepo.syncGuestCartToServer();
+            await wishlistRepo.syncGuestWishlistToServer();
+          } catch (_) {}
+          if (!context.mounted) return;
           context.read<CartBloc>().add(LoadCartEvent());
           context.read<WishlistBloc>().add(LoadWishlistEvent());
-          context.go('/home');
+          if (widget.returnTo != null && widget.returnTo!.isNotEmpty) {
+            context.go(widget.returnTo!, extra: widget.returnExtra);
+          } else {
+            context.go('/home');
+          }
         } else if (state is AuthFailure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message, style: GoogleFonts.manrope(color: C.text)),
-              backgroundColor: C.rose,
-            ),
-          );
+          AppToast.showError(context, state.message);
         }
       },
       child: Scaffold(
-        backgroundColor: C.base,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: AppBar(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: primaryTextColor),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+          ),
+        ),
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -213,6 +248,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Guest Escape Hatch Button
+                    OutlinedButton.icon(
+                      onPressed: () => context.go('/home'),
+                      icon: Icon(Icons.storefront, size: 16, color: isDark ? C.darkTextDim : const Color(0xFF4B5563)),
+                      label: Text(
+                        'CONTINUE AS GUEST',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? C.darkTextDim : const Color(0xFF4B5563),
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: isDark ? C.darkLine : const Color(0xFFE5E7EB)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                     ),
                   ],
                 ),

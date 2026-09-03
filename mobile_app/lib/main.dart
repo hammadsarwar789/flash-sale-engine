@@ -12,6 +12,8 @@ import 'logic/cart/cart_bloc.dart';
 import 'logic/orders/order_bloc.dart';
 import 'logic/products/product_bloc.dart';
 import 'logic/wishlist/wishlist_bloc.dart';
+import 'logic/reviews/review_bloc.dart';
+import 'core/theme/theme_controller.dart';
 import 'presentation/routes/app_router.dart';
 
 void main() {
@@ -69,12 +71,25 @@ class FlashSaleApp extends StatelessWidget {
               wishlistRepository: context.read<WishlistRepository>(),
             ),
           ),
+          BlocProvider<ReviewBloc>(
+            create: (context) => ReviewBloc(
+              productRepository: context.read<ProductRepository>(),
+            ),
+          ),
         ],
-        child: MaterialApp.router(
-          title: 'Flash Sale Engine',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.darkTheme,
-          routerConfig: AppRouter.router,
+        child: AnimatedBuilder(
+          animation: ThemeController.instance,
+          builder: (context, _) {
+            return MaterialApp.router(
+              title: 'Flash Sale Engine',
+              scaffoldMessengerKey: AppRouter.scaffoldMessengerKey,
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: ThemeController.instance.themeMode,
+              routerConfig: AppRouter.router,
+            );
+          },
         ),
       ),
     );

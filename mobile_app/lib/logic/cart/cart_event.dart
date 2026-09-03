@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:mobile_app/data/models/product_model.dart';
 
 abstract class CartEvent extends Equatable {
   const CartEvent();
@@ -12,15 +13,17 @@ class AddToCartEvent extends CartEvent {
   final dynamic productId;
   final int quantity;
   final dynamic variantId;
+  final ProductModel? product;
 
   const AddToCartEvent({
     required this.productId,
     this.quantity = 1,
     this.variantId,
+    this.product,
   });
 
   @override
-  List<Object?> get props => [productId, quantity, variantId];
+  List<Object?> get props => [productId, quantity, variantId, product];
 }
 
 class UpdateCartItemQuantityEvent extends CartEvent {
@@ -46,3 +49,7 @@ class RemoveCartItemEvent extends CartEvent {
 }
 
 class ClearCartEvent extends CartEvent {}
+
+class SyncCartReservationEvent extends CartEvent {}
+
+class CartReservationExpiredEvent extends CartEvent {}

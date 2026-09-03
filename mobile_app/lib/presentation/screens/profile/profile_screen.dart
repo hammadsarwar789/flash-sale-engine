@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:mobile_app/core/theme/theme_controller.dart';
 import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/data/models/cart_model.dart';
 import 'package:mobile_app/data/repositories/cart_repository.dart';
@@ -166,20 +168,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isVendorOrAdmin = user != null && ['vendor', 'admin', 'manager', 'super_admin'].contains(user.role.toLowerCase());
     final avatarLetter = (user?.fullName != null && user!.fullName!.isNotEmpty) ? user.fullName![0].toUpperCase() : 'U';
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final amberColor = isDark ? C.darkAmber : C.lightAmber;
+    final primaryTextColor = isDark ? C.darkText : const Color(0xFF111827);
+    final secondaryTextColor = isDark ? C.darkTextDim : const Color(0xFF4B5563);
+    final muteTextColor = isDark ? C.darkTextMute : const Color(0xFF6B7280);
+
     return Scaffold(
-      backgroundColor: C.base,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: C.surface,
+        automaticallyImplyLeading: false,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
         title: Text(
-          'Trader Account',
-          style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.w700, color: C.text),
+          'ACCOUNT',
+          style: GoogleFonts.sora(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: primaryTextColor,
+            letterSpacing: 0.5,
+          ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: C.text),
-          onPressed: () => context.go('/home'),
-        ),
+        actions: [
+          AnimatedBuilder(
+            animation: ThemeController.instance,
+            builder: (context, _) {
+              final isCurrentDark = ThemeController.instance.isDark;
+              return IconButton(
+                icon: Icon(
+                  isCurrentDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                  color: isCurrentDark ? amberColor : secondaryTextColor,
+                  size: 22,
+                ),
+                tooltip: isCurrentDark ? 'Switch to Day Mode' : 'Switch to Night Mode',
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  ThemeController.instance.toggleTheme();
+                },
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
-      body: ListView(
+      body: authState is! Authenticated
+          ? _buildUnauthenticatedView(isDark, primaryTextColor, muteTextColor, amberColor)
+          : ListView(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         padding: const EdgeInsets.all(16),
         children: [
           // Profile ID Card
@@ -240,7 +276,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 decoration: BoxDecoration(
                   color: C.violetSoft,
                   borderRadius: BorderRadius.circular(C.radiusCard),
-                  border: Border.all(color: C.violet.withOpacity(0.4)),
+                  border: Border.all(color: C.violet.withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   children: [
@@ -276,7 +312,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: BlocBuilder<CartBloc, CartState>(
                   builder: (context, state) {
                     final count = state is CartLoaded ? state.cart.itemCount : 0;
-                    return _buildMetricTile('CART HOLDS', '$count', Icons.shopping_bag_outlined, () => context.push('/cart'));
+                    return _buildMetricTile('CART HOLDS', '$count', Icons.shopping_bag_outlined, () => context.go('/cart'));
                   },
                 ),
               ),
@@ -285,7 +321,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: BlocBuilder<WishlistBloc, WishlistState>(
                   builder: (context, state) {
                     final count = state is WishlistLoaded ? state.items.length : 0;
-                    return _buildMetricTile('SAVED VAULT', '$count', Icons.favorite_border, () => context.push('/wishlist'));
+                    return _buildMetricTile('SAVED VAULT', '$count', Icons.favorite_border, () => context.go('/wishlist'));
                   },
                 ),
               ),
@@ -294,7 +330,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: BlocBuilder<OrderBloc, OrderState>(
                   builder: (context, state) {
                     final count = state is OrdersLoaded ? state.orders.length : 0;
-                    return _buildMetricTile('ORDERS', '$count', Icons.receipt_long_outlined, () => context.push('/orders'));
+                    return _buildMetricTile('ORDERS', '$count', Icons.receipt_long_outlined, () => context.go('/orders'));
                   },
                 ),
               ),
@@ -336,6 +372,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Text('No shipping addresses registered.', style: GoogleFonts.manrope(fontSize: 12, color: C.textMute))
                 else
                   ..._savedAddresses.map((addr) => Padding(
+                        key: ValueKey('profile_addr_${addr.id}'),
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Container(
                           padding: const EdgeInsets.all(10),
@@ -365,6 +402,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 24),
+
+          // Visual Theme Mode Selector
+          AnimatedBuilder(
+            animation: ThemeController.instance,
+            builder: (context, _) {
+              final isDark = ThemeController.instance.isDark;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: C.surface,
+                  borderRadius: BorderRadius.circular(C.radiusCard),
+                  border: Border.all(color: C.line),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: C.raised,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                        size: 20,
+                        color: isDark ? C.amber : C.textDim,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Visual Theme',
+                            style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.bold, color: C.text),
+                          ),
+                          Text(
+                            isDark ? 'Night Trading Floor (Obsidian Dark)' : 'Day Trading Floor (Warm Paper Light)',
+                            style: GoogleFonts.manrope(fontSize: 11, color: C.textMute),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: isDark,
+                      activeThumbColor: C.amber,
+                      onChanged: (val) {
+                        HapticFeedback.lightImpact();
+                        ThemeController.instance.setThemeMode(val ? ThemeMode.dark : ThemeMode.light);
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
 
           // Logout Action
           OutlinedButton.icon(
@@ -410,6 +504,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: GoogleFonts.jetBrainsMono(fontSize: 8, fontWeight: FontWeight.bold, color: C.textMute),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnauthenticatedView(bool isDark, Color primaryTextColor, Color muteTextColor, Color amberColor) {
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+      child: Center(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: isDark ? C.darkRaised : const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(C.radiusCard),
+                  border: Border.all(color: amberColor.withValues(alpha: 0.3)),
+                ),
+                child: Icon(Icons.person_outline, size: 36, color: amberColor),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Account Authentication Required',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Please sign in to view your profile credentials, manage dispatch addresses, and access merchant controls.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.manrope(fontSize: 12, color: muteTextColor),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => context.push('/login', extra: {'returnTo': '/profile'}),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: amberColor,
+                  foregroundColor: isDark ? C.darkOnAmber : Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: const Text('SIGN IN TO ACCOUNT'),
+              ),
+            ],
+          ),
         ),
       ),
     );

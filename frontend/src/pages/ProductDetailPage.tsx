@@ -11,7 +11,9 @@ import { ReviewForm } from '../components/product/ReviewForm';
 import { useCart } from '../hooks/useCart';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { ProductVariant } from '../types/api';
+import { MAX_PER_ORDER } from '../types/cart';
 import { Money } from '../components/ui/Money';
 import { StockBar } from '../components/ui/StockBar';
 import { Eyebrow } from '../components/ui/Eyebrow';
@@ -21,6 +23,7 @@ export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const toast = useToast();
 
   const { data: product, isLoading, isError, error } = useProductDetail(id);
   const { data: variants = [] } = useProductVariants(id);
@@ -32,7 +35,6 @@ export const ProductDetailPage: React.FC = () => {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
-  const [noticeMsg, setNoticeMsg] = useState<string | null>(null);
 
   const isWishlisted = wishlistItems.some((item) => item.product_id === id);
   const wishlistItem = wishlistItems.find((item) => item.product_id === id);
@@ -41,6 +43,7 @@ export const ProductDetailPage: React.FC = () => {
   const activeStock = selectedVariant?.available_stock ?? product?.available_stock ?? product?.total_stock ?? 0;
   const isOut = activeStock <= 0;
   const isLive = activeStock > 0 && activeStock <= 15;
+  const maxAllowed = Math.min(activeStock, MAX_PER_ORDER);
 
   const images = product?.images && product.images.length > 0
     ? product.images
@@ -49,23 +52,37 @@ export const ProductDetailPage: React.FC = () => {
         'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
       ];
 
+  const handleIncrement = () => {
+    if (quantity >= maxAllowed) {
+      toast.info(`Maximum available stock reached (${activeStock} available in pool)`);
+      return;
+    }
+    setQuantity((q) => q + 1);
+  };
+
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
     if (!product) return;
+    if (isOut) {
+      toast.error('This product is currently sold out.');
+      return;
+    }
+
+    const effectiveQty = Math.min(quantity, maxAllowed);
 
     try {
       await addToCart({
         product_id: product.id,
         variant_id: selectedVariant?.id,
-        quantity,
+        quantity: effectiveQty,
+        max_stock: activeStock,
       });
-      setNoticeMsg(`RESERVED IN CART: ${product.name} (QTY ${quantity})`);
-      setTimeout(() => setNoticeMsg(null), 3500);
-    } catch (err: any) {
-      setNoticeMsg(err.message || 'Failed to reserve inventory');
+      toast.success(`Reserved in cart: ${product.name} (QTY ${effectiveQty})`);
+    } catch {
+      // Handled in mutation onError
     }
   };
 
@@ -144,15 +161,6 @@ export const ProductDetailPage: React.FC = () => {
         </Link>
       </div>
 
-      {/* Notice Banner */}
-      {noticeMsg && (
-        <div className="bg-amber-soft border border-amber/40 text-amber font-mono text-xs p-3.5 rounded-card flex items-center justify-between">
-          <span>● {noticeMsg}</span>
-          <Link to="/cart" className="underline font-bold hover:text-text">
-            VIEW CART →
-          </Link>
-        </div>
-      )}
 
       {/* 2-Column 7/5 Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
@@ -218,7 +226,13 @@ export const ProductDetailPage: React.FC = () => {
               <span className="uppercase">
                 {typeof product.category === 'string' ? product.category : product.category?.name || 'CATALOG'}
               </span>
-              <span>SKU: {selectedVariant?.sku || product.sku || 'FSE-COMMODITY'}</span>
+              {isOut ? (
+                <span className="text-rose font-bold font-mono">● SOLD OUT</span>
+              ) : activeStock <= 5 ? (
+                <span className="text-amber font-bold font-mono">⚡ ONLY {activeStock} LEFT IN POOL</span>
+              ) : (
+                <span className="text-mint font-bold font-mono">● IN STOCK</span>
+              )}
             </div>
             <h1 className="font-display text-3xl sm:text-4xl font-bold text-text tracking-tight">
               {product.name}
@@ -256,39 +270,55 @@ export const ProductDetailPage: React.FC = () => {
           <VariantPicker
             variants={variants}
             selectedVariantId={selectedVariant?.id || null}
-            onSelectVariant={(v) => setSelectedVariant(v)}
+            onSelectVariant={(v) => {
+              setSelectedVariant(v);
+              const newMax = Math.min(v.available_stock, MAX_PER_ORDER);
+              if (quantity > newMax && newMax > 0) {
+                setQuantity(newMax);
+              } else if (newMax <= 0) {
+                setQuantity(1);
+              }
+            }}
           />
 
-          {/* Stock Level Indicator */}
+          {/* Stock Level Indicator & Scarcity Badge */}
           <div className="space-y-2 pt-2 border-t border-line">
+            {activeStock > 0 && activeStock <= 5 && (
+              <div className="flex items-center gap-1.5 font-mono text-xs text-amber font-bold">
+                <span>⚡</span>
+                <span>Only {activeStock} left in pool</span>
+              </div>
+            )}
             <StockBar stock={activeStock} maxStock={50} variant="continuous" />
           </div>
 
           {/* Quantity Stepper & Actions */}
           <div className="space-y-3 pt-4 border-t border-line">
             <div className="flex items-center gap-3">
-              {/* Stepper (999px pill) */}
-              <div className="flex items-center bg-raised border border-line rounded-pill px-2 py-1 text-xs font-mono">
-                <button
-                  type="button"
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  disabled={quantity <= 1 || isOut}
-                  className="w-7 h-7 flex items-center justify-center text-text-dim hover:text-text disabled:opacity-40"
-                  aria-label="Decrease quantity"
-                >
-                  <Minus className="w-3.5 h-3.5" />
-                </button>
-                <span className="w-8 text-center font-bold text-text tabular-nums">{quantity}</span>
-                <button
-                  type="button"
-                  onClick={() => setQuantity((q) => Math.min(activeStock, q + 1))}
-                  disabled={quantity >= activeStock || isOut}
-                  className="w-7 h-7 flex items-center justify-center text-text-dim hover:text-text disabled:opacity-40"
-                  aria-label="Increase quantity"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              {/* Stepper (999px pill) - Hidden when Sold Out */}
+              {!isOut && (
+                <div className="flex items-center bg-raised border border-line rounded-pill px-2 py-1 text-xs font-mono">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    disabled={quantity <= 1}
+                    className="w-7 h-7 flex items-center justify-center text-text-dim hover:text-text disabled:opacity-40"
+                    aria-label="Decrease quantity"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="w-8 text-center font-bold text-text tabular-nums">{quantity}</span>
+                  <button
+                    type="button"
+                    onClick={handleIncrement}
+                    disabled={quantity >= maxAllowed}
+                    className="w-7 h-7 flex items-center justify-center text-text-dim hover:text-text disabled:opacity-40"
+                    aria-label="Increase quantity"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
               {/* Add to Cart Button */}
               <button

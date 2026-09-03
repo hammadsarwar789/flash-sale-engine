@@ -38,6 +38,8 @@ class VariantModel extends Equatable {
   List<Object?> get props => [id, sku, name, size, color, price, stock];
 }
 
+typedef ProductVariant = VariantModel;
+
 class ReviewModel extends Equatable {
   final String id;
   final int rating;
@@ -113,6 +115,8 @@ class ProductModel extends Equatable {
     this.variants = const [],
   });
 
+  int get availableStock => stock;
+
   double get currentPrice => (isFlashSale && salePrice != null) ? salePrice! : price;
 
   int get discountPercentage {
@@ -127,11 +131,36 @@ class ProductModel extends Equatable {
     return (stock / maxStock).clamp(0.0, 1.0);
   }
 
+  String get category => categoryName ?? 'CATALOG';
+
   bool get isSoldOut => stock <= 0;
+
+  bool get isLowStock => stock > 0 && stock <= 5;
+
+  int getStockForVariant(dynamic variantId) {
+    if (variantId != null && variants.isNotEmpty) {
+      final v = variants.where((v) => v.id.toString() == variantId.toString()).firstOrNull;
+      if (v != null) return v.stock;
+    }
+    return stock;
+  }
+
+  double getPriceForVariant(dynamic variantId) {
+    if (variantId != null && variants.isNotEmpty) {
+      final v = variants.where((v) => v.id.toString() == variantId.toString()).firstOrNull;
+      if (v != null) return v.price;
+    }
+    return currentPrice;
+  }
+
+  bool isLowStockForVariant(dynamic variantId, {int threshold = 5}) {
+    final s = getStockForVariant(variantId);
+    return s > 0 && s <= threshold;
+  }
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     // Backend sends 'available_stock' / 'total_stock'; fall back to 'stock' / 'initial_stock'
-    final stockValue = json['available_stock'] ?? json['stock'];
+    final stockValue = json['available_stock'] ?? json['stock'] ?? json['total_stock'] ?? json['inventory'] ?? json['quantity'];
     final initialStockValue = json['total_stock'] ?? json['initial_stock'] ?? stockValue;
 
     // Backend sends 'discount_percentage' instead of 'is_flash_sale' boolean
@@ -146,9 +175,10 @@ class ProductModel extends Equatable {
       imageList = (json['images'] as List).map((e) => e.toString()).toList();
     }
 
+    const defaultImg = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80';
     String? imageUrl = json['image_url'] as String?;
-    if ((imageUrl == null || imageUrl.isEmpty) && imageList.isNotEmpty) {
-      imageUrl = imageList.first;
+    if (imageUrl == null || imageUrl.isEmpty) {
+      imageUrl = imageList.isNotEmpty ? imageList.first : defaultImg;
     }
 
     // Extract variants
@@ -163,25 +193,41 @@ class ProductModel extends Equatable {
     final rawId = json['id'] ?? json['_id'] ?? json['product_id'] ?? '';
     final parsedId = (rawId is int) ? rawId : (int.tryParse(rawId.toString()) ?? rawId.toString());
 
-    // Robust category ID extraction
+    // Robust category extraction
     final rawCatId = json['category_id'] ?? (json['category'] is Map ? json['category']['id'] : null);
     final parsedCatId = rawCatId != null
         ? ((rawCatId is int) ? rawCatId : (int.tryParse(rawCatId.toString()) ?? rawCatId.toString()))
         : null;
 
+    final catName = json['category_name'] as String? ??
+        (json['category'] is Map
+            ? json['category']['name']?.toString()
+            : (json['category'] is String ? json['category'] as String : 'CATALOG'));
+
+    final rawPrice = json['price'] ?? json['regular_price'] ?? json['unit_price'] ?? 0.0;
+    final parsedPrice = (rawPrice is num)
+        ? rawPrice.toDouble()
+        : double.tryParse(rawPrice.toString()) ?? 0.0;
+
+    final rawSalePrice = json['sale_price'] ?? (discountPct > 0 ? parsedPrice * (1 - discountPct / 100) : null);
+    final parsedSalePrice = rawSalePrice != null
+        ? ((rawSalePrice is num) ? rawSalePrice.toDouble() : double.tryParse(rawSalePrice.toString()))
+        : null;
+
     return ProductModel(
       id: parsedId,
-      name: json['name'] as String? ?? '',
-      sku: json['sku'] as String?,
+      name: (json['name'] as String?)?.trim().isNotEmpty == true
+          ? json['name'] as String
+          : ((json['title'] as String?)?.trim().isNotEmpty == true
+              ? json['title'] as String
+              : 'Trading Asset #${parsedId.toString().substring(0, parsedId.toString().length > 4 ? 4 : parsedId.toString().length)}'),
+      sku: json['sku'] as String? ??
+          (parsedId.toString().isNotEmpty
+              ? 'LOT-${parsedId.toString().substring(0, parsedId.toString().length > 6 ? 6 : parsedId.toString().length).toUpperCase()}'
+              : null),
       description: json['description'] as String?,
-      price: (json['price'] is num)
-          ? (json['price'] as num).toDouble()
-          : double.tryParse(json['price']?.toString() ?? '0.0') ?? 0.0,
-      salePrice: json['sale_price'] != null
-          ? ((json['sale_price'] is num)
-              ? (json['sale_price'] as num).toDouble()
-              : double.tryParse(json['sale_price']?.toString() ?? ''))
-          : null,
+      price: parsedPrice,
+      salePrice: parsedSalePrice,
       stock: stockValue is int ? stockValue : int.tryParse(stockValue?.toString() ?? '0') ?? 0,
       initialStock: initialStockValue is int
           ? initialStockValue
@@ -190,10 +236,9 @@ class ProductModel extends Equatable {
       flashSaleStart: json['flash_sale_start'] as String?,
       flashSaleEnd: json['flash_sale_end'] as String?,
       imageUrl: imageUrl,
-      images: imageList,
+      images: imageList.isNotEmpty ? imageList : [imageUrl],
       categoryId: parsedCatId,
-      categoryName: json['category_name'] as String? ??
-          (json['category'] is Map ? json['category']['name'] : null),
+      categoryName: catName,
       sellerName: json['seller_name'] as String? ??
           (json['seller'] is Map ? json['seller']['store_name'] : null),
       isActive: json['is_active'] as bool? ?? true,
