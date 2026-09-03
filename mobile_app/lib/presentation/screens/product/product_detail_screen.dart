@@ -557,7 +557,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             border: Border.all(color: roseColor.withValues(alpha: 0.3)),
                           ),
                           child: Text(
-                            'SOLD OUT',
+                            '• SOLD OUT',
                             style: GoogleFonts.jetBrainsMono(color: roseColor, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                         )
@@ -570,13 +570,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             border: Border.all(color: amberColor.withValues(alpha: 0.3)),
                           ),
                           child: Text(
-                            'ONLY $_activeStock LEFT IN POOL',
+                            'ONLY $_activeStock LEFT IN STOCK',
                             style: GoogleFonts.jetBrainsMono(color: amberColor, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                         )
                       else
                         Text(
-                          '● IN STOCK',
+                          '• IN STOCK',
                           style: GoogleFonts.jetBrainsMono(color: isDark ? C.darkMint : C.lightMint, fontSize: 10, fontWeight: FontWeight.bold),
                         ),
                     ],
@@ -604,30 +604,45 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Stock Information & Progress Bar
+                  // Conditional Scarcity Alert (Urgency Mode: Only when stock <= 5 and > 0)
                   if (_activeStock > 0 && _activeStock <= 5) ...[
-                    Row(
-                      children: [
-                        Icon(Icons.bolt, size: 12, color: amberColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Only $_activeStock left in pool',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: amberColor,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: amberColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(C.radiusCard),
+                        border: Border.all(color: amberColor.withValues(alpha: 0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.bolt, size: 14, color: amberColor),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  'Only $_activeStock left in stock - order soon!',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: amberColor,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 6),
+                          StockProgressBar(
+                            stock: _activeStock,
+                            initialStock: 10,
+                            variant: StockBarVariant.continuous,
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 16),
                   ],
-                  StockProgressBar(
-                    stock: _activeStock,
-                    initialStock: product.initialStock,
-                    variant: StockBarVariant.continuous,
-                  ),
-                  const SizedBox(height: 16),
 
                   // Variants Picker
                   if (_variants.isNotEmpty) ...[

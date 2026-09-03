@@ -229,7 +229,7 @@ export const ProductDetailPage: React.FC = () => {
               {isOut ? (
                 <span className="text-rose font-bold font-mono">● SOLD OUT</span>
               ) : activeStock <= 5 ? (
-                <span className="text-amber font-bold font-mono">⚡ ONLY {activeStock} LEFT IN POOL</span>
+                <span className="text-amber font-bold font-mono">⚡ ONLY {activeStock} LEFT IN STOCK</span>
               ) : (
                 <span className="text-mint font-bold font-mono">● IN STOCK</span>
               )}
@@ -281,16 +281,16 @@ export const ProductDetailPage: React.FC = () => {
             }}
           />
 
-          {/* Stock Level Indicator & Scarcity Badge */}
-          <div className="space-y-2 pt-2 border-t border-line">
-            {activeStock > 0 && activeStock <= 5 && (
-              <div className="flex items-center gap-1.5 font-mono text-xs text-amber font-bold">
+          {/* Conditional Scarcity Badge (Urgency Mode: Only when stock <= 5 and > 0) */}
+          {activeStock > 0 && activeStock <= 5 && (
+            <div className="bg-amber-soft border border-amber/30 rounded-card p-3 space-y-2">
+              <div className="flex items-center gap-2 font-mono text-xs text-amber font-bold">
                 <span>⚡</span>
-                <span>Only {activeStock} left in pool</span>
+                <span>Only {activeStock} left in stock - order soon!</span>
               </div>
-            )}
-            <StockBar stock={activeStock} maxStock={50} variant="continuous" />
-          </div>
+              <StockBar stock={activeStock} maxStock={10} variant="continuous" showLabel={false} />
+            </div>
+          )}
 
           {/* Quantity Stepper & Actions */}
           <div className="space-y-3 pt-4 border-t border-line">
