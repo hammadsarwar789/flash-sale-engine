@@ -103,7 +103,7 @@ class OrderSuccessScreen extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '#${order.id}',
+                              '#ORD-${order.shortId}',
                               style: GoogleFonts.jetBrainsMono(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,

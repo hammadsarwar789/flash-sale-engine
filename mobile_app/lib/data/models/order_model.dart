@@ -1,8 +1,8 @@
 import 'package:equatable/equatable.dart';
 
 class OrderItemModel extends Equatable {
-  final int? id;
-  final int productId;
+  final dynamic id;
+  final dynamic productId;
   final String productName;
   final int quantity;
   final double unitPrice;
@@ -19,8 +19,10 @@ class OrderItemModel extends Equatable {
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
     return OrderItemModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? ''),
-      productId: json['product_id'] is int ? json['product_id'] : int.tryParse(json['product_id']?.toString() ?? '0') ?? 0,
+      id: json['id'] != null ? (json['id'] is int ? json['id'] : json['id'].toString()) : null,
+      productId: json['product_id'] != null
+          ? (json['product_id'] is int ? json['product_id'] : json['product_id'].toString())
+          : 0,
       productName: json['product_name'] as String? ?? '',
       quantity: json['quantity'] is int ? json['quantity'] : int.tryParse(json['quantity']?.toString() ?? '1') ?? 1,
       unitPrice: (json['unit_price'] is num)
@@ -37,9 +39,9 @@ class OrderItemModel extends Equatable {
 }
 
 class OrderModel extends Equatable {
-  final int id;
-  final int userId;
-  final int? productId;
+  final dynamic id;
+  final dynamic userId;
+  final dynamic productId;
   final String? productName;
   final int quantity;
   final double totalAmount;
@@ -63,6 +65,12 @@ class OrderModel extends Equatable {
     this.items = const [],
   });
 
+  String get shortId {
+    final str = id.toString().replaceAll('-', '');
+    if (str.isEmpty || str == '0') return '0';
+    return str.length > 8 ? str.substring(0, 8).toUpperCase() : str.toUpperCase();
+  }
+
   bool get isPending => status.toLowerCase() == 'pending';
   bool get isProcessing => status.toLowerCase() == 'processing';
   bool get isCompleted => status.toLowerCase() == 'completed' || status.toLowerCase() == 'paid';
@@ -75,9 +83,9 @@ class OrderModel extends Equatable {
         : <OrderItemModel>[];
 
     return OrderModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
-      userId: json['user_id'] is int ? json['user_id'] : int.tryParse(json['user_id']?.toString() ?? '0') ?? 0,
-      productId: json['product_id'] is int ? json['product_id'] : int.tryParse(json['product_id']?.toString() ?? ''),
+      id: json['id'] != null ? (json['id'] is int ? json['id'] : json['id'].toString()) : '0',
+      userId: json['user_id'] != null ? (json['user_id'] is int ? json['user_id'] : json['user_id'].toString()) : '0',
+      productId: json['product_id'] != null ? (json['product_id'] is int ? json['product_id'] : json['product_id'].toString()) : null,
       productName: json['product_name'] as String?,
       quantity: json['quantity'] is int ? json['quantity'] : int.tryParse(json['quantity']?.toString() ?? '1') ?? 1,
       totalAmount: (json['total_amount'] is num)

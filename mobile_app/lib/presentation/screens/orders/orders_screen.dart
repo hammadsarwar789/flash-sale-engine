@@ -11,6 +11,7 @@ import 'package:mobile_app/logic/auth/auth_state.dart';
 import 'package:mobile_app/logic/orders/order_bloc.dart';
 import 'package:mobile_app/logic/orders/order_event.dart';
 import 'package:mobile_app/logic/orders/order_state.dart';
+import 'package:intl/intl.dart';
 import 'package:mobile_app/presentation/widgets/price_text.dart';
 import 'package:mobile_app/presentation/widgets/status_pill_widget.dart';
 
@@ -213,17 +214,35 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
+  String _formatOrderTimestamp(String? raw) {
+    if (raw == null || raw.isEmpty) return 'RECENT';
+    try {
+      final parsed = DateTime.parse(raw).toLocal();
+      return DateFormat('MMM dd, yyyy • h:mm a').format(parsed);
+    } catch (_) {
+      return raw;
+    }
+  }
+
   Widget _buildOrderCard(OrderModel order) {
     final idStr = order.id.toString();
+    final shortId = idStr.length > 8 ? idStr.substring(0, 8).toUpperCase() : idStr.toUpperCase();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? C.darkSurface : Colors.white;
+    final cardBorder = isDark ? C.darkLine : const Color(0xFFE5E7EB);
+    final primaryTextColor = isDark ? C.darkText : const Color(0xFF111827);
+    final muteTextColor = isDark ? C.darkTextMute : const Color(0xFF6B7280);
+    final amberColor = isDark ? C.darkAmber : C.lightAmber;
+
     return GestureDetector(
       key: ValueKey('order_${order.id}'),
       onTap: () => context.push('/order/${order.id}'),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: C.surface,
+          color: cardBg,
           borderRadius: BorderRadius.circular(C.radiusCard),
-          border: Border.all(color: C.line),
+          border: Border.all(color: cardBorder),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,11 +251,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'ORD-${idStr.length > 8 ? idStr.substring(0, 8).toUpperCase() : idStr}',
+                  'ORD-$shortId',
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: C.text,
+                    color: primaryTextColor,
                   ),
                 ),
                 StatusPillWidget(status: order.status),
@@ -249,7 +268,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
               children: [
                 Text(
                   '${order.items.length} ITEM(S)',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.textMute),
+                  style: GoogleFonts.jetBrainsMono(fontSize: 11, color: muteTextColor),
                 ),
                 PriceText(amount: order.totalAmount, size: PriceTextSize.md),
               ],
@@ -257,19 +276,24 @@ class _OrdersScreenState extends State<OrdersScreen> {
             const SizedBox(height: 8),
 
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  order.createdAt?.toString() ?? 'RECENT',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 10, color: C.textMute),
+                Expanded(
+                  child: Text(
+                    _formatOrderTimestamp(order.createdAt),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.jetBrainsMono(fontSize: 10, color: muteTextColor),
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'VIEW TIMELINE',
-                      style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.bold, color: C.amber),
+                      style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.bold, color: amberColor),
                     ),
-                    const Icon(Icons.chevron_right, size: 16, color: C.amber),
+                    Icon(Icons.chevron_right, size: 16, color: amberColor),
                   ],
                 ),
               ],

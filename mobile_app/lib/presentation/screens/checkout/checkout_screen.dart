@@ -171,45 +171,50 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             onPressed: () => context.pop(),
           ),
         ),
-        body: Column(
-          children: [
-            // Pinned Order Hold Notice
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: C.amberSoft,
-                  borderRadius: BorderRadius.circular(C.radiusCard),
-                  border: Border.all(color: C.amber.withValues(alpha: 0.4)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.lock_outline, color: C.amber, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '10:00 MIN RESERVATION HOLD ACTIVE FOR ORDER #${widget.order.id}',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: C.amber,
+        body: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Pinned Order Hold Notice
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: C.amberSoft,
+                    borderRadius: BorderRadius.circular(C.radiusCard),
+                    border: Border.all(color: C.amber.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.lock_outline, color: C.amber, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.order.id.toString() == '0' || widget.order.id.toString().isEmpty
+                              ? '10:00 MIN RESERVATION HOLD ACTIVE FOR SETTLEMENT'
+                              : '10:00 MIN RESERVATION HOLD ACTIVE FOR ORDER #ORD-${widget.order.shortId}',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: C.amber,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            // Scrollable Form Content
-            Expanded(
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  children: [
+              // Form Content
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                     // Step 1: Saved Addresses Picker
                     if (_savedAddresses.isNotEmpty) ...[
                       Text(
@@ -369,12 +374,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           child: ChoiceChip(
                             label: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Icon(Icons.credit_card, size: 16),
                                 const SizedBox(width: 6),
-                                Text(
-                                  'CREDIT / DEBIT',
-                                  style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold),
+                                Flexible(
+                                  child: Text(
+                                    'CREDIT / DEBIT',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ],
                             ),
@@ -395,12 +405,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           child: ChoiceChip(
                             label: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Icon(Icons.payments_outlined, size: 16),
                                 const SizedBox(width: 6),
-                                Text(
-                                  'CASH ON DELIVERY',
-                                  style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold),
+                                Flexible(
+                                  child: Text(
+                                    'CASH / COD',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ],
                             ),
@@ -538,6 +553,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     ],
   ),
+),
 ),
 );
   }
