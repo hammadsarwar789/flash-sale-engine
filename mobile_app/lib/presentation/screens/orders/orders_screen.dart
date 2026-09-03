@@ -85,131 +85,192 @@ class _OrdersScreenState extends State<OrdersScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: authState is! Authenticated
-          ? _buildUnauthenticatedView(isDark, primaryTextColor, muteTextColor, amberColor)
-          : RefreshIndicator(
-        color: amberColor,
-        backgroundColor: cardBg,
-        onRefresh: () async {
-          context.read<OrderBloc>().add(LoadOrdersEvent());
+      body: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is Authenticated) {
+            context.read<OrderBloc>().add(LoadOrdersEvent());
+          }
         },
-        child: Column(
-          children: [
-            // Status Filter Chips
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: chipBarBg,
-              child: SizedBox(
-                height: 32,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                  itemCount: 6,
-                  separatorBuilder: (_, _) => const SizedBox(width: 6),
-                  itemBuilder: (context, idx) {
-                    final statuses = ['ALL', 'PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
-                    final s = statuses[idx];
-                    final isSelected = _filterStatus == s;
+        child: authState is! Authenticated
+            ? _buildUnauthenticatedView(isDark, primaryTextColor, muteTextColor, amberColor)
+            : RefreshIndicator(
+                color: amberColor,
+                backgroundColor: cardBg,
+                onRefresh: () async {
+                  context.read<OrderBloc>().add(LoadOrdersEvent());
+                },
+                child: Column(
+                  children: [
+                    // Status Filter Chips
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      color: chipBarBg,
+                      child: SizedBox(
+                        height: 32,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                          itemCount: 6,
+                          separatorBuilder: (_, _) => const SizedBox(width: 6),
+                          itemBuilder: (context, idx) {
+                            final statuses = ['ALL', 'PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+                            final s = statuses[idx];
+                            final isSelected = _filterStatus == s;
 
-                    return ChoiceChip(
-                      key: ValueKey('status_chip_$s'),
-                      label: Text(s),
-                      selected: isSelected,
-                      selectedColor: amberColor,
-                      backgroundColor: cardBg,
-                      labelStyle: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
-                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                        color: isSelected ? onAmberColor : secondaryTextColor,
+                            return ChoiceChip(
+                              key: ValueKey('status_chip_$s'),
+                              label: Text(s),
+                              selected: isSelected,
+                              selectedColor: amberColor,
+                              backgroundColor: cardBg,
+                              labelStyle: GoogleFonts.jetBrainsMono(
+                                fontSize: 10,
+                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                color: isSelected ? onAmberColor : secondaryTextColor,
+                              ),
+                              side: BorderSide(color: isSelected ? amberColor : cardBorder),
+                              onSelected: (_) => setState(() => _filterStatus = s),
+                            );
+                          },
+                        ),
                       ),
-                      side: BorderSide(color: isSelected ? amberColor : cardBorder),
-                      onSelected: (_) => setState(() => _filterStatus = s),
-                    );
-                  },
+                    ),
+
+                    // Orders List / States
+                    Expanded(
+                      child: BlocBuilder<OrderBloc, OrderState>(
+                        builder: (context, state) {
+                          if (state is OrderInitial) {
+                            context.read<OrderBloc>().add(LoadOrdersEvent());
+                            return Center(child: CircularProgressIndicator(color: amberColor));
+                          } else if (state is OrderLoading) {
+                            return Center(child: CircularProgressIndicator(color: amberColor));
+                          } else if (state is OrderError) {
+                            final roseColor = isDark ? C.darkRose : C.lightRose;
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.error_outline, size: 44, color: roseColor),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      state.message,
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.manrope(color: muteTextColor),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton(
+                                      onPressed: () => context.read<OrderBloc>().add(LoadOrdersEvent()),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: amberColor,
+                                        foregroundColor: onAmberColor,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(C.radiusCard),
+                                        ),
+                                      ),
+                                      child: const Text('RETRY'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          } else if (state is OrdersLoaded) {
+                            final filtered = _filterStatus == 'ALL'
+                                ? state.orders
+                                : state.orders.where((o) => o.status.toUpperCase() == _filterStatus).toList();
+
+                            if (filtered.isEmpty) {
+                              return ScrollConfiguration(
+                                behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                                child: Center(
+                                  child: SingleChildScrollView(
+                                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                                    padding: const EdgeInsets.all(32),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          width: 72,
+                                          height: 72,
+                                          decoration: BoxDecoration(
+                                            color: isDark ? C.darkRaised : const Color(0xFFF3F4F6),
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: amberColor.withValues(alpha: 0.3)),
+                                          ),
+                                          child: Center(
+                                            child: Icon(Icons.receipt_long_outlined, size: 36, color: amberColor),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'No Orders Yet',
+                                          style: GoogleFonts.sora(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                            color: primaryTextColor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Your completed flash sale orders will appear here.',
+                                          textAlign: TextAlign.center,
+                                          style: GoogleFonts.manrope(
+                                            fontSize: 13,
+                                            color: muteTextColor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 24),
+                                        SizedBox(
+                                          height: 44,
+                                          child: ElevatedButton(
+                                            onPressed: () => context.go('/home'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: amberColor,
+                                              foregroundColor: onAmberColor,
+                                              elevation: 0,
+                                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(C.radiusCard),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              'EXPLORE THE FLOOR',
+                                              style: GoogleFonts.manrope(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            return ListView.separated(
+                              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                              padding: const EdgeInsets.all(16),
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: 10),
+                              itemBuilder: (context, i) {
+                                final order = filtered[i];
+                                return _buildOrderCard(order);
+                              },
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-
-            // Orders List
-            Expanded(
-              child: BlocBuilder<OrderBloc, OrderState>(
-                builder: (context, state) {
-                  if (state is OrderLoading) {
-                    return Center(child: CircularProgressIndicator(color: amberColor));
-                  } else if (state is OrderError) {
-                    final roseColor = isDark ? C.darkRose : C.lightRose;
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.error_outline, size: 44, color: roseColor),
-                            const SizedBox(height: 12),
-                            Text(state.message, textAlign: TextAlign.center, style: GoogleFonts.manrope(color: muteTextColor)),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () => context.read<OrderBloc>().add(LoadOrdersEvent()),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: amberColor,
-                                foregroundColor: onAmberColor,
-                              ),
-                              child: const Text('RETRY'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  } else if (state is OrdersLoaded) {
-                    final filtered = _filterStatus == 'ALL'
-                        ? state.orders
-                        : state.orders.where((o) => o.status.toUpperCase() == _filterStatus).toList();
-
-                    if (filtered.isEmpty) {
-                      return ScrollConfiguration(
-                        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-                        child: Center(
-                          child: SingleChildScrollView(
-                            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                            padding: const EdgeInsets.all(32),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.receipt_long_outlined, size: 48, color: muteTextColor),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'NO ORDERS RECORDED',
-                                  style: GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.bold, color: secondaryTextColor),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'No transactions match the selected filter.',
-                                  style: GoogleFonts.manrope(fontSize: 12, color: muteTextColor),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-
-                    return ListView.separated(
-                      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                      padding: const EdgeInsets.all(16),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, i) {
-                        final order = filtered[i];
-                        return _buildOrderCard(order);
-                      },
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

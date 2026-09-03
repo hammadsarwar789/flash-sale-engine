@@ -80,37 +80,43 @@ class _HomeScreenState extends State<HomeScreen> {
         automaticallyImplyLeading: false,
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
-        title: Row(
-          children: [
-            Text(
-              'FLASH',
-              style: GoogleFonts.sora(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: primaryTextColor,
-                letterSpacing: 0.5,
+        titleSpacing: 12,
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'FLASH',
+                style: GoogleFonts.sora(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: primaryTextColor,
+                  letterSpacing: 0.3,
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: amberColor,
-                shape: BoxShape.circle,
+              const SizedBox(width: 4),
+              Container(
+                width: 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: amberColor,
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              'SALE',
-              style: GoogleFonts.sora(
-                fontSize: 17,
-                fontWeight: FontWeight.w400,
-                color: secondaryTextColor,
-                letterSpacing: 0.5,
+              const SizedBox(width: 4),
+              Text(
+                'SALE',
+                style: GoogleFonts.sora(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: secondaryTextColor,
+                  letterSpacing: 0.3,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           // Theme Toggle (Sun / Moon)
