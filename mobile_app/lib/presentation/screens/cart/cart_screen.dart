@@ -83,7 +83,10 @@ class _CartScreenState extends State<CartScreen> with WidgetsBindingObserver {
 
   void _onProceedToCheckout(CartSummaryModel cart) {
     final items = cart.items;
-    if (items.isEmpty) return;
+    if (items.isEmpty) {
+      AppToast.showInfo(context, 'Your hold vault is empty.');
+      return;
+    }
 
     final authState = context.read<AuthBloc>().state;
     final order = OrderModel(
@@ -93,8 +96,8 @@ class _CartScreenState extends State<CartScreen> with WidgetsBindingObserver {
       status: 'pending',
       items: items
           .map((i) => OrderItemModel(
-                id: i.id ?? '0',
-                productId: i.productId ?? '0',
+                id: i.id != null ? int.tryParse(i.id.toString()) : null,
+                productId: int.tryParse(i.productId?.toString() ?? '0') ?? 0,
                 productName: i.productName.isNotEmpty ? i.productName : (i.product?.name ?? 'Flash Item'),
                 unitPrice: i.unitPrice,
                 quantity: i.quantity,
@@ -115,7 +118,8 @@ class _CartScreenState extends State<CartScreen> with WidgetsBindingObserver {
       context.push(
         '/login',
         extra: {
-          'returnTo': '/checkout',
+          'returnTo': '/settlement',
+          'redirectTo': '/settlement',
           'checkoutData': checkoutData,
         },
       );
@@ -123,7 +127,7 @@ class _CartScreenState extends State<CartScreen> with WidgetsBindingObserver {
     }
 
     context.push(
-      '/checkout',
+      '/settlement',
       extra: checkoutData,
     );
   }

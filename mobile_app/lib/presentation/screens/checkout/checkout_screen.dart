@@ -6,9 +6,11 @@ import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/data/models/cart_model.dart';
 import 'package:mobile_app/data/models/order_model.dart';
 import 'package:mobile_app/data/repositories/cart_repository.dart';
-import 'package:mobile_app/logic/orders/order_bloc.dart';
-import 'package:mobile_app/logic/orders/order_event.dart';
-import 'package:mobile_app/logic/orders/order_state.dart';
+import 'package:mobile_app/logic/checkout/checkout_bloc.dart';
+import 'package:mobile_app/logic/checkout/checkout_event.dart';
+import 'package:mobile_app/logic/checkout/checkout_state.dart';
+import 'package:mobile_app/logic/cart/cart_bloc.dart';
+import 'package:mobile_app/logic/cart/cart_event.dart';
 import 'package:mobile_app/presentation/widgets/app_toast.dart';
 import 'package:mobile_app/presentation/widgets/price_text.dart';
 
@@ -111,23 +113,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void _onConfirmPayment() {
     if (!_formKey.currentState!.validate()) return;
 
-    final orderIdInt = int.tryParse(widget.order.id.toString()) ?? 1;
+    final shippingAddress = {
+      'recipient_name': _nameController.text.trim(),
+      'address_line1': _addressController.text.trim(),
+      'city': _cityController.text.trim(),
+      'state': _stateController.text.trim(),
+      'postal_code': _postalController.text.trim(),
+      'country': _selectedCountry,
+      'phone': _phoneController.text.trim(),
+    };
 
-    if (_selectedPaymentMethod == 'cod') {
-      context.read<OrderBloc>().add(
-            PayOrderEvent(
-              orderId: orderIdInt,
-              paymentMethod: 'cod',
-            ),
-          );
-    } else {
-      context.read<OrderBloc>().add(
-            PayOrderEvent(
-              orderId: orderIdInt,
-              paymentMethod: 'card',
-            ),
-          );
-    }
+    final items = widget.order.items.map((i) => {
+      'product_id': i.productId,
+      'quantity': i.quantity,
+      'unit_price': i.unitPrice,
+    }).toList();
+
+    context.read<CheckoutBloc>().add(
+          ProceedToSettlementEvent(
+            couponCode: widget.couponCode,
+            shippingAddress: shippingAddress,
+            paymentMethod: _selectedPaymentMethod,
+            items: items,
+          ),
+        );
   }
 
   @override
@@ -136,15 +145,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final discount = widget.discount;
     final total = (subtotal - discount).clamp(0.0, double.infinity);
 
-    return BlocListener<OrderBloc, OrderState>(
+    return BlocListener<CheckoutBloc, CheckoutState>(
       listener: (context, state) {
-        if (state is PaymentSuccess) {
+        if (state is CheckoutSuccess) {
+          context.read<CartBloc>().add(ClearCartEvent());
           AppToast.showSuccess(
             context,
-            'PAYMENT AUTHORIZED: Order #${widget.order.id}',
+            'PAYMENT SETTLED: Order #${state.order.id}',
           );
-          context.go('/order/${widget.order.id}');
-        } else if (state is OrderError) {
+          context.go('/order-success', extra: state.order);
+        } else if (state is CheckoutFailure) {
           AppToast.showError(context, state.message);
         }
       },
@@ -493,9 +503,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(height: 24),
 
               // Confirm Button
-              BlocBuilder<OrderBloc, OrderState>(
+              BlocBuilder<CheckoutBloc, CheckoutState>(
                 builder: (context, state) {
-                  final isProcessing = state is OrderLoading;
+                  final isProcessing = state is CheckoutLoading;
                   return SizedBox(
                     width: double.infinity,
                     height: 50,

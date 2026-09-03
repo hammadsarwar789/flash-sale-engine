@@ -10,6 +10,7 @@ import 'package:mobile_app/presentation/screens/auth/register_screen.dart';
 import 'package:mobile_app/presentation/screens/auth/reset_password_screen.dart';
 import 'package:mobile_app/presentation/screens/cart/cart_screen.dart';
 import 'package:mobile_app/presentation/screens/checkout/checkout_screen.dart';
+import 'package:mobile_app/presentation/screens/checkout/order_success_screen.dart';
 import 'package:mobile_app/presentation/screens/home/home_screen.dart';
 import 'package:mobile_app/presentation/screens/orders/order_detail_screen.dart';
 import 'package:mobile_app/presentation/screens/orders/orders_screen.dart';
@@ -175,6 +176,44 @@ class AppRouter {
             couponCode: couponCode,
             discount: discount,
           );
+        },
+      ),
+      GoRoute(
+        path: '/settlement',
+        builder: (context, state) {
+          OrderModel? order;
+          String? couponCode;
+          double discount = 0.0;
+
+          if (state.extra is OrderModel) {
+            order = state.extra as OrderModel;
+          } else if (state.extra is Map<String, dynamic>) {
+            final map = state.extra as Map<String, dynamic>;
+            order = map['order'] as OrderModel?;
+            couponCode = map['couponCode'] as String?;
+            discount = (map['discount'] is num) ? (map['discount'] as num).toDouble() : 0.0;
+          }
+
+          if (order == null) {
+            return const CartScreen();
+          }
+          return CheckoutScreen(
+            order: order,
+            couponCode: couponCode,
+            discount: discount,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/order-success',
+        builder: (context, state) {
+          final order = state.extra as OrderModel?;
+          if (order == null) {
+            return const Scaffold(
+              body: Center(child: Text('Order Not Found')),
+            );
+          }
+          return OrderSuccessScreen(order: order);
         },
       ),
       GoRoute(

@@ -41,6 +41,8 @@ class ApiConstants {
 
   // Order & Flash Sale Endpoints
   static const String reserveOrder = '/orders/reserve';
+  static const String checkout = '/orders/checkout';
+  static const String guestCheckout = '/orders/guest-checkout';
   static const String orders = '/orders';
   static String orderDetail(dynamic id) => '/orders/$id';
   static String createPaymentIntent(dynamic id) => '/orders/$id/pay';

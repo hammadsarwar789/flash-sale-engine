@@ -71,8 +71,13 @@ class _LoginScreenState extends State<LoginScreen> {
           if (!context.mounted) return;
           context.read<CartBloc>().add(LoadCartEvent());
           context.read<WishlistBloc>().add(LoadWishlistEvent());
-          if (widget.returnTo != null && widget.returnTo!.isNotEmpty) {
-            context.go(widget.returnTo!, extra: widget.returnExtra);
+          String? targetRoute = widget.returnTo;
+          if (targetRoute == null && widget.returnExtra is Map) {
+            final map = widget.returnExtra as Map;
+            targetRoute = map['redirectTo']?.toString() ?? map['returnTo']?.toString();
+          }
+          if (targetRoute != null && targetRoute.isNotEmpty) {
+            context.go(targetRoute, extra: widget.returnExtra);
           } else {
             context.go('/home');
           }

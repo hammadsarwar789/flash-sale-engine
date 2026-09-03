@@ -13,6 +13,7 @@ import 'logic/orders/order_bloc.dart';
 import 'logic/products/product_bloc.dart';
 import 'logic/wishlist/wishlist_bloc.dart';
 import 'logic/reviews/review_bloc.dart';
+import 'logic/checkout/checkout_bloc.dart';
 import 'core/theme/theme_controller.dart';
 import 'presentation/routes/app_router.dart';
 
@@ -74,6 +75,11 @@ class FlashSaleApp extends StatelessWidget {
           BlocProvider<ReviewBloc>(
             create: (context) => ReviewBloc(
               productRepository: context.read<ProductRepository>(),
+            ),
+          ),
+          BlocProvider<CheckoutBloc>(
+            create: (context) => CheckoutBloc(
+              orderRepository: context.read<OrderRepository>(),
             ),
           ),
         ],
