@@ -277,13 +277,19 @@ def ensure_default_admin():
         admin_email = os.getenv("ADMIN_INITIAL_EMAIL") or current_app.config.get("ADMIN_INITIAL_EMAIL")
         admin_pass = os.getenv("ADMIN_INITIAL_PASSWORD") or current_app.config.get("ADMIN_INITIAL_PASSWORD")
 
-        if is_production and (not admin_email or not admin_pass):
-            raise ValueError(
-                "CRITICAL SECURITY CONFIGURATION ERROR: Both ADMIN_INITIAL_EMAIL and ADMIN_INITIAL_PASSWORD "
-                "must be explicitly defined in the environment for production initialization."
-            )
+        if is_production:
+            if not admin_email or not admin_pass:
+                raise ValueError(
+                    "CRITICAL SECURITY CONFIGURATION ERROR: Both ADMIN_INITIAL_EMAIL and ADMIN_INITIAL_PASSWORD "
+                    "must be explicitly defined in the environment for production initialization."
+                )
+            if admin_pass in {"Password123", "AdminPass123!", "admin", "password"} or len(admin_pass) < 8:
+                raise ValueError(
+                    "CRITICAL SECURITY CONFIGURATION ERROR: ADMIN_INITIAL_PASSWORD cannot be set to 'Password123' "
+                    "or an insecure default in production."
+                )
 
-        admin_email = admin_email or "admin@flashsale.com"
+        admin_email = admin_email or "admin@local.test"
         admin_pass = admin_pass or "Password123"
 
         admin = db.session.query(User).filter_by(email=admin_email).first()
