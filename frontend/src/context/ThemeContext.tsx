@@ -10,13 +10,19 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const THEME_KEY = 'theme_preference_v2';
+
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<ThemeMode>(() => {
-    const saved = localStorage.getItem('theme_preference');
-    if (saved === 'day' || saved === 'night') {
-      return saved;
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === 'day' || saved === 'night') {
+        return saved;
+      }
+    } catch (e) {
+      // Ignore storage errors
     }
-    // Explicitly default to 'day' (Light Mode) on first boot, without system preference fallback
+    // Explicitly default to 'day' (Light Mode) on initial load
     return 'day';
   });
 
@@ -29,7 +35,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.classList.add('light');
       root.classList.remove('dark');
     }
-    localStorage.setItem('theme_preference', theme);
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+      localStorage.setItem('theme_preference', theme);
+    } catch (e) {}
   }, [theme]);
 
   const toggleTheme = () => {

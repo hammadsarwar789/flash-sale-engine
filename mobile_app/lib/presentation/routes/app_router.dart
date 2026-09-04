@@ -20,32 +20,47 @@ import 'package:mobile_app/presentation/screens/shell/main_layout_screen.dart';
 import 'package:mobile_app/presentation/screens/splash/splash_screen.dart';
 import 'package:mobile_app/presentation/screens/vendor/vendor_dashboard_screen.dart';
 import 'package:mobile_app/presentation/screens/wishlist/wishlist_screen.dart';
+import 'package:mobile_app/presentation/widgets/reservation_banner.dart';
 
 class AppRouteObserver extends NavigatorObserver {
+  static String currentPath = '/home';
+
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
-    AppRouter.scaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+    _onRouteChanged();
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPop(route, previousRoute);
-    AppRouter.scaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+    _onRouteChanged();
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    _onRouteChanged();
+  }
+
+  void _onRouteChanged() {
+    try {
+      currentPath = AppRouter.router.routerDelegate.currentConfiguration.uri.toString();
+    } catch (_) {}
     AppRouter.scaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+    ReservationBannerController.instance.hide();
   }
 }
 
 class AppRouter {
+  static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
   static final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
+  static String get currentPath => AppRouteObserver.currentPath;
+
   static final GoRouter router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/home',
     observers: [AppRouteObserver()],
     redirect: _globalRedirect,

@@ -16,6 +16,7 @@ import 'logic/reviews/review_bloc.dart';
 import 'logic/checkout/checkout_bloc.dart';
 import 'core/theme/theme_controller.dart';
 import 'presentation/routes/app_router.dart';
+import 'presentation/widgets/reservation_banner.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -94,6 +95,14 @@ class FlashSaleApp extends StatelessWidget {
               darkTheme: AppTheme.darkTheme,
               themeMode: ThemeController.instance.themeMode,
               routerConfig: AppRouter.router,
+              builder: (context, child) {
+                return Stack(
+                  children: [
+                    ?child,
+                    const ReservationBannerOverlay(),
+                  ],
+                );
+              },
             );
           },
         ),

@@ -4,10 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/theme/tokens.dart';
 import 'package:mobile_app/presentation/routes/app_router.dart';
 
+import 'package:mobile_app/presentation/widgets/reservation_banner.dart';
+
 /// Centralized, transient toast / banner system with auto-dismiss timers,
 /// route-context awareness, and strict lifetime cleanup.
 class AppToast {
   static void hide([BuildContext? context]) {
+    ReservationBannerController.instance.hide();
     if (context != null) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
     } else {
@@ -16,6 +19,7 @@ class AppToast {
   }
 
   static void clear([BuildContext? context]) {
+    ReservationBannerController.instance.hide();
     if (context != null) {
       ScaffoldMessenger.of(context).clearSnackBars();
     } else {
@@ -23,61 +27,39 @@ class AppToast {
     }
   }
 
-  /// Context-aware Cart Reservation Toast
-  /// Automatically omits 'VIEW CART' action when already on the /cart or /checkout screen.
+  /// Context-aware Cart Reservation Toast / Banner
+  /// Features:
+  /// - 4000ms - 5000ms auto-dismiss lifecycle with cancellation on new triggers or manual dismissal.
+  /// - Top-right manual dismiss (✕ icon) button.
+  /// - Exit animations with pointer-events: none (IgnorePointer).
+  /// - Clean positioning above bottom navigation bar (Floor, Saved, Vault, Orders, Account) & safe-area insets.
+  /// - Context-aware VIEW CART action (omitted on /cart and /checkout).
   static void showReserved(
     BuildContext context, {
     required String productName,
     int quantity = 1,
+    Duration duration = const Duration(milliseconds: 4500),
   }) {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    } else {
+      AppRouter.scaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+    }
 
     String currentPath = '';
     try {
       currentPath = GoRouterState.of(context).matchedLocation;
-    } catch (_) {}
+    } catch (_) {
+      currentPath = AppRouteObserver.currentPath;
+    }
 
     final isOnCartOrCheckout = currentPath == '/cart' || currentPath == '/checkout';
 
-    final text = quantity > 1
-        ? 'RESERVED: $productName (QTY $quantity)'
-        : 'RESERVED: $productName';
-
-    messenger.showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.bolt, color: C.amber, size: 16),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                text,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: C.text,
-                ),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: C.raised,
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        action: isOnCartOrCheckout
-            ? null
-            : SnackBarAction(
-                label: 'VIEW CART',
-                textColor: C.amber,
-                onPressed: () {
-                  messenger.hideCurrentSnackBar();
-                  context.go('/cart');
-                },
-              ),
-      ),
+    ReservationBannerController.instance.show(
+      productName: productName,
+      quantity: quantity,
+      isOnCartOrCheckout: isOnCartOrCheckout,
+      duration: duration,
     );
   }
 

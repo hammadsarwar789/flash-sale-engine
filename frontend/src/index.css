@@ -2,8 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design System v3 "Obsidian Market" — Dark is canonical default */
-:root, .dark {
+/* Design System v3 — Day (Light Mode) is canonical default */
+:root, .light {
+  /* Surface ladder */
+  --base: #F7F6F3;
+  --surface: #FFFFFF;
+  --raised: #F1EFEA;
+  --overlay: #FFFFFF;
+
+  /* Line & borders */
+  --line: #E2DED5;
+  --line-strong: #C9C3B6;
+
+  /* Text hierarchy */
+  --text: #14100B;
+  --text-dim: #5B5A54;
+  --text-mute: #8C8A82;
+
+  /* Accents & semantics */
+  --amber: #C2721A;
+  --amber-press: #A65E12;
+  --on-amber: #FFFFFF;
+  --amber-soft: #FBEEDC;
+
+  --mint: #127A55;
+  --mint-soft: #DEF3E9;
+
+  --sky: #1667B8;
+  --sky-soft: #E1EEFB;
+
+  --rose: #C0362B;
+  --rose-soft: #FBE4E1;
+
+  --violet: #6844C4;
+  --violet-soft: #EEE8FC;
+
+  /* Compatibility aliases */
+  --bone: var(--base);
+  --paper: var(--surface);
+  --paper-sunk: var(--raised);
+  --ink: var(--text);
+  --graphite: var(--text-dim);
+  --ash: var(--text-mute);
+  --rule: var(--line);
+  --signal: var(--amber);
+  --signal-ink: var(--on-amber);
+  --gain: var(--mint);
+  --warn: var(--amber);
+  --loss: var(--rose);
+  --marker: var(--amber-soft);
+}
+
+/* Night / Dark theme counterpart */
+.dark, .night {
   /* Surface ladder */
   --base: #0B0D0C;
   --surface: #131715;
@@ -38,53 +89,6 @@
   --violet-soft: #1D1730;
 
   /* Compatibility aliases for seamless transitions */
-  --bone: var(--base);
-  --paper: var(--surface);
-  --paper-sunk: var(--raised);
-  --ink: var(--text);
-  --graphite: var(--text-dim);
-  --ash: var(--text-mute);
-  --rule: var(--line);
-  --signal: var(--amber);
-  --signal-ink: var(--on-amber);
-  --gain: var(--mint);
-  --warn: var(--amber);
-  --loss: var(--rose);
-  --marker: var(--amber-soft);
-}
-
-/* Light theme counterpart */
-.light {
-  --base: #F7F6F3;
-  --surface: #FFFFFF;
-  --raised: #F1EFEA;
-  --overlay: #FFFFFF;
-
-  --line: #E2DED5;
-  --line-strong: #C9C3B6;
-
-  --text: #14100B;
-  --text-dim: #5B5A54;
-  --text-mute: #8C8A82;
-
-  --amber: #C2721A;
-  --amber-press: #A65E12;
-  --on-amber: #FFFFFF;
-  --amber-soft: #FBEEDC;
-
-  --mint: #127A55;
-  --mint-soft: #DEF3E9;
-
-  --sky: #1667B8;
-  --sky-soft: #E1EEFB;
-
-  --rose: #C0362B;
-  --rose-soft: #FBE4E1;
-
-  --violet: #6844C4;
-  --violet-soft: #EEE8FC;
-
-  /* Compatibility aliases */
   --bone: var(--base);
   --paper: var(--surface);
   --paper-sunk: var(--raised);

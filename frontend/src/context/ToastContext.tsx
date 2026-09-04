@@ -60,12 +60,12 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         {toasts.map((t) => {
           const bgStyles =
             t.type === 'error'
-              ? 'bg-[#181414] dark:bg-[#181414] border-rose/50 text-rose'
+              ? 'bg-surface dark:bg-[#181414] border-rose/50 text-rose'
               : t.type === 'success'
-              ? 'bg-[#131815] dark:bg-[#131815] border-mint/50 text-mint'
+              ? 'bg-surface dark:bg-[#131815] border-mint/50 text-mint'
               : t.type === 'warning'
-              ? 'bg-[#181612] dark:bg-[#181612] border-amber/50 text-amber'
-              : 'bg-[#131715] dark:bg-[#131715] border-line text-text';
+              ? 'bg-surface dark:bg-[#181612] border-amber/50 text-amber'
+              : 'bg-surface dark:bg-[#131715] border-line text-text';
 
           const IconComponent =
             t.type === 'error'
