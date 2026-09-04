@@ -86,7 +86,7 @@ def test_scope_aware_rbac_middleware(client, app_instance):
         db.session.commit()
 
         # Generate scoped token for Manager of Outlet 1
-        secret_key = app_instance.config["SECRET_KEY"]
+        secret_key = app_instance.config.get("JWT_SECRET_KEY", app_instance.config["SECRET_KEY"])
         token = create_access_token(
             user_id=user.id,
             role="user",

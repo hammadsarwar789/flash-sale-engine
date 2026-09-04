@@ -9,7 +9,10 @@ load_dotenv(BASE_DIR / ".env")
 class BaseConfig:
     """Base configuration settings."""
 
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "default-dev-secret-key-12345")
+    SECRET_KEY: str = os.getenv(
+        "SECRET_KEY",
+        "default-dev-secret-key-must-be-at-least-32-chars-long-12345",
+    )
     DEBUG: bool = False
     TESTING: bool = False
 
@@ -44,7 +47,10 @@ class BaseConfig:
     result_backend: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 
     # JWT Authentication
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "default-dev-secret-key-12345"))
+    JWT_SECRET_KEY: str = os.getenv(
+        "JWT_SECRET_KEY",
+        os.getenv("SECRET_KEY", "default-jwt-secret-key-must-be-at-least-32-chars-long-12345"),
+    )
     JWT_ACCESS_TOKEN_EXPIRES_MINUTES: int = int(
         os.getenv("JWT_ACCESS_TOKEN_EXPIRES_MINUTES", "60")
     )
@@ -117,6 +123,8 @@ class TestingConfig(BaseConfig):
     """Testing environment configuration."""
 
     TESTING: bool = True
+    SECRET_KEY: str = "test-secret-key-must-be-at-least-32-chars-long!"
+    JWT_SECRET_KEY: str = "test-jwt-secret-key-at-least-32-bytes-long!"
     SQLALCHEMY_DATABASE_URI: str = "sqlite:///:memory:"
     SQLALCHEMY_ENGINE_OPTIONS = {}
     REDIS_DB: int = 15
