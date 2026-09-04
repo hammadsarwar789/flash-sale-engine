@@ -47,7 +47,7 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
   }
 
   void _updateRemaining() {
-    final diff = widget.targetEndTime.difference(DateTime.now());
+    final diff = widget.targetEndTime.toUtc().difference(DateTime.now().toUtc());
     if (diff.isNegative) {
       _timer?.cancel();
       _remaining = Duration.zero;
@@ -70,106 +70,58 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
     super.dispose();
   }
 
-  Widget _buildTimeBox(String value, String unit, bool isUrgent) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-          decoration: BoxDecoration(
-            color: C.raised,
-            borderRadius: BorderRadius.circular(C.radiusCard),
-            border: Border.all(color: isUrgent ? C.amber : C.line),
-          ),
-          child: Text(
-            value,
-            style: GoogleFonts.jetBrainsMono(
-              color: isUrgent ? C.amber : C.text,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          unit,
-          style: GoogleFonts.manrope(
-            color: C.textMute,
-            fontSize: 9,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final hours = _remaining.inHours.toString().padLeft(2, '0');
-    final minutes = (_remaining.inMinutes % 60).toString().padLeft(2, '0');
-    final seconds = (_remaining.inSeconds % 60).toString().padLeft(2, '0');
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final isUrgent = _remaining.inSeconds <= 60 && _remaining.inSeconds > 0;
 
+    final roseColor = isDark ? C.darkRose : C.lightRose;
+    final amberColor = isDark ? C.darkAmber : C.lightAmber;
+    final activeColor = isUrgent ? roseColor : amberColor;
+    final bgColor = isUrgent
+        ? roseColor.withValues(alpha: isDark ? 0.15 : 0.08)
+        : amberColor.withValues(alpha: isDark ? 0.12 : 0.08);
+    final borderColor = isUrgent
+        ? roseColor.withValues(alpha: 0.3)
+        : amberColor.withValues(alpha: 0.25);
+
+    final hours = _remaining.inHours;
+    final minutes = (_remaining.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (_remaining.inSeconds % 60).toString().padLeft(2, '0');
+    final timeString = hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: C.amberSoft,
+        color: bgColor,
         borderRadius: BorderRadius.circular(C.radiusCard),
-        border: Border.all(color: C.amber.withValues(alpha: 0.3)),
+        border: Border.all(color: borderColor),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Flexible(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: C.amber,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    widget.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.jetBrainsMono(
-                      color: C.amber,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 11,
-                      letterSpacing: 0.5,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
-              ],
+          Icon(
+            isUrgent ? Icons.warning_amber_rounded : Icons.timer_outlined,
+            size: 15,
+            color: activeColor,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Items held for ',
+            style: GoogleFonts.manrope(
+              color: isDark ? C.darkText : const Color(0xFF374151),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(width: 8),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerRight,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildTimeBox(hours, 'HRS', isUrgent),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: Text(':', style: GoogleFonts.jetBrainsMono(color: C.amber, fontWeight: FontWeight.bold, fontSize: 12)),
-                ),
-                _buildTimeBox(minutes, 'MIN', isUrgent),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: Text(':', style: GoogleFonts.jetBrainsMono(color: C.amber, fontWeight: FontWeight.bold, fontSize: 12)),
-                ),
-                _buildTimeBox(seconds, 'SEC', isUrgent),
-              ],
+          Text(
+            timeString,
+            style: GoogleFonts.jetBrainsMono(
+              color: activeColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
         ],

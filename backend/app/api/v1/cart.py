@@ -192,6 +192,17 @@ def update_cart_item(data, item_id):
     except Exception:
         pass
 
+    # If quantity is reduced to 0 or less, auto-remove item and release hold
+    if data["quantity"] <= 0:
+        db.session.delete(cart_item)
+        db.session.commit()
+        try:
+            from app.services.inventory_service import InventoryService
+            InventoryService.release_stock(cart_item.product_id, cart_item.quantity, cart_item.variant_id)
+        except Exception as e:
+            logger.warning(f"Could not release inventory hold on zero-quantity deletion: {e}")
+        return jsonify({"message": "Item removed from cart", "item_id": item_id}), 200
+
     if data["quantity"] > available_stock:
         return (
             jsonify(
@@ -206,15 +217,26 @@ def update_cart_item(data, item_id):
             409,
         )
 
+    prev_qty = cart_item.quantity
     cart_item.quantity = data["quantity"]
     db.session.commit()
+
+    # If quantity decreased, release the delta back to the active inventory pool
+    if data["quantity"] < prev_qty:
+        delta = prev_qty - data["quantity"]
+        try:
+            from app.services.inventory_service import InventoryService
+            InventoryService.release_stock(cart_item.product_id, delta, cart_item.variant_id)
+        except Exception as e:
+            logger.warning(f"Could not release decremented inventory hold: {e}")
+
     return cart_item.to_dict(), 200
 
 
 @cart_bp.route("/items/<string:item_id>", methods=["DELETE", "OPTIONS"])
 @jwt_required
 def delete_cart_item(item_id):
-    """Remove a specific item from the cart."""
+    """Remove a specific item from the cart and release its inventory hold."""
     user_id = g.current_user_id
     cart_item = db.session.query(CartItem).filter_by(id=item_id, user_id=user_id).first()
 
@@ -231,6 +253,13 @@ def delete_cart_item(item_id):
             404,
         )
 
+    # Release held stock back to the active pool immediately
+    try:
+        from app.services.inventory_service import InventoryService
+        InventoryService.release_stock(cart_item.product_id, cart_item.quantity, cart_item.variant_id)
+    except Exception as e:
+        logger.warning(f"Could not release inventory hold for deleted cart item {item_id}: {e}")
+
     db.session.delete(cart_item)
     db.session.commit()
     return jsonify({"message": "Item removed from cart", "item_id": item_id}), 200
@@ -239,8 +268,16 @@ def delete_cart_item(item_id):
 @cart_bp.route("", methods=["DELETE", "OPTIONS"])
 @jwt_required
 def clear_cart():
-    """Clear all items from user's shopping cart."""
+    """Clear all items from user's shopping cart and release all held inventory."""
     user_id = g.current_user_id
+    cart_items = db.session.query(CartItem).filter_by(user_id=user_id).all()
+    for item in cart_items:
+        try:
+            from app.services.inventory_service import InventoryService
+            InventoryService.release_stock(item.product_id, item.quantity, item.variant_id)
+        except Exception as e:
+            logger.warning(f"Could not release inventory hold for cart item {item.id}: {e}")
+
     db.session.query(CartItem).filter_by(user_id=user_id).delete()
     db.session.commit()
     return jsonify({"message": "Cart cleared successfully"}), 200

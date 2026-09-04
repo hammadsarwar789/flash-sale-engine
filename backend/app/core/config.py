@@ -70,9 +70,47 @@ class DevelopmentConfig(BaseConfig):
 
 
 class ProductionConfig(BaseConfig):
-    """Production environment configuration."""
+    """Production environment configuration with strict secret validation."""
 
     DEBUG: bool = False
+
+    @classmethod
+    def validate_production_secrets(cls):
+        """Enforce that required production secrets are configured and not using default values."""
+        insecure_defaults = {
+            "default-dev-secret-key-12345",
+            "super-secret-key-change-me",
+            "change-me",
+            "secret",
+        }
+        secret_key = os.getenv("SECRET_KEY", "")
+        if not secret_key or secret_key.strip() in insecure_defaults or len(secret_key) < 16:
+            raise ValueError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: SECRET_KEY is missing, empty, or using an insecure default in production. "
+                "Generate a cryptographically secure 32-byte secret using `python -c 'import secrets; print(secrets.token_hex(32))'` "
+                "and set it in the environment."
+            )
+
+        jwt_key = os.getenv("JWT_SECRET_KEY", secret_key)
+        if not jwt_key or jwt_key.strip() in insecure_defaults:
+            raise ValueError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: JWT_SECRET_KEY is using an insecure default in production."
+            )
+
+        admin_email = os.getenv("ADMIN_INITIAL_EMAIL", "")
+        admin_pass = os.getenv("ADMIN_INITIAL_PASSWORD", "")
+        insecure_passwords = {"Password123", "AdminPass123!", "admin", "password", "12345678"}
+
+        if not admin_email or not admin_pass:
+            raise ValueError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: Both ADMIN_INITIAL_EMAIL and ADMIN_INITIAL_PASSWORD "
+                "must be explicitly set in the environment when FLASK_ENV=production."
+            )
+
+        if admin_pass in insecure_passwords or len(admin_pass) < 8:
+            raise ValueError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: ADMIN_INITIAL_PASSWORD cannot be a weak or default password in production."
+            )
 
 
 class TestingConfig(BaseConfig):

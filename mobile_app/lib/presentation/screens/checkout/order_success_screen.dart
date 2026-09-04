@@ -42,34 +42,33 @@ class OrderSuccessScreen extends StatelessWidget {
                   // Success Signal Icon
                   Center(
                     child: Container(
-                      width: 80,
-                      height: 80,
+                      width: 72,
+                      height: 72,
                       decoration: BoxDecoration(
                         color: mintColor.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
-                        border: Border.all(color: mintColor.withValues(alpha: 0.4), width: 2),
+                        border: Border.all(color: mintColor.withValues(alpha: 0.35), width: 2),
                       ),
                       child: Center(
-                        child: Icon(Icons.check_circle, size: 44, color: mintColor),
+                        child: Icon(Icons.check_circle, size: 40, color: mintColor),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Header Title
                   Text(
-                    'SETTLEMENT COMPLETE',
+                    'Order confirmed!',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.sora(
                       fontSize: 22,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       color: primaryTextColor,
-                      letterSpacing: -0.5,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Your inventory holds have been atomically locked and enqueued for fulfillment.',
+                    "Thank you for your purchase. We've received your order and are preparing it for shipment.",
                     textAlign: TextAlign.center,
                     style: GoogleFonts.manrope(
                       fontSize: 13,
@@ -86,6 +85,15 @@ class OrderSuccessScreen extends StatelessWidget {
                       color: cardBg,
                       borderRadius: BorderRadius.circular(C.radiusCard),
                       border: Border.all(color: cardBorder),
+                      boxShadow: isDark
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.03),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,20 +102,20 @@ class OrderSuccessScreen extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'ORDER REFERENCE',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                              'Order reference',
+                              style: GoogleFonts.manrope(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
                                 color: muteTextColor,
-                                letterSpacing: 0.5,
                               ),
                             ),
                             Text(
-                              '#ORD-${order.shortId}',
+                              '#${order.shortId}',
                               style: GoogleFonts.jetBrainsMono(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
                                 color: amberColor,
+                                fontFeatures: const [FontFeature.tabularFigures()],
                               ),
                             ),
                           ],
@@ -117,10 +125,10 @@ class OrderSuccessScreen extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'STATUS',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                              'Status',
+                              style: GoogleFonts.manrope(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
                                 color: muteTextColor,
                               ),
                             ),
@@ -128,13 +136,13 @@ class OrderSuccessScreen extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
                                 color: mintColor.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: BorderRadius.circular(C.radiusCard),
                               ),
                               child: Text(
                                 order.status.toUpperCase(),
-                                style: GoogleFonts.jetBrainsMono(
+                                style: GoogleFonts.manrope(
                                   fontSize: 10,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w700,
                                   color: mintColor,
                                 ),
                               ),
@@ -146,10 +154,10 @@ class OrderSuccessScreen extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'TOTAL SETTLED',
+                              'Total',
                               style: GoogleFonts.sora(
                                 fontSize: 13,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 color: primaryTextColor,
                               ),
                             ),
@@ -163,11 +171,11 @@ class OrderSuccessScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
-                  // Direct CTA 1: View Order in Ledger
+                  // Direct CTA 1: View Order
                   SizedBox(
-                    height: 48,
+                    height: C.heightButtonPrimary,
                     child: ElevatedButton(
                       onPressed: () => context.go('/orders'),
                       style: ElevatedButton.styleFrom(
@@ -179,20 +187,19 @@ class OrderSuccessScreen extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        'VIEW ORDER IN LEDGER →',
+                        'View order',
                         style: GoogleFonts.manrope(
                           fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.3,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  // Direct CTA 2: Continue Browsing
+                  // Direct CTA 2: Browse Deals
                   SizedBox(
-                    height: 44,
+                    height: C.heightButtonPrimary,
                     child: OutlinedButton(
                       onPressed: () => context.go('/home'),
                       style: OutlinedButton.styleFrom(
@@ -203,10 +210,10 @@ class OrderSuccessScreen extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        'CONTINUE BROWSING',
+                        'Browse deals',
                         style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),

@@ -1,60 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
+import { useToast } from '../context/ToastContext';
 import { CartItemRow } from '../components/cart/CartItemRow';
 import { CouponInput } from '../components/cart/CouponInput';
 import { CouponValidation } from '../types/api';
 import { Money } from '../components/ui/Money';
 import { Eyebrow } from '../components/ui/Eyebrow';
 import { Countdown } from '../components/ui/Countdown';
-import { ShieldCheck, ArrowRight, ShoppingBag } from 'lucide-react';
+import { ShieldCheck, ArrowRight, ShoppingBag, AlertTriangle } from 'lucide-react';
 
 export const CartPage: React.FC = () => {
   const { cart, isLoading, clearCart } = useCart();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null);
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(300);
+  const [isExpired, setIsExpired] = useState<boolean>(false);
 
   const items = cart?.items || [];
 
+  const [expiresAt, setExpiresAt] = useState<string | null>(() => {
+    return localStorage.getItem('reservation_expires_at');
+  });
+
+  const handleExpire = () => {
+    setIsExpired(true);
+    localStorage.removeItem('reservation_expires_at');
+    localStorage.removeItem('cart_hold_expires_at');
+    toast.error('Your reservation has expired. Stock released to the floor.');
+    clearCart();
+  };
+
   useEffect(() => {
     if (items.length === 0) {
+      localStorage.removeItem('reservation_expires_at');
       localStorage.removeItem('cart_hold_expires_at');
-      setSecondsRemaining(300);
+      setExpiresAt(null);
+      setIsExpired(false);
       return;
     }
 
-    const HOLD_DURATION_MS = 5 * 60 * 1000;
-    const saved = localStorage.getItem('cart_hold_expires_at');
-    let expiresAt = saved ? parseInt(saved, 10) : 0;
+    // Determine target expiration time from server cart/item or localStorage
+    const serverExpiry = cart?.expires_at || items.find((i) => i.expires_at)?.expires_at;
+    const storedExpiry = localStorage.getItem('reservation_expires_at');
 
-    if (!expiresAt || isNaN(expiresAt)) {
-      expiresAt = Date.now() + HOLD_DURATION_MS;
-      localStorage.setItem('cart_hold_expires_at', expiresAt.toString());
-    } else if (expiresAt <= Date.now()) {
-      localStorage.removeItem('cart_hold_expires_at');
-      clearCart();
-      setSecondsRemaining(0);
+    let effectiveExpiry = serverExpiry || storedExpiry;
+    if (!effectiveExpiry) {
+      effectiveExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    }
+
+    const targetMs = new Date(effectiveExpiry).getTime();
+    if (!isNaN(targetMs) && targetMs <= Date.now()) {
+      handleExpire();
       return;
     }
 
-    const updateTimer = () => {
-      const now = Date.now();
-      if (expiresAt <= now) {
-        localStorage.removeItem('cart_hold_expires_at');
-        clearCart();
-        setSecondsRemaining(0);
-      } else {
-        const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
-        setSecondsRemaining(remaining);
-      }
-    };
-
-    updateTimer();
-    const timer = setInterval(updateTimer, 1000);
-    return () => clearInterval(timer);
-  }, [items.length, clearCart]);
+    localStorage.setItem('reservation_expires_at', effectiveExpiry);
+    setExpiresAt(effectiveExpiry);
+  }, [items.length, cart?.expires_at]);
 
   if (isLoading) {
     return (
@@ -98,9 +102,9 @@ export const CartPage: React.FC = () => {
             <span className="text-text font-semibold">{String(cart?.item_count || 0).padStart(2, '0')} items held</span>
             <span>·</span>
             <Countdown
-              targetSeconds={secondsRemaining}
-              label="HOLD EXPIRES IN:"
-              onExpire={() => clearCart()}
+              expiresAt={expiresAt}
+              label="ITEMS HELD FOR:"
+              onExpire={handleExpire}
             />
           </div>
         </div>
@@ -163,17 +167,30 @@ export const CartPage: React.FC = () => {
               <span className="text-mint font-semibold">FREE INCLUDED</span>
             </div>
 
-            <div className="border-t border-line pt-4 flex items-baseline justify-between text-text">
-              <span className="font-display font-bold text-base">TOTAL DUE</span>
-              <Money amount={total} size="lg" className="font-bold text-text" />
+            <div className="border-t border-line pt-4 flex items-baseline justify-between">
+              <span className="font-display font-bold text-base text-neutral-900 dark:text-white tracking-wide">TOTAL DUE</span>
+              <Money amount={total} size="lg" className="font-bold text-neutral-900 dark:text-white text-xl" />
             </div>
           </div>
 
+          {isExpired && (
+            <div className="bg-rose/10 border border-rose/30 text-rose p-3.5 rounded-card font-mono text-xs flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold">Your reservation has expired. Stock released to the floor.</p>
+                <Link to="/products" className="underline hover:text-text block font-sans text-[11px]">
+                  Browse Deals to re-reserve items →
+                </Link>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={() => navigate('/checkout')}
-            className="w-full bg-amber text-on-amber hover:bg-amber-press py-3.5 px-6 rounded-card font-sans font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-sm"
+            disabled={isExpired || items.length === 0}
+            className="w-full bg-amber text-on-amber hover:bg-amber-press disabled:opacity-50 disabled:cursor-not-allowed py-3.5 px-6 rounded-card font-sans font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-sm"
           >
-            <span>PROCEED TO CHECKOUT</span>
+            <span>{isExpired ? 'RESERVATION EXPIRED' : 'PROCEED TO CHECKOUT'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
 

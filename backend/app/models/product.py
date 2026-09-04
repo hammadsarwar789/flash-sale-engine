@@ -16,7 +16,8 @@ class Product(db.Model):
     name = db.Column(db.String(255), nullable=False)
     sku = db.Column(db.String(64), unique=True, nullable=False, index=True)
     description = db.Column(db.Text, nullable=True)
-    images = db.Column(db.JSON, nullable=True, default=list)
+    image_url = db.Column(db.String(1024), nullable=True)
+    legacy_images = db.Column("images", db.JSON, nullable=True, default=list)
     total_stock = db.Column(db.Integer, nullable=False)
     available_stock = db.Column(db.Integer, nullable=False, index=True)
     price = db.Column(db.Numeric(12, 2), nullable=False)
@@ -53,6 +54,13 @@ class Product(db.Model):
     seller = db.relationship("Seller", back_populates="products", foreign_keys=[seller_id])
     warehouse = db.relationship("Warehouse", foreign_keys=[warehouse_id])
     variants = db.relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan", lazy="joined")
+    images = db.relationship(
+        "ProductImage",
+        back_populates="product",
+        cascade="all, delete-orphan",
+        order_by="ProductImage.display_order",
+        lazy="selectin",
+    )
     orders = db.relationship("Order", back_populates="product", lazy="select")
 
     __table_args__ = (
@@ -60,7 +68,29 @@ class Product(db.Model):
         db.CheckConstraint("available_stock >= 0", name="check_available_stock_non_negative"),
     )
 
+    @property
+    def primary_image_url(self):
+        """Retrieve primary cover image URL, falling back to first image or legacy image_url."""
+        if self.images:
+            for img in self.images:
+                if getattr(img, "is_primary", False):
+                    return img.image_url
+            return self.images[0].image_url
+        return self.image_url or None
+
     def to_dict(self):
+        primary_img = self.primary_image_url
+        image_dicts = [img.to_dict() for img in self.images] if self.images else []
+        if not image_dicts and self.image_url:
+            image_dicts = [{
+                "id": f"img-{self.id[:8]}",
+                "product_id": self.id,
+                "image_url": self.image_url,
+                "is_primary": True,
+                "display_order": 0,
+                "created_at": self.created_at.isoformat() if self.created_at else None,
+            }]
+
         return {
             "id": self.id,
             "category_id": self.category_id,
@@ -74,7 +104,9 @@ class Product(db.Model):
             "name": self.name,
             "sku": self.sku,
             "description": self.description,
-            "images": self.images or [],
+            "image_url": primary_img,
+            "primary_image_url": primary_img,
+            "images": image_dicts,
             "total_stock": self.total_stock,
             "available_stock": self.available_stock,
             "price": float(self.price),
@@ -94,3 +126,4 @@ class Product(db.Model):
             "variants": [v.to_dict() for v in self.variants] if self.variants else [],
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+

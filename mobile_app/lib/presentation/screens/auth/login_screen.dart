@@ -58,6 +58,11 @@ class _LoginScreenState extends State<LoginScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final primaryTextColor = isDark ? C.darkText : const Color(0xFF111827);
+    final secondaryTextColor = isDark ? C.darkTextDim : const Color(0xFF4B5563);
+    final muteTextColor = isDark ? C.darkTextMute : const Color(0xFF6B7280);
+    final amberColor = isDark ? C.darkAmber : C.lightAmber;
+    final inputBg = isDark ? C.darkRaised : const Color(0xFFF9FAFB);
+    final inputBorder = isDark ? C.darkLine : const Color(0xFFE5E7EB);
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) async {
@@ -118,69 +123,135 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           Text(
                             'FLASH',
-                            style: GoogleFonts.sora(fontSize: 24, fontWeight: FontWeight.w800, color: C.text),
+                            style: GoogleFonts.sora(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: primaryTextColor,
+                            ),
                           ),
                           const SizedBox(width: 5),
-                          Container(width: 8, height: 8, decoration: const BoxDecoration(color: C.amber, shape: BoxShape.circle)),
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(color: amberColor, shape: BoxShape.circle),
+                          ),
                           const SizedBox(width: 5),
                           Text(
                             'SALE',
-                            style: GoogleFonts.sora(fontSize: 24, fontWeight: FontWeight.w400, color: C.textDim),
+                            style: GoogleFonts.sora(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w400,
+                              color: secondaryTextColor,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     Text(
-                      'Identity Access',
+                      'Sign in',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.sora(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: C.text,
-                        letterSpacing: -0.3,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: primaryTextColor,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Sign in to access real-time commodity trading drops.',
+                      'Sign in to access real-time flash sales and exclusive deals.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.manrope(fontSize: 13, color: C.textMute),
+                      style: GoogleFonts.manrope(fontSize: 13, color: muteTextColor),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
 
+                    // Persistent Label: Email
+                    Text(
+                      'Email',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: secondaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
                     // Email Field
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      style: GoogleFonts.jetBrainsMono(fontSize: 13, color: C.text),
-                      decoration: const InputDecoration(
-                        labelText: 'Email Address',
-                        prefixIcon: Icon(Icons.mail_outline, size: 18, color: C.textMute),
+                      autofillHints: const [AutofillHints.email],
+                      style: GoogleFonts.manrope(fontSize: 13, color: primaryTextColor),
+                      decoration: InputDecoration(
+                        hintText: 'name@example.com',
+                        hintStyle: GoogleFonts.manrope(fontSize: 13, color: muteTextColor),
+                        filled: true,
+                        fillColor: inputBg,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        prefixIcon: Icon(Icons.mail_outline, size: 18, color: muteTextColor),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(C.radiusCard),
+                          borderSide: BorderSide(color: inputBorder),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(C.radiusCard),
+                          borderSide: BorderSide(color: inputBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(C.radiusCard),
+                          borderSide: BorderSide(color: amberColor),
+                        ),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) return 'Email is required';
-                        if (!value.contains('@')) return 'Enter a valid email';
+                        if (!value.contains('@')) return 'Enter a valid email address';
                         return null;
                       },
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
 
+                    // Persistent Label: Password
+                    Text(
+                      'Password',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: secondaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
                     // Password Field
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
-                      style: GoogleFonts.jetBrainsMono(fontSize: 13, color: C.text),
+                      autofillHints: const [AutofillHints.password],
+                      style: GoogleFonts.manrope(fontSize: 13, color: primaryTextColor),
                       decoration: InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline, size: 18, color: C.textMute),
+                        hintText: 'Enter your password',
+                        hintStyle: GoogleFonts.manrope(fontSize: 13, color: muteTextColor),
+                        filled: true,
+                        fillColor: inputBg,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        prefixIcon: Icon(Icons.lock_outline, size: 18, color: muteTextColor),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                             size: 18,
-                            color: C.textMute,
+                            color: muteTextColor,
                           ),
+                          tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(C.radiusCard),
+                          borderSide: BorderSide(color: inputBorder),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(C.radiusCard),
+                          borderSide: BorderSide(color: inputBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(C.radiusCard),
+                          borderSide: BorderSide(color: amberColor),
                         ),
                       ),
                       validator: (value) {
@@ -195,59 +266,73 @@ class _LoginScreenState extends State<LoginScreen> {
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: () => context.push('/forgot-password'),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(50, 30),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
                         child: Text(
-                          'Forgot Password?',
+                          'Forgot password?',
                           style: GoogleFonts.manrope(
-                            color: C.amber,
+                            color: amberColor,
                             fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
                     // Submit Button
                     BlocBuilder<AuthBloc, AuthState>(
                       builder: (context, state) {
                         final isLoading = state is AuthLoading;
-                        return ElevatedButton(
-                          onPressed: isLoading ? null : _submit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: C.amber,
-                            foregroundColor: C.onAmber,
-                            minimumSize: const Size.fromHeight(48),
+                        return SizedBox(
+                          height: C.heightButtonPrimary,
+                          child: ElevatedButton(
+                            onPressed: isLoading ? null : _submit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: amberColor,
+                              foregroundColor: isDark ? C.darkOnAmber : Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(C.radiusCard),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: isLoading
+                                ? const SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : Text(
+                                    'Sign in',
+                                    style: GoogleFonts.manrope(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                    ),
+                                  ),
                           ),
-                          child: isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: C.onAmber),
-                                )
-                              : Text(
-                                  'AUTHENTICATE →',
-                                  style: GoogleFonts.manrope(fontWeight: FontWeight.bold, fontSize: 13),
-                                ),
                         );
                       },
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
                     // Register Link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'No account record? ',
-                          style: GoogleFonts.manrope(color: C.textMute, fontSize: 13),
+                          "Don't have an account? ",
+                          style: GoogleFonts.manrope(color: muteTextColor, fontSize: 13),
                         ),
                         GestureDetector(
                           onTap: () => context.push('/register'),
                           child: Text(
-                            'Register Here',
+                            'Create one',
                             style: GoogleFonts.manrope(
-                              color: C.amber,
-                              fontWeight: FontWeight.bold,
+                              color: amberColor,
+                              fontWeight: FontWeight.w700,
                               fontSize: 13,
                             ),
                           ),
@@ -256,23 +341,26 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Guest Escape Hatch Button
-                    OutlinedButton.icon(
-                      onPressed: () => context.go('/home'),
-                      icon: Icon(Icons.storefront, size: 16, color: isDark ? C.darkTextDim : const Color(0xFF4B5563)),
-                      label: Text(
-                        'CONTINUE AS GUEST',
-                        style: GoogleFonts.manrope(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? C.darkTextDim : const Color(0xFF4B5563),
+                    // Demoted Guest Link (subtle text link)
+                    Center(
+                      child: TextButton(
+                        onPressed: () => context.go('/home'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: muteTextColor,
+                        ),
+                        child: Text(
+                          'Browse as guest',
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.underline,
+                            decorationColor: muteTextColor.withValues(alpha: 0.5),
+                            color: muteTextColor,
+                          ),
                         ),
                       ),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: isDark ? C.darkLine : const Color(0xFFE5E7EB)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
                     ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),

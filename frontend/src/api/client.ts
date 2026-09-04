@@ -55,6 +55,11 @@ export async function apiFetch<T>(endpoint: string, options: RequestOptions = {}
     ...(customHeaders as Record<string, string>),
   };
 
+  // If payload is FormData, remove Content-Type so browser sets boundary multipart/form-data
+  if (fetchOptions.body instanceof FormData) {
+    delete headers['Content-Type'];
+  }
+
   if (authToken) {
     headers['Authorization'] = `Bearer ${authToken}`;
   }

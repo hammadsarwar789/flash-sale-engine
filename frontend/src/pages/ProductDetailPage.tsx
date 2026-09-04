@@ -17,7 +17,7 @@ import { MAX_PER_ORDER } from '../types/cart';
 import { Money } from '../components/ui/Money';
 import { StockBar } from '../components/ui/StockBar';
 import { Eyebrow } from '../components/ui/Eyebrow';
-import { Heart, ChevronLeft, Minus, Plus, ShieldCheck, Truck, RotateCcw } from 'lucide-react';
+import { Heart, ChevronLeft, Minus, Plus, ShieldCheck, Truck, RotateCcw, Package } from 'lucide-react';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +35,7 @@ export const ProductDetailPage: React.FC = () => {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
+  const [imageError, setImageError] = useState<boolean>(false);
 
   const isWishlisted = wishlistItems.some((item) => item.product_id === id);
   const wishlistItem = wishlistItems.find((item) => item.product_id === id);
@@ -45,12 +46,41 @@ export const ProductDetailPage: React.FC = () => {
   const isLive = activeStock > 0 && activeStock <= 15;
   const maxAllowed = Math.min(activeStock, MAX_PER_ORDER);
 
-  const images = product?.images && product.images.length > 0
-    ? product.images
-    : [
-        'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80',
-        'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
-      ];
+  const extractImages = (): string[] => {
+    if (!product) return [];
+    const urlSet = new Set<string>();
+    const ordered: string[] = [];
+
+    const addUrl = (url?: string | null) => {
+      if (url && typeof url === 'string' && url.trim() && !urlSet.has(url)) {
+        urlSet.add(url);
+        ordered.push(url);
+      }
+    };
+
+    // 1. Primary image first
+    addUrl(product.primary_image_url);
+
+    // 2. Images list (checking for is_primary items first)
+    if (Array.isArray(product.images)) {
+      product.images.forEach((img: any) => {
+        if (typeof img === 'object' && img?.is_primary) {
+          addUrl(img.image_url);
+        }
+      });
+      product.images.forEach((img: any) => {
+        const u = typeof img === 'string' ? img : img?.image_url;
+        addUrl(u);
+      });
+    }
+
+    // 3. Fallback to image_url
+    addUrl(product.image_url);
+
+    return ordered;
+  };
+
+  const images = extractImages();
 
   const handleIncrement = () => {
     if (quantity >= maxAllowed) {
@@ -169,11 +199,21 @@ export const ProductDetailPage: React.FC = () => {
         <div className="lg:col-span-7 space-y-4">
           {/* Main Large Image */}
           <div className="relative aspect-square w-full bg-raised border border-line rounded-card overflow-hidden">
-            <img
-              src={images[selectedImageIndex] || images[0]}
-              alt={product.name}
-              className="w-full h-full object-cover object-center"
-            />
+            {images.length > 0 && !imageError ? (
+              <img
+                src={images[selectedImageIndex] || images[0]}
+                alt={product.name}
+                className="w-full h-full object-cover object-center"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-raised text-text-mute p-8 select-none">
+                <Package className="w-20 h-20 stroke-1 text-text-mute/50 mb-3" />
+                <span className="font-mono text-xs uppercase tracking-wider text-text-mute/80">
+                  {typeof product.category === 'string' ? product.category : product.category?.name || 'PRODUCT'}
+                </span>
+              </div>
+            )}
             {isLive && (
               <div className="absolute top-4 left-4 bg-amber-soft border border-amber/40 text-amber px-2.5 py-1 rounded-pill font-mono text-[11px] font-bold tracking-wider flex items-center gap-1.5 shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber animate-signal-pulse" />

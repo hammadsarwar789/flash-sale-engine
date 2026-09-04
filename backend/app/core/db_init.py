@@ -1,4 +1,5 @@
 import logging
+import os
 from sqlalchemy import text
 from app.core.extensions import db
 
@@ -24,7 +25,7 @@ def sync_database_schema():
                 # to the pool and reused by db.create_all() / db.session later.
                 check_conn.execute(text("SET LOCAL statement_timeout = '2000ms';"))
                 check_res = check_conn.execute(
-                    text("SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='is_email_verified';")
+                    text("SELECT table_name FROM information_schema.tables WHERE table_name='product_images';")
                 ).fetchone()
                 check_conn.rollback()  # explicitly end the txn before the connection goes back to the pool
                 if check_res:
@@ -54,7 +55,11 @@ def sync_database_schema():
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS seller_id VARCHAR(36);",
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS warehouse_id VARCHAR(36);",
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT;",
+                "ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url VARCHAR(1024);",
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;",
+                "CREATE TABLE IF NOT EXISTS product_images (id VARCHAR(36) PRIMARY KEY, product_id VARCHAR(36) NOT NULL REFERENCES products(id) ON DELETE CASCADE, image_url VARCHAR(1024) NOT NULL, is_primary BOOLEAN NOT NULL DEFAULT FALSE, display_order INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);",
+                "CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON product_images (product_id);",
+                "CREATE INDEX IF NOT EXISTS idx_product_images_is_primary ON product_images (is_primary);",
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS is_listed_on_shopify BOOLEAN NOT NULL DEFAULT FALSE;",
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS shopify_product_id VARCHAR(64);",
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS shopify_variant_id VARCHAR(64);",
@@ -261,15 +266,25 @@ def ensure_default_permissions_and_roles():
 
 
 def ensure_default_admin():
-    """Ensure default enterprise admin account exists with active credentials."""
+    """Ensure default enterprise admin account exists with active credentials safely."""
     db.session.remove()
     try:
         from flask import current_app
         from app.models.user import User
         from app.core.security import hash_password
 
-        admin_email = current_app.config.get("ADMIN_INITIAL_EMAIL", "admin@flashsale.com")
-        admin_pass = current_app.config.get("ADMIN_INITIAL_PASSWORD", "Password123")
+        is_production = os.getenv("FLASK_ENV") == "production" or current_app.config.get("ENV") == "production"
+        admin_email = os.getenv("ADMIN_INITIAL_EMAIL") or current_app.config.get("ADMIN_INITIAL_EMAIL")
+        admin_pass = os.getenv("ADMIN_INITIAL_PASSWORD") or current_app.config.get("ADMIN_INITIAL_PASSWORD")
+
+        if is_production and (not admin_email or not admin_pass):
+            raise ValueError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: Both ADMIN_INITIAL_EMAIL and ADMIN_INITIAL_PASSWORD "
+                "must be explicitly defined in the environment for production initialization."
+            )
+
+        admin_email = admin_email or "admin@flashsale.com"
+        admin_pass = admin_pass or "Password123"
 
         admin = db.session.query(User).filter_by(email=admin_email).first()
         if not admin:
@@ -285,16 +300,32 @@ def ensure_default_admin():
             )
             db.session.add(admin)
             db.session.commit()
+            logger.info(f"Initialized default enterprise admin account: {admin_email}")
         else:
-            admin.password_hash = hash_password(admin_pass)
-            admin.role = "admin"
-            admin.user_type = "SUPER_ADMIN"
-            admin.status = "ACTIVE"
-            admin.is_active = True
-            db.session.commit()
+            # Safe re-seeding guard: ensure role and active status without clobbering updated passwords
+            updated = False
+            if admin.role != "admin":
+                admin.role = "admin"
+                updated = True
+            if admin.user_type != "SUPER_ADMIN":
+                admin.user_type = "SUPER_ADMIN"
+                updated = True
+            if not admin.is_active or admin.status != "ACTIVE":
+                admin.is_active = True
+                admin.status = "ACTIVE"
+                updated = True
+            if not admin.password_hash:
+                admin.password_hash = hash_password(admin_pass)
+                updated = True
+
+            if updated:
+                db.session.commit()
+                logger.info(f"Verified default admin account status: {admin_email}")
     except Exception as e:
         db.session.rollback()
         logger.warning(f"Default admin initialization warning: {e}")
+        if is_production:
+            raise
 
 
 def ensure_default_products_and_variants():

@@ -390,46 +390,110 @@ def create_vendor_product():
     return jsonify({"message": f"Product '{name}' created successfully with {len(variants_data)} variants!", "product": product.to_dict()}), 201
 
 
-@vendor_bp.route("/products/<string:product_id>", methods=["PUT"])
+@vendor_bp.route("/products/<string:product_id>", methods=["PUT", "PATCH"])
 @jwt_required
 def update_vendor_product(product_id: str):
     """Update seller's own product details and discount percentage."""
     from app.models.product import Product
     from app.core.extensions import redis_client
+    from app.api.v1.products import save_uploaded_image
     user_id = g.current_user_id
     seller = db.session.query(Seller).filter_by(owner_user_id=user_id).first()
     if not seller:
-        return jsonify({"error": "Forbidden", "message": "Access denied."}), 403
+        return jsonify({"error": "Forbidden", "detail": "Access denied.", "message": "Access denied."}), 403
 
     product = db.session.query(Product).filter_by(id=product_id, seller_id=seller.id).first()
     if not product:
-        return jsonify({"error": "Not Found", "message": "Product not found or not owned by your seller store."}), 404
+        return jsonify({"error": "Not Found", "detail": "Product not found or not owned by your seller store.", "message": "Product not found or not owned by your seller store."}), 404
 
-    data = request.get_json() or {}
+    if request.is_json:
+        data = request.get_json() or {}
+    elif request.content_type and "multipart/form-data" in request.content_type:
+        data = dict(request.form)
+        image_file = request.files.get("image") or request.files.get("file")
+        if image_file and image_file.filename:
+            saved_url = save_uploaded_image(image_file)
+            if saved_url:
+                data["image_url"] = saved_url
+    else:
+        data = request.get_json(silent=True) or dict(request.form) or {}
+
     if "name" in data:
         product.name = data["name"]
     if "description" in data:
         product.description = data["description"]
-    if "price" in data:
-        product.price = float(data["price"])
-    if "discount_percentage" in data:
-        product.discount_percentage = float(data["discount_percentage"])
+    if "price" in data and data["price"] is not None:
+        try:
+            product.price = float(data["price"])
+        except (ValueError, TypeError):
+            pass
+    if "discount_percentage" in data and data["discount_percentage"] is not None:
+        try:
+            product.discount_percentage = float(data["discount_percentage"])
+        except (ValueError, TypeError):
+            pass
     if "category_id" in data:
         product.category_id = data["category_id"]
-    if "images" in data:
-        product.images = data["images"]
-    if "total_stock" in data:
-        new_stock = int(data["total_stock"])
-        diff = new_stock - product.total_stock
-        product.total_stock = new_stock
-        product.available_stock = max(0, product.available_stock + diff)
+    if "images" in data or "image_url" in data or "primary_image_url" in data:
+        from app.models.product_image import ProductImage
+        raw_images = data.get("images")
+        primary_url = data.get("primary_image_url") or data.get("image_url")
+
+        if raw_images == [] or (raw_images is None and primary_url is None and "images" in data):
+            db.session.query(ProductImage).filter_by(product_id=product.id).delete()
+            product.image_url = None
+        elif raw_images is not None or primary_url is not None:
+            db.session.query(ProductImage).filter_by(product_id=product.id).delete()
+            order_idx = 0
+            seen_urls = set()
+
+            if primary_url and primary_url not in seen_urls:
+                pi = ProductImage(
+                    product_id=product.id,
+                    image_url=primary_url,
+                    is_primary=True,
+                    display_order=order_idx,
+                )
+                db.session.add(pi)
+                seen_urls.add(primary_url)
+                order_idx += 1
+
+            if raw_images and isinstance(raw_images, list):
+                for img_item in raw_images:
+                    url = img_item.get("image_url") if isinstance(img_item, dict) else str(img_item)
+                    if url and url not in seen_urls:
+                        is_prim = bool(img_item.get("is_primary")) if isinstance(img_item, dict) else (order_idx == 0)
+                        pi = ProductImage(
+                            product_id=product.id,
+                            image_url=url,
+                            is_primary=is_prim,
+                            display_order=img_item.get("display_order", order_idx) if isinstance(img_item, dict) else order_idx,
+                        )
+                        db.session.add(pi)
+                        seen_urls.add(url)
+                        order_idx += 1
+
+            product.image_url = primary_url or (list(seen_urls)[0] if seen_urls else None)
+
+    if "total_stock" in data and data["total_stock"] is not None:
         try:
-            redis_client.set(f"product:{product.id}:stock", product.available_stock)
-        except Exception:
+            new_stock = int(data["total_stock"])
+            diff = new_stock - (product.total_stock or 0)
+            product.total_stock = new_stock
+            product.available_stock = max(0, (product.available_stock or 0) + diff)
+            try:
+                redis_client.set(f"product:{product.id}:stock", product.available_stock)
+            except Exception:
+                pass
+        except (ValueError, TypeError):
             pass
 
     db.session.commit()
-    return jsonify({"message": "Product updated successfully.", "product": product.to_dict()}), 200
+    return jsonify({
+        "message": "Product updated successfully.",
+        "detail": "Product updated successfully.",
+        "product": product.to_dict()
+    }), 200
 
 
 @vendor_bp.route("/products/<string:product_id>/variants", methods=["POST"])

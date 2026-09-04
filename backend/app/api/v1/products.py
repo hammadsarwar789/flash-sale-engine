@@ -1,9 +1,13 @@
 import json
 import logging
-from flask import jsonify, request
+import os
+import uuid
+from flask import jsonify, request, current_app, g
+from werkzeug.utils import secure_filename
 from flask_smorest import Blueprint
 from app.core.extensions import db, redis_client
 from app.models.product import Product
+from app.models.product_image import ProductImage
 from app.models.category import Category
 from app.models.product_variant import ProductVariant
 from app.models.user import User
@@ -268,6 +272,89 @@ def get_product(product_id):
     return p_dict, 200
 
 
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
+ALLOWED_IMAGE_MIMETYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+
+
+def allowed_image_file(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+def save_uploaded_image(file):
+    """Save an uploaded image file securely and return its public URL."""
+    if not file or not file.filename:
+        return None
+    if not allowed_image_file(file.filename):
+        return None
+
+    upload_dir = os.path.join(current_app.root_path, "static", "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    orig_name = secure_filename(file.filename)
+    extension = orig_name.rsplit(".", 1)[1].lower() if "." in orig_name else "jpg"
+    unique_filename = f"{uuid.uuid4().hex}.{extension}"
+    target_path = os.path.join(upload_dir, unique_filename)
+
+    file.save(target_path)
+    logger.info(f"Product image uploaded: {unique_filename}")
+    return f"/static/uploads/{unique_filename}"
+
+
+@products_bp.route("/upload-image", methods=["POST", "OPTIONS"])
+@products_bp.route("/upload-images", methods=["POST", "OPTIONS"])
+@jwt_required
+def upload_product_image():
+    """Upload one or more product images (JPEG, PNG, WEBP, GIF) and return static URLs."""
+    if request.method == "OPTIONS":
+        return "", 200
+
+    uploaded_files = []
+    for key in ["images", "files", "image", "file"]:
+        file_list = request.files.getlist(key)
+        for f in file_list:
+            if f and f.filename and f not in uploaded_files:
+                uploaded_files.append(f)
+
+    if not uploaded_files:
+        return jsonify({
+            "detail": "No file uploaded (expected form field 'images', 'image', or 'file')",
+            "message": "No file uploaded (expected form field 'images', 'image', or 'file')"
+        }), 400
+
+    results = []
+    for f in uploaded_files:
+        if not allowed_image_file(f.filename):
+            return jsonify({
+                "detail": f"Unsupported file type for '{f.filename}'. Allowed: {', '.join(sorted(ALLOWED_IMAGE_EXTENSIONS))}",
+                "message": f"Unsupported file type for '{f.filename}'. Allowed: {', '.join(sorted(ALLOWED_IMAGE_EXTENSIONS))}"
+            }), 400
+        if f.mimetype and f.mimetype.lower() not in ALLOWED_IMAGE_MIMETYPES:
+            return jsonify({
+                "detail": f"Invalid mimetype '{f.mimetype}' for '{f.filename}'. Expected an image.",
+                "message": f"Invalid mimetype '{f.mimetype}' for '{f.filename}'. Expected an image."
+            }), 400
+        public_url = save_uploaded_image(f)
+        if public_url:
+            unique_name = public_url.split("/")[-1]
+            results.append({"url": public_url, "filename": unique_name})
+
+    if not results:
+        return jsonify({
+            "detail": "Failed to save uploaded image files.",
+            "message": "Failed to save uploaded image files."
+        }), 500
+
+    primary_url = results[0]["url"]
+    return jsonify({
+        "url": primary_url,
+        "filename": results[0]["filename"],
+        "urls": [r["url"] for r in results],
+        "images": results,
+        "detail": f"Successfully uploaded {len(results)} image(s)",
+        "message": f"Successfully uploaded {len(results)} image(s)",
+    }), 201
+
+
 @products_bp.route("", methods=["POST"])
 @require_permission("enterprise:products:write")
 @products_bp.arguments(ProductCreateSchema)
@@ -295,13 +382,16 @@ def create_product(product_data):
         if not vendor:
             return jsonify({"message": f"Vendor '{vendor_id}' not found"}), 404
 
+    image_url = product_data.get("primary_image_url") or product_data.get("image_url")
+    raw_images = product_data.get("images", [])
+
     product = Product(
         name=product_data["name"],
         sku=product_data["sku"],
         category_id=product_data.get("category_id"),
         vendor_id=vendor_id,
         description=product_data.get("description"),
-        images=product_data.get("images", []),
+        image_url=image_url,
         total_stock=product_data["total_stock"],
         available_stock=product_data["total_stock"],
         price=product_data["price"],
@@ -309,6 +399,34 @@ def create_product(product_data):
     )
     db.session.add(product)
     db.session.flush()
+
+    # Create ProductImage records
+    created_img_urls = set()
+    order_idx = 0
+    if image_url:
+        pi = ProductImage(
+            product_id=product.id,
+            image_url=image_url,
+            is_primary=True,
+            display_order=order_idx,
+        )
+        db.session.add(pi)
+        created_img_urls.add(image_url)
+        order_idx += 1
+
+    for img_item in (raw_images or []):
+        url = img_item.get("image_url") if isinstance(img_item, dict) else str(img_item)
+        if url and url not in created_img_urls:
+            is_prim = bool(img_item.get("is_primary")) if isinstance(img_item, dict) else (order_idx == 0)
+            pi = ProductImage(
+                product_id=product.id,
+                image_url=url,
+                is_primary=is_prim,
+                display_order=img_item.get("display_order", order_idx) if isinstance(img_item, dict) else order_idx,
+            )
+            db.session.add(pi)
+            created_img_urls.add(url)
+            order_idx += 1
 
     for var_data in variants_data:
         variant = ProductVariant(
@@ -334,12 +452,10 @@ def create_product(product_data):
     return product.to_dict(), 201
 
 
-@products_bp.route("/<string:product_id>", methods=["PUT"])
-@require_permission("enterprise:products:write")
-@products_bp.arguments(ProductUpdateSchema)
-@products_bp.response(200, ProductResponseSchema)
-def update_product(product_data, product_id):
-    """Update product details (Admin)."""
+@products_bp.route("/<string:product_id>", methods=["PUT", "PATCH"])
+@jwt_required
+def update_product(product_id):
+    """Update product details (Admin or assigned Vendor). Supports standard JSON and multipart/form-data."""
     product = db.session.query(Product).filter_by(id=product_id).first()
     if not product:
         return (
@@ -349,10 +465,63 @@ def update_product(product_data, product_id):
                     "title": "Not Found",
                     "status": 404,
                     "detail": f"Product with ID '{product_id}' not found.",
+                    "message": f"Product with ID '{product_id}' not found.",
                 }
             ),
             404,
         )
+
+    # Permission check: admin/manager OR product's owner vendor
+    user_id = getattr(g, "current_user_id", None)
+    user = db.session.query(User).filter_by(id=user_id).first() if user_id else None
+    user_role = user.role if user else ""
+    if user_role not in ["admin", "super_admin", "manager"]:
+        if product.vendor_id != user_id and product.seller_id != getattr(user, "seller_id", None):
+            return jsonify({
+                "error": "Forbidden",
+                "detail": "You do not have permission to modify this product.",
+                "message": "You do not have permission to modify this product."
+            }), 403
+
+    # Extract product_data from either JSON or multipart/form-data
+    if request.is_json:
+        product_data = request.get_json() or {}
+    elif request.content_type and "multipart/form-data" in request.content_type:
+        product_data = dict(request.form)
+        for key in ["price", "discount_percentage"]:
+            if key in product_data and product_data[key]:
+                try:
+                    product_data[key] = float(product_data[key])
+                except (ValueError, TypeError):
+                    pass
+        for key in ["total_stock", "available_stock", "stock"]:
+            if key in product_data and product_data[key]:
+                try:
+                    product_data[key] = int(product_data[key])
+                except (ValueError, TypeError):
+                    pass
+        if "stock" in product_data and "total_stock" not in product_data:
+            product_data["total_stock"] = product_data["stock"]
+            product_data["available_stock"] = product_data["stock"]
+
+        # If image files were attached (Option B multi-file support)
+        attached_files = []
+        for key in ["images", "files", "image", "file"]:
+            for f in request.files.getlist(key):
+                if f and f.filename and f not in attached_files:
+                    attached_files.append(f)
+        if attached_files:
+            uploaded_urls = []
+            for f in attached_files:
+                saved_url = save_uploaded_image(f)
+                if saved_url:
+                    uploaded_urls.append(saved_url)
+            if uploaded_urls:
+                product_data["images"] = uploaded_urls
+                if not product_data.get("image_url"):
+                    product_data["image_url"] = uploaded_urls[0]
+    else:
+        product_data = request.get_json(silent=True) or dict(request.form) or {}
 
     variants_data = product_data.pop("variants", None)
     vendor_id = product_data.pop("vendor_id", None)
@@ -360,7 +529,7 @@ def update_product(product_data, product_id):
     if vendor_id:
         vendor = db.session.query(User).filter_by(id=vendor_id, role="vendor").first()
         if not vendor:
-            return jsonify({"message": f"Vendor '{vendor_id}' not found"}), 404
+            return jsonify({"detail": f"Vendor '{vendor_id}' not found", "message": f"Vendor '{vendor_id}' not found"}), 404
 
     new_stock = product_data.get("available_stock")
     stock_delta = None
@@ -369,14 +538,59 @@ def update_product(product_data, product_id):
         product_data.pop("available_stock", None)
 
     for field, val in product_data.items():
-        if field == "vendor_id":
+        if field in ("vendor_id", "image_url", "primary_image_url", "images"):
             continue
-        setattr(product, field, val)
+        if hasattr(product, field):
+            setattr(product, field, val)
+
+    # Multi-Image Synchronization
+    if "images" in product_data or "image_url" in product_data or "primary_image_url" in product_data:
+        raw_images = product_data.get("images")
+        primary_url = product_data.get("primary_image_url") or product_data.get("image_url")
+
+        # Case 1: Explicit deletion (empty images list or None)
+        if raw_images == [] or (raw_images is None and primary_url is None and "images" in product_data):
+            db.session.query(ProductImage).filter_by(product_id=product.id).delete()
+            product.image_url = None
+        elif raw_images is not None or primary_url is not None:
+            db.session.query(ProductImage).filter_by(product_id=product.id).delete()
+            order_idx = 0
+            seen_urls = set()
+
+            # Ensure primary URL is set first if specified
+            if primary_url and primary_url not in seen_urls:
+                pi = ProductImage(
+                    product_id=product.id,
+                    image_url=primary_url,
+                    is_primary=True,
+                    display_order=order_idx,
+                )
+                db.session.add(pi)
+                seen_urls.add(primary_url)
+                order_idx += 1
+
+            if raw_images and isinstance(raw_images, list):
+                for img_item in raw_images:
+                    url = img_item.get("image_url") if isinstance(img_item, dict) else str(img_item)
+                    if url and url not in seen_urls:
+                        is_prim = bool(img_item.get("is_primary")) if isinstance(img_item, dict) else (order_idx == 0)
+                        pi = ProductImage(
+                            product_id=product.id,
+                            image_url=url,
+                            is_primary=is_prim,
+                            display_order=img_item.get("display_order", order_idx) if isinstance(img_item, dict) else order_idx,
+                        )
+                        db.session.add(pi)
+                        seen_urls.add(url)
+                        order_idx += 1
+
+            product.image_url = primary_url or (list(seen_urls)[0] if seen_urls else None)
 
     if vendor_id is not None:
         product.vendor_id = vendor_id
 
-    if variants_data is not None:
+
+    if variants_data is not None and isinstance(variants_data, list):
         db.session.query(ProductVariant).filter_by(product_id=product.id).delete()
         for var_data in variants_data:
             variant = ProductVariant(
@@ -412,6 +626,89 @@ def update_product(product_data, product_id):
         logger.warning(f"Redis stock update skipped: {e}")
 
     return product.to_dict(), 200
+
+
+@products_bp.route("/<string:product_id>/image", methods=["DELETE", "OPTIONS"])
+@jwt_required
+def delete_product_image(product_id):
+    """Remove image from product (Admin, Manager, or owning Vendor)."""
+    if request.method == "OPTIONS":
+        return "", 200
+
+    product = db.session.query(Product).filter_by(id=product_id).first()
+    if not product:
+        return jsonify({"detail": f"Product '{product_id}' not found", "message": f"Product '{product_id}' not found"}), 404
+
+    user_id = getattr(g, "current_user_id", None)
+    user = db.session.query(User).filter_by(id=user_id).first() if user_id else None
+    user_role = user.role if user else ""
+    if user_role not in ["admin", "super_admin", "manager"]:
+        if product.vendor_id != user_id and product.seller_id != getattr(user, "seller_id", None):
+            return jsonify({"detail": "Forbidden", "message": "You do not have permission to delete this product's image."}), 403
+
+    product.image_url = None
+    product.images = []
+    db.session.commit()
+    clear_catalog_cache()
+    return jsonify({
+        "message": "Product image deleted successfully",
+        "detail": "Product image deleted successfully",
+        "product": product.to_dict()
+    }), 200
+
+
+@products_bp.route("/images/<string:image_id>", methods=["DELETE", "OPTIONS"])
+@products_bp.route("/<string:product_id>/images/<string:image_id>", methods=["DELETE", "OPTIONS"])
+@jwt_required
+def delete_product_image_by_id(image_id, product_id=None):
+    """Delete a specific product image by its ID (Admin, Manager, or owning Vendor)."""
+    if request.method == "OPTIONS":
+        return "", 200
+
+    img = db.session.query(ProductImage).filter_by(id=image_id).first()
+    if not img:
+        return jsonify({"detail": f"Product image '{image_id}' not found", "message": f"Product image '{image_id}' not found"}), 404
+
+    product = db.session.query(Product).filter_by(id=img.product_id).first()
+    if not product:
+        return jsonify({"detail": "Product not found", "message": "Product not found"}), 404
+
+    user_id = getattr(g, "current_user_id", None)
+    user = db.session.query(User).filter_by(id=user_id).first() if user_id else None
+    user_role = user.role if user else ""
+    if user_role not in ["admin", "super_admin", "manager"]:
+        if product.vendor_id != user_id and product.seller_id != getattr(user, "seller_id", None):
+            return jsonify({"detail": "Forbidden", "message": "You do not have permission to delete this product image."}), 403
+
+    was_primary = img.is_primary
+    p_id = product.id
+    db.session.delete(img)
+    db.session.flush()
+
+    # If the deleted image was primary, designate the next available image as primary
+    remaining_images = db.session.query(ProductImage).filter_by(product_id=p_id).order_by(ProductImage.display_order.asc()).all()
+    if was_primary and remaining_images:
+        remaining_images[0].is_primary = True
+        product.image_url = remaining_images[0].image_url
+    elif not remaining_images:
+        product.image_url = None
+    elif remaining_images:
+        has_primary = any(i.is_primary for i in remaining_images)
+        if not has_primary:
+            remaining_images[0].is_primary = True
+            product.image_url = remaining_images[0].image_url
+
+    db.session.commit()
+    clear_catalog_cache()
+
+    return jsonify({
+        "message": "Product image deleted successfully",
+        "detail": "Product image deleted successfully",
+        "deleted_image_id": image_id,
+        "product": product.to_dict(),
+    }), 200
+
+
 
 
 @products_bp.route("/<string:product_id>", methods=["DELETE"])
@@ -671,3 +968,19 @@ def test_load():
         logger.warning(f"Failed to cache test-load payload: {e}")
 
     return jsonify(payload), 200
+
+
+@products_bp.route("/<string:product_id>/reviews", methods=["GET", "POST"])
+def product_reviews_alias(product_id):
+    """Retrieve or submit customer reviews for a product (delegates to commerce)."""
+    from app.api.v1.commerce import get_product_reviews, add_product_review
+    if request.method == "POST":
+        return add_product_review(product_id)
+    return get_product_reviews(product_id)
+
+
+@products_bp.route("/<string:product_id>/review-eligibility", methods=["GET"])
+def product_review_eligibility_alias(product_id):
+    """Check if authenticated user is eligible to review product (delegates to commerce)."""
+    from app.api.v1.commerce import check_review_eligibility
+    return check_review_eligibility(product_id)

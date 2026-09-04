@@ -52,22 +52,37 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Future<void> _onCancelOrder() async {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryTextColor = isDark ? C.darkText : const Color(0xFF111827);
+    final secondaryTextColor = isDark ? C.darkTextDim : const Color(0xFF4B5563);
+    final roseColor = isDark ? C.darkRose : C.lightRose;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: C.overlay,
+        backgroundColor: isDark ? C.darkSurface : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(C.radiusModal)),
-        title: Text('Cancel Reservation?', style: GoogleFonts.sora(fontSize: 17, fontWeight: FontWeight.bold, color: C.text)),
-        content: Text('This will release your stock hold back to the floor inventory pool.', style: GoogleFonts.manrope(fontSize: 13, color: C.textDim)),
+        title: Text('Cancel order?', style: GoogleFonts.sora(fontSize: 17, fontWeight: FontWeight.w700, color: primaryTextColor)),
+        content: Text(
+          'Are you sure you want to cancel this order?',
+          style: GoogleFonts.manrope(fontSize: 13, color: secondaryTextColor),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('KEEP HOLD', style: GoogleFonts.manrope(fontWeight: FontWeight.bold, color: C.textMute)),
+            child: Text('Keep order', style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: secondaryTextColor)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: C.rose, foregroundColor: C.onRose),
-            child: const Text('YES, CANCEL'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: roseColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(C.radiusCard),
+              ),
+            ),
+            child: const Text('Cancel order'),
           ),
         ],
       ),
@@ -80,7 +95,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         await repo.cancelOrder(widget.orderId);
         await _loadOrderDetail();
         if (mounted) {
-          AppToast.showInfo(context, 'Order hold cancelled. Inventory returned.');
+          AppToast.showInfo(context, 'Order cancelled successfully.');
         }
       } catch (e) {
         if (mounted) {
@@ -96,28 +111,34 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     Clipboard.setData(ClipboardData(text: trackingId));
     AppToast.showSuccess(
       context,
-      'Tracking ID copied: $trackingId',
+      'Tracking code copied: $trackingId',
       duration: const Duration(seconds: 2),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryTextColor = isDark ? C.darkText : const Color(0xFF111827);
+    final amberColor = isDark ? C.darkAmber : C.lightAmber;
+
     return Scaffold(
-      backgroundColor: C.base,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: C.surface,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
         title: Text(
-          'Order Timeline',
-          style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.w700, color: C.text),
+          'Order Details',
+          style: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w700, color: primaryTextColor),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: C.text),
+          icon: Icon(Icons.arrow_back, color: primaryTextColor),
           onPressed: () => context.pop(),
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: C.amber))
+          ? Center(child: CircularProgressIndicator(color: amberColor))
           : _errorMessage != null || _order == null
               ? Center(
                   child: Padding(
@@ -125,22 +146,29 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.warning_amber_rounded, color: C.rose, size: 44),
+                        Icon(Icons.warning_amber_rounded, color: isDark ? C.darkRose : C.lightRose, size: 44),
                         const SizedBox(height: 12),
                         Text(
-                          'Order Record Unavailable',
-                          style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: C.text),
+                          'Order not found',
+                          style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           _errorMessage ?? 'Order #${widget.orderId} could not be located.',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.manrope(fontSize: 12, color: C.textMute),
+                          style: GoogleFonts.manrope(fontSize: 12, color: isDark ? C.darkTextMute : const Color(0xFF6B7280)),
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () => context.pop(),
-                          child: const Text('BACK TO ORDERS'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: amberColor,
+                            foregroundColor: isDark ? C.darkOnAmber : Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(C.radiusCard),
+                            ),
+                          ),
+                          child: const Text('Back to orders'),
                         ),
                       ],
                     ),
@@ -151,13 +179,26 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _buildContent(OrderModel order) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryTextColor = isDark ? C.darkText : const Color(0xFF111827);
+    final secondaryTextColor = isDark ? C.darkTextDim : const Color(0xFF4B5563);
+    final muteTextColor = isDark ? C.darkTextMute : const Color(0xFF6B7280);
+    final amberColor = isDark ? C.darkAmber : C.lightAmber;
+    final mintColor = isDark ? C.darkMint : C.lightMint;
+    final roseColor = isDark ? C.darkRose : C.lightRose;
+    final cardBg = isDark ? C.darkSurface : Colors.white;
+    final cardBorder = isDark ? C.darkLine : const Color(0xFFE5E7EB);
+    final raisedBg = isDark ? C.darkRaised : const Color(0xFFF9FAFB);
+
     final status = order.status.toUpperCase();
     final isPending = status == 'PENDING';
     final isCancelled = status == 'CANCELLED' || status == 'REFUNDED';
     final idStr = order.id.toString();
-    final trackingNumber = 'TRK-${idStr.length > 8 ? idStr.substring(0, 8).toUpperCase() : idStr}-GL';
+    final trackingNumber = 'TRK-${idStr.length > 8 ? idStr.substring(0, 8) : idStr}-US';
 
     final steps = ['PENDING', 'PAID', 'SHIPPED', 'DELIVERED'];
+    final stepLabels = ['Pending', 'Paid', 'Shipped', 'Delivered'];
     final currentStepIndex = steps.indexOf(status);
 
     return ListView(
@@ -168,9 +209,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: C.surface,
+            color: cardBg,
             borderRadius: BorderRadius.circular(C.radiusCard),
-            border: Border.all(color: C.line),
+            border: Border.all(color: cardBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,8 +220,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'ORDER IDENTIFIER',
-                    style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: C.textMute),
+                    'Order reference',
+                    style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w600, color: muteTextColor),
                   ),
                   StatusPillWidget(status: status),
                 ],
@@ -188,7 +229,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               const SizedBox(height: 6),
               Text(
                 '#$idStr',
-                style: GoogleFonts.jetBrainsMono(fontSize: 18, fontWeight: FontWeight.w800, color: C.text),
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: primaryTextColor,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ],
           ),
@@ -199,16 +245,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: C.surface,
+            color: cardBg,
             borderRadius: BorderRadius.circular(C.radiusCard),
-            border: Border.all(color: C.line),
+            border: Border.all(color: cardBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'FULFILLMENT STATE MACHINE',
-                style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: C.textMute),
+                'Order status',
+                style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w700, color: primaryTextColor),
               ),
               const SizedBox(height: 16),
 
@@ -216,18 +262,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: C.roseSoft,
+                    color: roseColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(C.radiusCard),
-                    border: Border.all(color: C.rose.withValues(alpha: 0.3)),
+                    border: Border.all(color: roseColor.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.cancel_outlined, color: C.rose, size: 18),
+                      Icon(Icons.cancel_outlined, color: roseColor, size: 18),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Order hold was $status. Stock returned to the open trading pool.',
-                          style: GoogleFonts.manrope(fontSize: 12, color: C.rose, fontWeight: FontWeight.w600),
+                          'This order was ${status.toLowerCase()}.',
+                          style: GoogleFonts.manrope(fontSize: 12, color: roseColor, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -238,25 +284,25 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: steps.asMap().entries.map((entry) {
                     final idx = entry.key;
-                    final stepName = entry.value;
+                    final stepLabel = stepLabels[idx];
                     final isPassed = currentStepIndex > idx;
                     final isCurrent = currentStepIndex == idx;
 
-                    Color nodeBg = C.surface;
-                    Color nodeBorder = C.line;
-                    Color nodeText = C.textMute;
-                    Color labelColor = C.textMute;
+                    Color nodeBg = raisedBg;
+                    Color nodeBorder = cardBorder;
+                    Color nodeText = muteTextColor;
+                    Color labelColor = muteTextColor;
 
                     if (isPassed) {
-                      nodeBg = C.mint;
-                      nodeBorder = C.mint;
-                      nodeText = C.onMint;
-                      labelColor = C.mint;
+                      nodeBg = mintColor;
+                      nodeBorder = mintColor;
+                      nodeText = Colors.white;
+                      labelColor = mintColor;
                     } else if (isCurrent) {
-                      nodeBg = C.amber;
-                      nodeBorder = C.amber;
-                      nodeText = C.onAmber;
-                      labelColor = C.amber;
+                      nodeBg = amberColor;
+                      nodeBorder = amberColor;
+                      nodeText = isDark ? C.darkOnAmber : Colors.white;
+                      labelColor = amberColor;
                     }
 
                     return Column(
@@ -271,7 +317,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           ),
                           child: Center(
                             child: isPassed
-                                ? const Icon(Icons.check, size: 14, color: C.onMint)
+                                ? const Icon(Icons.check, size: 14, color: Colors.white)
                                 : Text(
                                     '${idx + 1}',
                                     style: GoogleFonts.jetBrainsMono(
@@ -284,10 +330,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          stepName,
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 9,
-                            fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                          stepLabel,
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
                             color: labelColor,
                           ),
                         ),
@@ -300,24 +346,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ),
         const SizedBox(height: 14),
 
-        // Courier Tracking Card
+        // Tracking Card
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: C.surface,
+            color: cardBg,
             borderRadius: BorderRadius.circular(C.radiusCard),
-            border: Border.all(color: C.line),
+            border: Border.all(color: cardBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.local_shipping_outlined, color: C.sky, size: 18),
+                  Icon(Icons.local_shipping_outlined, color: amberColor, size: 18),
                   const SizedBox(width: 6),
                   Text(
-                    'COURIER DISPATCH',
-                    style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: C.textMute),
+                    'Tracking',
+                    style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w700, color: primaryTextColor),
                   ),
                 ],
               ),
@@ -328,13 +374,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('TRACKING CODE', style: GoogleFonts.jetBrainsMono(fontSize: 9, color: C.textMute)),
+                      Text('Tracking number', style: GoogleFonts.manrope(fontSize: 10, color: muteTextColor)),
                       const SizedBox(height: 2),
-                      Text(trackingNumber, style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold, color: C.text)),
+                      Text(
+                        trackingNumber,
+                        style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold, color: primaryTextColor),
+                      ),
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.copy, size: 18, color: C.textDim),
+                    icon: Icon(Icons.copy, size: 18, color: secondaryTextColor),
                     onPressed: () => _copyTracking(trackingNumber),
                   ),
                 ],
@@ -344,20 +393,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ),
         const SizedBox(height: 14),
 
-        // Itemized Invoice Card
+        // Itemized Receipt Card
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: C.surface,
+            color: cardBg,
             borderRadius: BorderRadius.circular(C.radiusCard),
-            border: Border.all(color: C.line),
+            border: Border.all(color: cardBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'ITEMIZED RECEIPT',
-                style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: C.textMute),
+                'Order summary',
+                style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w700, color: primaryTextColor),
               ),
               const SizedBox(height: 12),
 
@@ -373,30 +422,30 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              item.productName.isNotEmpty ? item.productName : 'Product Item #${item.productId}',
+                              item.productName.isNotEmpty ? item.productName : 'Item #${item.productId}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: C.text),
+                              style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: primaryTextColor),
                             ),
                             Text(
-                              'QTY: ${item.quantity}',
-                              style: GoogleFonts.jetBrainsMono(fontSize: 10, color: C.textMute),
+                              'Qty: ${item.quantity}',
+                              style: GoogleFonts.manrope(fontSize: 11, color: muteTextColor),
                             ),
                           ],
                         ),
                       ),
-                      PriceText(amount: item.unitPrice * item.quantity, size: PriceTextSize.sm),
+                      PriceText(amount: item.unitPrice * item.quantity, size: PriceTextSize.sm, color: primaryTextColor),
                     ],
                   ),
                 );
               }),
 
-              const Divider(color: C.line, height: 16),
+              Divider(color: cardBorder, height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('TOTAL SETTLED', style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.bold, color: C.text)),
-                  PriceText(amount: order.totalAmount, size: PriceTextSize.lg, color: C.text),
+                  Text('Total', style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.w700, color: primaryTextColor)),
+                  PriceText(amount: order.totalAmount, size: PriceTextSize.lg, color: primaryTextColor),
                 ],
               ),
             ],
@@ -404,20 +453,23 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ),
         const SizedBox(height: 20),
 
-        // Cancel Reservation Action
+        // Cancel Order Action
         if (isPending)
           SizedBox(
             width: double.infinity,
-            height: 44,
+            height: C.heightButtonPrimary,
             child: OutlinedButton(
               onPressed: _isCancelling ? null : _onCancelOrder,
               style: OutlinedButton.styleFrom(
-                foregroundColor: C.rose,
-                side: const BorderSide(color: C.rose),
+                foregroundColor: roseColor,
+                side: BorderSide(color: roseColor.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(C.radiusCard),
+                ),
               ),
               child: Text(
-                _isCancelling ? 'CANCELLING RESERVATION...' : 'CANCEL ORDER RESERVATION',
-                style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold),
+                _isCancelling ? 'Cancelling order...' : 'Cancel order',
+                style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ),
           ),

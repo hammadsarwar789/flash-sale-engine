@@ -6,6 +6,7 @@ import { productsApi } from '../api/products';
 import { Category } from '../types/api';
 import { ShopifyToggle } from '../components/ShopifyToggle';
 import { ShopifyOrdersBox } from '../components/ShopifyOrdersBox';
+import { UpdateProductModal } from '../components/product/UpdateProductModal';
 
 export const VendorPortalPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'sub-orders' | 'products' | 'finance' | 'onboarding'>('overview');
@@ -891,93 +892,17 @@ export const VendorPortalPage: React.FC = () => {
             </div>
 
             {/* Vendor Edit Stock Modal */}
-            {editProduct && (
-              <div className="fixed inset-0 bg-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div className="bg-paper border border-rule max-w-lg w-full p-6 space-y-4 font-mono text-xs">
-                  <div className="flex justify-between items-center border-b border-rule pb-3">
-                    <h3 className="font-serif text-xl text-ink">Edit Merchant Product — {editProduct.sku}</h3>
-                    <button onClick={() => setEditProduct(null)} className="text-ash hover:text-ink text-sm">✕</button>
-                  </div>
-                  <form onSubmit={handleSaveEditProduct} className="space-y-4">
-                    <div>
-                      <Eyebrow className="text-ash block mb-1">PRODUCT TITLE</Eyebrow>
-                      <input
-                        type="text"
-                        required
-                        value={editProdName}
-                        onChange={(e) => setEditProdName(e.target.value)}
-                        className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Eyebrow className="text-ash block mb-1">PRICE ($)</Eyebrow>
-                        <input
-                          type="number"
-                          step="0.01"
-                          required
-                          value={editProdPrice}
-                          onChange={(e) => setEditProdPrice(parseFloat(e.target.value) || 0)}
-                          className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink"
-                        />
-                      </div>
-                      <div>
-                        <Eyebrow className="text-ash block mb-1">TOTAL STOCK</Eyebrow>
-                        <input
-                          type="number"
-                          required
-                          value={editProdStock}
-                          onChange={(e) => setEditProdStock(parseInt(e.target.value) || 0)}
-                          className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Eyebrow className="text-ash block mb-1">DISCOUNT %</Eyebrow>
-                        <input
-                          type="number"
-                          min="0"
-                          max="99"
-                          value={editProdDiscountPct}
-                          onChange={(e) => setEditProdDiscountPct(parseFloat(e.target.value) || 0)}
-                          className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink"
-                        />
-                      </div>
-                      <div>
-                        <Eyebrow className="text-ash block mb-1">CATEGORY</Eyebrow>
-                        <select
-                          value={editProdCatId}
-                          onChange={(e) => setEditProdCatId(e.target.value)}
-                          className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink"
-                        >
-                          <option value="">GENERAL</option>
-                          {categories.map((c) => (
-                            <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="flex justify-end space-x-3 border-t border-rule pt-4">
-                      <button
-                        type="button"
-                        onClick={() => setEditProduct(null)}
-                        className="px-4 py-2 border border-rule text-ash hover:text-ink uppercase"
-                      >
-                        CANCEL
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isUpdatingProduct}
-                        className="px-5 py-2 bg-ink text-paper font-semibold hover:bg-graphite uppercase"
-                      >
-                        {isUpdatingProduct ? 'SAVING...' : 'SAVE CHANGES →'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
+            <UpdateProductModal
+              product={editProduct}
+              categories={categories}
+              isOpen={!!editProduct}
+              onClose={() => setEditProduct(null)}
+              onSuccess={async () => {
+                const prods = await vendorApi.getProducts();
+                setVendorProducts(prods);
+              }}
+              isVendor={true}
+            />
           </div>
         )}
 

@@ -21,7 +21,11 @@ def ensure_postgres_db_exists():
         pg_host = os.getenv("POSTGRES_HOST", "localhost")
         pg_port = os.getenv("POSTGRES_PORT", "5432")
         pg_db = os.getenv("POSTGRES_DB", "flash_sale_db")
-        conn = psycopg.connect(f"postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/postgres", autocommit=True)
+        conn = psycopg.connect(
+            f"postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/postgres",
+            autocommit=True,
+            connect_timeout=3,
+        )
         with conn.cursor() as cur:
             cur.execute(f"SELECT 1 FROM pg_database WHERE datname = '{pg_db}'")
             exists = cur.fetchone()
@@ -47,33 +51,60 @@ def seed_database():
         logger.info("Synchronizing database schema and tables...")
         sync_database_schema()
 
-        # 1. Create Admin Account
-        admin_email = "admin@flashsale.com"
+        # 1. Create or Verify Admin Account
+        is_production = os.getenv("FLASK_ENV") == "production"
+        admin_email = os.getenv("ADMIN_INITIAL_EMAIL") or app.config.get("ADMIN_INITIAL_EMAIL")
+        admin_pass = os.getenv("ADMIN_INITIAL_PASSWORD") or app.config.get("ADMIN_INITIAL_PASSWORD")
+
+        if is_production and (not admin_email or not admin_pass):
+            raise ValueError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: Both ADMIN_INITIAL_EMAIL and ADMIN_INITIAL_PASSWORD "
+                "must be explicitly defined in the environment when seeding in production."
+            )
+
+        admin_email = admin_email or "admin@flashsale.com"
+        admin_pass = admin_pass or "Password123"
+
         admin = db.session.query(User).filter_by(email=admin_email).first()
         if not admin:
             admin = User(
                 email=admin_email,
-                password_hash=hash_password("AdminPass123!"),
+                password_hash=hash_password(admin_pass),
                 full_name="System Administrator",
                 role="admin",
+                user_type="SUPER_ADMIN",
+                status="ACTIVE",
+                is_active=True,
+                is_email_verified=True,
             )
             db.session.add(admin)
-            logger.info(f"Created Admin account: {admin_email} / AdminPass123!")
+            db.session.commit()
+            logger.info(f"Initialized Admin account: {admin_email}")
+        else:
+            logger.info(f"Admin account already exists: {admin_email} (safe re-seeding guard)")
 
-        # 2. Create Regular User Account
-        user_email = "buyer@flashsale.com"
-        user = db.session.query(User).filter_by(email=user_email).first()
-        if not user:
-            user = User(
-                email=user_email,
-                password_hash=hash_password("BuyerPass123!"),
-                full_name="Flash Sale Buyer",
-                role="user",
-            )
-            db.session.add(user)
-            logger.info(f"Created User account: {user_email} / BuyerPass123!")
-
-        db.session.commit()
+        # 2. Create Regular Test User Account (Non-production only)
+        if not is_production:
+            user_email = os.getenv("TEST_USER_EMAIL", "buyer@flashsale.com")
+            user_pass = os.getenv("TEST_USER_PASSWORD", "BuyerPass123!")
+            user = db.session.query(User).filter_by(email=user_email).first()
+            if not user:
+                user = User(
+                    email=user_email,
+                    password_hash=hash_password(user_pass),
+                    full_name="Flash Sale Buyer",
+                    role="user",
+                    status="ACTIVE",
+                    is_active=True,
+                    is_email_verified=True,
+                )
+                db.session.add(user)
+                db.session.commit()
+                logger.info(f"Initialized Test User account: {user_email}")
+            else:
+                logger.info(f"Test User account already exists: {user_email}")
+        else:
+            logger.info("Production mode: skipping dummy test buyer user creation.")
 
         # 3. Create Sample Categories
         from app.models.category import Category

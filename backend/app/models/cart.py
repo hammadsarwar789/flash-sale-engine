@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from app.core.extensions import db
 
 
@@ -41,6 +41,18 @@ class CartItem(db.Model):
         variant_name = self.variant.name if self.variant else None
         variant_sku = self.variant.sku if self.variant else None
 
+        image_url = None
+        if self.product:
+            if getattr(self.product, "images", None) and len(self.product.images) > 0:
+                image_url = self.product.images[0]
+            elif getattr(self.product, "image_url", None):
+                image_url = self.product.image_url
+
+        created_dt = self.created_at if (self.created_at and self.created_at.tzinfo) else (
+            self.created_at.replace(tzinfo=timezone.utc) if self.created_at else None
+        )
+        expires_at_str = (created_dt + timedelta(minutes=10)).isoformat() if created_dt else None
+
         return {
             "id": self.id,
             "user_id": self.user_id,
@@ -49,8 +61,10 @@ class CartItem(db.Model):
             "variant_id": self.variant_id,
             "variant_name": variant_name,
             "variant_sku": variant_sku,
+            "image_url": image_url,
             "quantity": self.quantity,
             "unit_price": price,
             "subtotal": round(price * self.quantity, 2),
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "expires_at": expires_at_str,
         }

@@ -23,6 +23,7 @@ end
 
 redis.call('DECRBY', stock_key, req_qty)
 redis.call('INCRBY', hold_key, req_qty)
+redis.call('EXPIRE', hold_key, 600)
 return current_stock - req_qty
 """
 
@@ -63,6 +64,7 @@ for i = 1, num_items do
     local req_qty = tonumber(ARGV[i])
     redis.call('DECRBY', stock_key, req_qty)
     redis.call('INCRBY', hold_key, req_qty)
+    redis.call('EXPIRE', hold_key, 600)
 end
 return 1
 """

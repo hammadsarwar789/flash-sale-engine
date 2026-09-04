@@ -113,15 +113,26 @@ export const adminApi = {
     return apiFetch<OutboxEventItem[]>('/admin/outbox');
   },
 
+  async uploadProductImage(file: File): Promise<{ url: string; filename: string }> {
+    const formData = new FormData();
+    formData.append('image', file);
+    return apiFetch<{ url: string; filename: string }>('/products/upload-image', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
   async createProduct(data: {
     name: string;
     sku: string;
     price: number;
     total_stock: number;
     description?: string;
+    image_url?: string;
     images?: string[];
     category_id?: string;
     vendor_id?: string;
+    discount_percentage?: number;
   }): Promise<Product> {
     return apiFetch<Product>('/products', {
       method: 'POST',
@@ -138,6 +149,29 @@ export const adminApi = {
 
   async deleteProduct(productId: string): Promise<{ message: string }> {
     return apiFetch<{ message: string }>(`/products/${productId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async deleteProductImage(productId: string): Promise<any> {
+    return apiFetch<any>(`/products/${productId}/image`, {
+      method: 'DELETE',
+    });
+  },
+
+  async uploadImages(files: File[]): Promise<{ urls: string[]; images: { url: string; filename: string }[] }> {
+    const formData = new FormData();
+    files.forEach((f) => {
+      formData.append('images', f);
+    });
+    return apiFetch<{ urls: string[]; images: { url: string; filename: string }[] }>('/upload/images', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  async deleteProductImageById(imageId: string): Promise<any> {
+    return apiFetch<any>(`/admin/products/images/${imageId}`, {
       method: 'DELETE',
     });
   },

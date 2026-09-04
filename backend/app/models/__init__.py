@@ -4,6 +4,7 @@ from app.models.rbac import Permission, Role, RolePermission, UserRole, UserOutl
 from app.models.approval import RegistrationRequest, ApprovalAuditLog
 from app.models.outlet_inventory import OutletInventory
 from app.models.product import Product
+from app.models.product_image import ProductImage
 from app.models.category import Category
 from app.models.product_variant import ProductVariant
 from app.models.shipping_address import ShippingAddress
@@ -34,6 +35,7 @@ __all__ = [
     "ApprovalAuditLog",
     "OutletInventory",
     "Product",
+    "ProductImage",
     "Category",
     "ProductVariant",
     "ShippingAddress",

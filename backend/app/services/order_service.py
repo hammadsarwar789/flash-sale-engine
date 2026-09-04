@@ -22,7 +22,7 @@ class OrderService:
         product_id: str,
         quantity: int = 1,
         idempotency_key: str = None,
-        expiry_minutes: int = 15,
+        expiry_minutes: int = 10,
         source: str = "WEB",
     ) -> Tuple[bool, str, Optional[Order], Optional[OutboxEvent]]:
         """Create pending order reservation, deduct DB stock via adjust_stock, and emit outbox event."""

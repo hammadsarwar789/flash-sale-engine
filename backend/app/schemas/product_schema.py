@@ -39,6 +39,17 @@ class ProductVariantResponseSchema(Schema):
     available_stock = fields.Integer(dump_only=True)
 
 
+class ProductImageSchema(Schema):
+    """Schema for product gallery image item."""
+
+    id = fields.String(dump_only=True)
+    product_id = fields.String(dump_only=True)
+    image_url = fields.String(required=True)
+    is_primary = fields.Boolean(required=False, load_default=False)
+    display_order = fields.Integer(required=False, load_default=0)
+    created_at = fields.String(dump_only=True)
+
+
 class ProductCreateSchema(Schema):
     """Schema for product creation request."""
 
@@ -66,7 +77,9 @@ class ProductCreateSchema(Schema):
     category_id = fields.String(required=False)
     vendor_id = fields.String(required=False)
     description = fields.String(required=False)
-    images = fields.List(fields.String(), required=False)
+    image_url = fields.String(required=False, allow_none=True, metadata={"description": "Primary product image URL"})
+    primary_image_url = fields.String(required=False, allow_none=True)
+    images = fields.List(fields.Raw(), required=False, allow_none=True)
     variants = fields.List(fields.Nested(ProductVariantCreateSchema), required=False)
 
 
@@ -79,10 +92,12 @@ class ProductUpdateSchema(Schema):
     total_stock = fields.Integer(required=False, validate=validate.Range(min=0))
     available_stock = fields.Integer(required=False, validate=validate.Range(min=0))
     discount_percentage = fields.Float(required=False, validate=validate.Range(min=0.0, max=100.0))
-    category_id = fields.String(required=False)
-    vendor_id = fields.String(required=False)
-    description = fields.String(required=False)
-    images = fields.List(fields.String(), required=False)
+    category_id = fields.String(required=False, allow_none=True)
+    vendor_id = fields.String(required=False, allow_none=True)
+    description = fields.String(required=False, allow_none=True)
+    image_url = fields.String(required=False, allow_none=True)
+    primary_image_url = fields.String(required=False, allow_none=True)
+    images = fields.List(fields.Raw(), required=False, allow_none=True)
     is_active = fields.Boolean(required=False)
     variants = fields.List(fields.Nested(ProductVariantCreateSchema), required=False)
 
@@ -108,7 +123,9 @@ class ProductResponseSchema(Schema):
     name = fields.String(dump_only=True)
     sku = fields.String(dump_only=True)
     description = fields.String(dump_only=True)
-    images = fields.List(fields.String(), dump_only=True)
+    image_url = fields.String(dump_only=True)
+    primary_image_url = fields.String(dump_only=True)
+    images = fields.List(fields.Nested(ProductImageSchema), dump_only=True)
     total_stock = fields.Integer(dump_only=True)
     available_stock = fields.Integer(dump_only=True)
     price = fields.Float(dump_only=True)
@@ -116,3 +133,4 @@ class ProductResponseSchema(Schema):
     version = fields.Integer(dump_only=True)
     variants = fields.Nested(ProductVariantResponseSchema, many=True, dump_only=True)
     created_at = fields.String(dump_only=True)
+

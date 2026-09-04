@@ -328,7 +328,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ),
                           )
                         : Text(
-                            'SUBMIT REVIEW',
+                            'Submit review',
                             style: GoogleFonts.manrope(fontWeight: FontWeight.bold),
                           ),
                   ),
@@ -343,16 +343,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryTextColor = isDark ? C.darkText : const Color(0xFF111827);
+    final secondaryTextColor = isDark ? C.darkTextDim : const Color(0xFF4B5563);
+    final muteTextColor = isDark ? C.darkTextMute : const Color(0xFF6B7280);
+    final amberColor = isDark ? C.darkAmber : C.lightAmber;
+    final onAmberColor = isDark ? C.darkOnAmber : Colors.white;
+    final cardBg = isDark ? C.darkSurface : Colors.white;
+    final cardBorder = isDark ? C.darkLine : const Color(0xFFE5E7EB);
+    final roseColor = isDark ? C.darkRose : C.lightRose;
+
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: C.base,
-        body: Center(child: CircularProgressIndicator(color: C.amber)),
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Center(child: CircularProgressIndicator(color: amberColor)),
       );
     }
 
     if (_errorMessage != null || _product == null) {
       return Scaffold(
-        backgroundColor: C.base,
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(title: const Text('Product Detail')),
         body: Center(
           child: Padding(
@@ -360,17 +371,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.warning_amber_rounded, color: C.rose, size: 48),
+                Icon(Icons.warning_amber_rounded, color: roseColor, size: 48),
                 const SizedBox(height: 12),
                 Text(
                   'Product Not Located',
-                  style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: C.text),
+                  style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   _errorMessage ?? 'Unable to find item on the floor.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.manrope(fontSize: 12, color: C.textMute),
+                  style: GoogleFonts.manrope(fontSize: 12, color: muteTextColor),
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -379,19 +390,25 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ElevatedButton(
                       onPressed: () => context.pop(),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: C.raised,
-                        foregroundColor: C.text,
+                        backgroundColor: isDark ? C.darkRaised : const Color(0xFFF3F4F6),
+                        foregroundColor: primaryTextColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(C.radiusCard),
+                        ),
                       ),
-                      child: const Text('BACK TO FLOOR'),
+                      child: const Text('Browse deals'),
                     ),
                     const SizedBox(width: 10),
                     ElevatedButton(
                       onPressed: _loadProductData,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: C.amber,
-                        foregroundColor: C.onAmber,
+                        backgroundColor: amberColor,
+                        foregroundColor: onAmberColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(C.radiusCard),
+                        ),
                       ),
-                      child: const Text('RETRY'),
+                      child: const Text('Try again'),
                     ),
                   ],
                 ),
@@ -406,17 +423,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final images = product.images.isNotEmpty
         ? product.images
         : (product.imageUrl != null && product.imageUrl!.isNotEmpty ? [product.imageUrl!] : []);
-
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final primaryTextColor = isDark ? C.darkText : const Color(0xFF111827);
-    final secondaryTextColor = isDark ? C.darkTextDim : const Color(0xFF4B5563);
-    final muteTextColor = isDark ? C.darkTextMute : const Color(0xFF6B7280);
-    final amberColor = isDark ? C.darkAmber : C.lightAmber;
-    final onAmberColor = isDark ? C.darkOnAmber : Colors.white;
-    final cardBg = isDark ? C.darkSurface : Colors.white;
-    final cardBorder = isDark ? C.darkLine : const Color(0xFFE5E7EB);
-    final roseColor = isDark ? C.darkRose : C.lightRose;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -448,7 +454,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 onPressed: () {
                   context.read<WishlistBloc>().add(ToggleWishlistEvent(product.id, product: product));
                   if (!isSaved) {
-                    AppToast.showSuccess(context, 'SAVED: ${product.name}');
+                    AppToast.showSuccess(context, 'Saved: ${product.name}');
                   }
                 },
               );
@@ -495,7 +501,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        '-${product.discountPercentage}% DROP',
+                        '-${product.discountPercentage}%',
                         style: GoogleFonts.jetBrainsMono(
                           color: onAmberColor,
                           fontSize: 10,
@@ -557,8 +563,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             border: Border.all(color: roseColor.withValues(alpha: 0.3)),
                           ),
                           child: Text(
-                            '• SOLD OUT',
-                            style: GoogleFonts.jetBrainsMono(color: roseColor, fontSize: 10, fontWeight: FontWeight.bold),
+                            'Sold out',
+                            style: GoogleFonts.manrope(color: roseColor, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                         )
                       else if (_activeStock <= 5)
@@ -570,14 +576,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             border: Border.all(color: amberColor.withValues(alpha: 0.3)),
                           ),
                           child: Text(
-                            'ONLY $_activeStock LEFT IN STOCK',
-                            style: GoogleFonts.jetBrainsMono(color: amberColor, fontSize: 10, fontWeight: FontWeight.bold),
+                            'Only $_activeStock left',
+                            style: GoogleFonts.manrope(color: amberColor, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
-                        )
-                      else
-                        Text(
-                          '• IN STOCK',
-                          style: GoogleFonts.jetBrainsMono(color: isDark ? C.darkMint : C.lightMint, fontSize: 10, fontWeight: FontWeight.bold),
                         ),
                     ],
                   ),
@@ -647,8 +648,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   // Variants Picker
                   if (_variants.isNotEmpty) ...[
                     Text(
-                      'SPECIFICATION OPTIONS',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: muteTextColor),
+                      'Options',
+                      style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w700, color: primaryTextColor),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -693,8 +694,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   // Description
                   if (product.description != null && product.description!.isNotEmpty) ...[
                     Text(
-                      'PRODUCT SPECIFICATIONS',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: C.textMute),
+                      'Description',
+                      style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w700, color: primaryTextColor),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -709,14 +710,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'CUSTOMER REVIEWS (${_reviews.length})',
-                        style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: C.text),
+                        'Reviews (${_reviews.length})',
+                        style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w700, color: primaryTextColor),
                       ),
                       TextButton(
                         onPressed: _showReviewBottomSheet,
                         child: Text(
-                          '+ WRITE REVIEW',
-                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.bold, color: C.amber),
+                          'Write a review',
+                          style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: amberColor),
                         ),
                       ),
                     ],
@@ -733,9 +734,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                       child: Center(
                         child: Text(
-                          'No reviews submitted yet. Be the first to verify this commodity lot.',
+                          'No reviews yet. Be the first to review this product.',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.manrope(fontSize: 12, color: C.textMute),
+                          style: GoogleFonts.manrope(fontSize: 12, color: muteTextColor),
                         ),
                       ),
                     )
@@ -873,9 +874,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                   child: Text(
                     _isSoldOut
-                        ? 'SOLD OUT'
-                        : 'ADD TO CART — \$${(_activePrice * _quantity).toStringAsFixed(2)}',
-                    style: GoogleFonts.manrope(fontWeight: FontWeight.bold, fontSize: 13),
+                        ? 'Sold out'
+                        : 'Add to cart · \$${(_activePrice * _quantity).toStringAsFixed(2)}',
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13),
                   ),
                 ),
               ),

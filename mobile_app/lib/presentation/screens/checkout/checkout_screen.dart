@@ -33,7 +33,7 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
   String _selectedPaymentMethod = 'card';
-  String _selectedCountry = 'UNITED STATES';
+  String _selectedCountry = 'United States';
 
   final _nameController = TextEditingController(text: 'Customer Trader');
   final _addressController = TextEditingController(text: '100 Wall Street, Suite 400');
@@ -50,20 +50,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   List<ShippingAddressModel> _savedAddresses = [];
 
   final List<String> _countries = [
-    'UNITED STATES',
-    'CANADA',
-    'UNITED KINGDOM',
-    'AUSTRALIA',
-    'GERMANY',
-    'FRANCE',
-    'JAPAN',
-    'ITALY',
-    'SPAIN',
-    'PAKISTAN',
-    'INDIA',
-    'UNITED ARAB EMIRATES',
-    'SAUDI ARABIA',
-    'SINGAPORE',
+    'United States',
+    'Canada',
+    'United Kingdom',
+    'Australia',
+    'Germany',
+    'France',
+    'Japan',
+    'Italy',
+    'Spain',
+    'Pakistan',
+    'India',
+    'United Arab Emirates',
+    'Saudi Arabia',
+    'Singapore',
   ];
 
   @override
@@ -105,7 +105,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _cityController.text = addr.city;
       _stateController.text = addr.state;
       _postalController.text = addr.postalCode;
-      _selectedCountry = addr.country.toUpperCase();
+      _selectedCountry = addr.country;
       if (addr.phone.isNotEmpty) _phoneController.text = addr.phone;
     });
   }
@@ -145,13 +145,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final discount = widget.discount;
     final total = (subtotal - discount).clamp(0.0, double.infinity);
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryTextColor = isDark ? C.darkText : const Color(0xFF111827);
+    final secondaryTextColor = isDark ? C.darkTextDim : const Color(0xFF4B5563);
+    final muteTextColor = isDark ? C.darkTextMute : const Color(0xFF6B7280);
+    final amberColor = isDark ? C.darkAmber : C.lightAmber;
+    final cardBg = isDark ? C.darkSurface : Colors.white;
+    final cardBorder = isDark ? C.darkLine : const Color(0xFFE5E7EB);
+    final raisedBg = isDark ? C.darkRaised : const Color(0xFFF9FAFB);
+
     return BlocListener<CheckoutBloc, CheckoutState>(
       listener: (context, state) {
         if (state is CheckoutSuccess) {
           context.read<CartBloc>().add(ClearCartEvent());
           AppToast.showSuccess(
             context,
-            'PAYMENT SETTLED: Order #${state.order.id}',
+            'Order placed successfully: #${state.order.id}',
           );
           context.go('/order-success', extra: state.order);
         } else if (state is CheckoutFailure) {
@@ -159,15 +169,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: C.base,
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: C.surface,
+          backgroundColor: theme.scaffoldBackgroundColor,
+          elevation: 0,
           title: Text(
-            'Order Settlement',
-            style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.w700, color: C.text),
+            'Checkout',
+            style: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w700, color: primaryTextColor),
           ),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: C.text),
+            icon: Icon(Icons.arrow_back, color: primaryTextColor),
             onPressed: () => context.pop(),
           ),
         ),
@@ -178,27 +189,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             children: [
               // Pinned Order Hold Notice
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
                 child: Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: C.amberSoft,
+                    color: amberColor.withValues(alpha: isDark ? 0.12 : 0.08),
                     borderRadius: BorderRadius.circular(C.radiusCard),
-                    border: Border.all(color: C.amber.withValues(alpha: 0.4)),
+                    border: Border.all(color: amberColor.withValues(alpha: 0.25)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.lock_outline, color: C.amber, size: 18),
+                      Icon(Icons.timer_outlined, color: amberColor, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          widget.order.id.toString() == '0' || widget.order.id.toString().isEmpty
-                              ? '10:00 MIN RESERVATION HOLD ACTIVE FOR SETTLEMENT'
-                              : '10:00 MIN RESERVATION HOLD ACTIVE FOR ORDER #ORD-${widget.order.shortId}',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: C.amber,
+                          'Items held for 10:00 to complete your purchase',
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? C.darkText : const Color(0xFF374151),
                           ),
                         ),
                       ),
@@ -215,346 +224,376 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                    // Step 1: Saved Addresses Picker
-                    if (_savedAddresses.isNotEmpty) ...[
-                      Text(
-                        '1 · SAVED DISPATCH PROFILES',
-                        style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: C.textMute),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 90,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                          itemCount: _savedAddresses.length,
-                          separatorBuilder: (_, _) => const SizedBox(width: 8),
-                          itemBuilder: (context, i) {
-                            final addr = _savedAddresses[i];
-                            return GestureDetector(
-                              key: ValueKey('addr_${addr.id}'),
-                              onTap: () => _onSelectSavedAddress(addr),
-                              child: Container(
-                                width: 200,
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: C.surface,
-                                  borderRadius: BorderRadius.circular(C.radiusCard),
-                                  border: Border.all(color: C.line),
+                      // Saved Addresses Picker
+                      if (_savedAddresses.isNotEmpty) ...[
+                        Text(
+                          'Saved addresses',
+                          style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w700, color: primaryTextColor),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 86,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                            itemCount: _savedAddresses.length,
+                            separatorBuilder: (_, _) => const SizedBox(width: 8),
+                            itemBuilder: (context, i) {
+                              final addr = _savedAddresses[i];
+                              return GestureDetector(
+                                key: ValueKey('addr_${addr.id}'),
+                                onTap: () => _onSelectSavedAddress(addr),
+                                child: Container(
+                                  width: 210,
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: cardBg,
+                                    borderRadius: BorderRadius.circular(C.radiusCard),
+                                    border: Border.all(color: cardBorder),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        addr.recipientName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w700, color: primaryTextColor),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        addr.addressLine1,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.manrope(fontSize: 11, color: secondaryTextColor),
+                                      ),
+                                      Text(
+                                        '${addr.city}, ${addr.country}',
+                                        style: GoogleFonts.manrope(fontSize: 10, color: muteTextColor),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                addr.recipientName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.bold, color: C.text),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Shipping Details Form
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(C.radiusCard),
+                          border: Border.all(color: cardBorder),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Shipping address',
+                              style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w700, color: primaryTextColor),
+                            ),
+                            const SizedBox(height: 14),
+                            TextFormField(
+                              controller: _nameController,
+                              style: GoogleFonts.manrope(fontSize: 13, color: primaryTextColor),
+                              decoration: const InputDecoration(labelText: 'Full name'),
+                              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _phoneController,
+                              keyboardType: TextInputType.phone,
+                              style: GoogleFonts.manrope(fontSize: 13, color: primaryTextColor),
+                              decoration: const InputDecoration(labelText: 'Phone number'),
+                              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _addressController,
+                              style: GoogleFonts.manrope(fontSize: 13, color: primaryTextColor),
+                              decoration: const InputDecoration(labelText: 'Street address'),
+                              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _cityController,
+                                    style: GoogleFonts.manrope(fontSize: 13, color: primaryTextColor),
+                                    decoration: const InputDecoration(labelText: 'City'),
+                                    validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _stateController,
+                                    style: GoogleFonts.manrope(fontSize: 13, color: primaryTextColor),
+                                    decoration: const InputDecoration(labelText: 'State / Region'),
+                                    validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _postalController,
+                                    style: GoogleFonts.manrope(fontSize: 13, color: primaryTextColor),
+                                    decoration: const InputDecoration(labelText: 'Zip / Postal code'),
+                                    validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              initialValue: _countries.firstWhere(
+                                (c) => c.toLowerCase() == _selectedCountry.toLowerCase(),
+                                orElse: () => _countries.first,
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                addr.addressLine1,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.manrope(fontSize: 11, color: C.textDim),
+                              decoration: const InputDecoration(labelText: 'Country'),
+                              dropdownColor: cardBg,
+                              items: _countries
+                                  .map((c) => DropdownMenuItem(
+                                        value: c,
+                                        child: Text(c, style: GoogleFonts.manrope(fontSize: 12, color: primaryTextColor)),
+                                      ))
+                                  .toList(),
+                              onChanged: (v) => setState(() => _selectedCountry = v!),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Payment Method
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(C.radiusCard),
+                          border: Border.all(color: cardBorder),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Payment method',
+                              style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w700, color: primaryTextColor),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ChoiceChip(
+                                    showCheckmark: false,
+                                    label: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.credit_card, size: 16),
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            'Credit / Debit card',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    selected: _selectedPaymentMethod == 'card',
+                                    selectedColor: amberColor,
+                                    backgroundColor: raisedBg,
+                                    labelStyle: GoogleFonts.manrope(
+                                      color: _selectedPaymentMethod == 'card' ? (isDark ? C.darkOnAmber : Colors.white) : secondaryTextColor,
+                                    ),
+                                    side: BorderSide(
+                                      color: _selectedPaymentMethod == 'card' ? amberColor : cardBorder,
+                                    ),
+                                    onSelected: (_) => setState(() => _selectedPaymentMethod = 'card'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ChoiceChip(
+                                    showCheckmark: false,
+                                    label: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.payments_outlined, size: 16),
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            'Cash on delivery',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    selected: _selectedPaymentMethod == 'cod',
+                                    selectedColor: isDark ? C.darkMint : C.lightMint,
+                                    backgroundColor: raisedBg,
+                                    labelStyle: GoogleFonts.manrope(
+                                      color: _selectedPaymentMethod == 'cod' ? (isDark ? C.darkOnMint : Colors.white) : secondaryTextColor,
+                                    ),
+                                    side: BorderSide(
+                                      color: _selectedPaymentMethod == 'cod' ? (isDark ? C.darkMint : C.lightMint) : cardBorder,
+                                    ),
+                                    onSelected: (_) => setState(() => _selectedPaymentMethod = 'cod'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_selectedPaymentMethod == 'card') ...[
+                              const SizedBox(height: 14),
+                              TextFormField(
+                                controller: _cardNumberController,
+                                style: GoogleFonts.jetBrainsMono(fontSize: 13, color: primaryTextColor),
+                                decoration: InputDecoration(
+                                  labelText: 'Card number',
+                                  prefixIcon: Icon(Icons.lock_outline, size: 16, color: isDark ? C.darkMint : C.lightMint),
+                                ),
                               ),
-                              Text(
-                                '${addr.city}, ${addr.country}',
-                                style: GoogleFonts.manrope(fontSize: 10, color: C.textMute),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: _cardExpiryController,
+                                      style: GoogleFonts.jetBrainsMono(fontSize: 13, color: primaryTextColor),
+                                      decoration: const InputDecoration(labelText: 'MM / YY'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: _cardCvcController,
+                                      style: GoogleFonts.jetBrainsMono(fontSize: 13, color: primaryTextColor),
+                                      decoration: const InputDecoration(labelText: 'CVC / CVV'),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
+                          ],
                         ),
-                      );
-                    },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Order Summary
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(C.radiusCard),
+                          border: Border.all(color: cardBorder),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Order Summary',
+                              style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w700, color: primaryTextColor),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Subtotal', style: GoogleFonts.manrope(fontSize: 12, color: secondaryTextColor)),
+                                PriceText(amount: subtotal, size: PriceTextSize.sm, color: primaryTextColor),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Shipping', style: GoogleFonts.manrope(fontSize: 12, color: secondaryTextColor)),
+                                Text(
+                                  'Free',
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? C.darkMint : C.lightMint,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (discount > 0) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Discount (${widget.couponCode})',
+                                    style: GoogleFonts.manrope(fontSize: 12, color: isDark ? C.darkMint : C.lightMint),
+                                  ),
+                                  PriceText(amount: discount, size: PriceTextSize.sm, color: isDark ? C.darkMint : C.lightMint),
+                                ],
+                              ),
+                            ],
+                            const Divider(height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Total', style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.w700, color: primaryTextColor)),
+                                PriceText(amount: total, size: PriceTextSize.xl, color: primaryTextColor),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Confirm Button
+                      BlocBuilder<CheckoutBloc, CheckoutState>(
+                        builder: (context, state) {
+                          final isProcessing = state is CheckoutLoading;
+                          return SizedBox(
+                            width: double.infinity,
+                            height: C.heightButtonPrimary,
+                            child: ElevatedButton(
+                              onPressed: isProcessing ? null : _onConfirmPayment,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: amberColor,
+                                foregroundColor: isDark ? C.darkOnAmber : Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(C.radiusCard),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: isProcessing
+                                  ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : Text(
+                                      'Place order · \$${total.toStringAsFixed(2)}',
+                                      style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700),
+                                    ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-              ],
-
-              // Step 2: Shipping Details Form
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: C.surface,
-                  borderRadius: BorderRadius.circular(C.radiusCard),
-                  border: Border.all(color: C.line),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '2 · SHIPPING DESTINATION',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: C.textMute),
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(labelText: 'Full Name'),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _phoneController,
-                      decoration: const InputDecoration(labelText: 'Phone Number'),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _addressController,
-                      decoration: const InputDecoration(labelText: 'Street Address'),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _cityController,
-                            decoration: const InputDecoration(labelText: 'City'),
-                            validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _stateController,
-                            decoration: const InputDecoration(labelText: 'State / Region'),
-                            validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _postalController,
-                            decoration: const InputDecoration(labelText: 'Postal Code'),
-                            validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _countries.contains(_selectedCountry) ? _selectedCountry : _countries.first,
-                      decoration: const InputDecoration(labelText: 'Country'),
-                      dropdownColor: C.raised,
-                      items: _countries
-                          .map((c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(c, style: GoogleFonts.jetBrainsMono(fontSize: 12, color: C.text)),
-                              ))
-                          .toList(),
-                      onChanged: (v) => setState(() => _selectedCountry = v!),
-                    ),
-                  ],
-                ),
               ),
-              const SizedBox(height: 16),
-
-              // Step 3: Payment Method
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: C.surface,
-                  borderRadius: BorderRadius.circular(C.radiusCard),
-                  border: Border.all(color: C.line),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '3 · PAYMENT SETTLEMENT',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: C.textMute),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ChoiceChip(
-                            label: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.credit_card, size: 16),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    'CREDIT / DEBIT',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            selected: _selectedPaymentMethod == 'card',
-                            selectedColor: C.amber,
-                            backgroundColor: C.raised,
-                            labelStyle: GoogleFonts.jetBrainsMono(
-                              color: _selectedPaymentMethod == 'card' ? C.onAmber : C.textDim,
-                            ),
-                            side: BorderSide(
-                              color: _selectedPaymentMethod == 'card' ? C.amber : C.line,
-                            ),
-                            onSelected: (_) => setState(() => _selectedPaymentMethod = 'card'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ChoiceChip(
-                            label: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.payments_outlined, size: 16),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    'CASH / COD',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            selected: _selectedPaymentMethod == 'cod',
-                            selectedColor: C.mint,
-                            backgroundColor: C.raised,
-                            labelStyle: GoogleFonts.jetBrainsMono(
-                              color: _selectedPaymentMethod == 'cod' ? C.onMint : C.textDim,
-                            ),
-                            side: BorderSide(
-                              color: _selectedPaymentMethod == 'cod' ? C.mint : C.line,
-                            ),
-                            onSelected: (_) => setState(() => _selectedPaymentMethod = 'cod'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_selectedPaymentMethod == 'card') ...[
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: _cardNumberController,
-                        style: GoogleFonts.jetBrainsMono(fontSize: 13),
-                        decoration: const InputDecoration(
-                          labelText: 'Card Number',
-                          prefixIcon: Icon(Icons.lock_outline, size: 16, color: C.mint),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _cardExpiryController,
-                              style: GoogleFonts.jetBrainsMono(fontSize: 13),
-                              decoration: const InputDecoration(labelText: 'MM / YY'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _cardCvcController,
-                              style: GoogleFonts.jetBrainsMono(fontSize: 13),
-                              decoration: const InputDecoration(labelText: 'CVC / CVV'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Invoice Total Spec
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: C.surface,
-                  borderRadius: BorderRadius.circular(C.radiusCard),
-                  border: Border.all(color: C.line),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('SUBTOTAL', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.textDim)),
-                        PriceText(amount: subtotal, size: PriceTextSize.sm),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('COURIER SHIPPING', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.textDim)),
-                        Text('FREE INCLUDED', style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: C.mint)),
-                      ],
-                    ),
-                    if (discount > 0) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('PROMO (${widget.couponCode})', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: C.mint)),
-                          PriceText(amount: discount, size: PriceTextSize.sm, color: C.mint),
-                        ],
-                      ),
-                    ],
-                    const Divider(color: C.line, height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('TOTAL CHARGED', style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.bold, color: C.text)),
-                        PriceText(amount: total, size: PriceTextSize.xl, color: C.text),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Confirm Button
-              BlocBuilder<CheckoutBloc, CheckoutState>(
-                builder: (context, state) {
-                  final isProcessing = state is CheckoutLoading;
-                  return SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: isProcessing ? null : _onConfirmPayment,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: C.amber,
-                        foregroundColor: C.onAmber,
-                      ),
-                      child: isProcessing
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: C.onAmber),
-                            )
-                          : Text(
-                              _selectedPaymentMethod == 'cod'
-                                  ? 'CONFIRM CASH ON DELIVERY — \$${total.toStringAsFixed(2)}'
-                                  : 'AUTHORIZE PAYMENT — \$${total.toStringAsFixed(2)}',
-                              style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.bold),
-                            ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
             ],
           ),
         ),
       ),
-    ],
-  ),
-),
-),
-);
+    );
   }
 }

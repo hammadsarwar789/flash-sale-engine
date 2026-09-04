@@ -9,6 +9,7 @@ import { Numeric } from '../components/ui/Numeric';
 import { StatusDot } from '../components/ui/StatusDot';
 import { ShopifyToggle } from '../components/ShopifyToggle';
 import { ShopifyOrdersBox } from '../components/ShopifyOrdersBox';
+import { UpdateProductModal } from '../components/product/UpdateProductModal';
 
 export const AdminPage: React.FC = () => {
   const { user, logout } = useAuth();
@@ -83,6 +84,8 @@ export const AdminPage: React.FC = () => {
   const [prodCatId, setProdCatId] = useState('');
   const [prodVendorId, setProdVendorId] = useState('');
   const [prodDiscountPct, setProdDiscountPct] = useState<number>(0);
+  const [prodImageFile, setProdImageFile] = useState<File | null>(null);
+  const [prodImagePreview, setProdImagePreview] = useState<string | null>(null);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
   // Coupon Generator state
@@ -120,6 +123,8 @@ export const AdminPage: React.FC = () => {
   const [editProdVendorId, setEditProdVendorId] = useState('');
   const [editProdDiscountPct, setEditProdDiscountPct] = useState<number>(0);
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
+  const [editProdImageFile, setEditProdImageFile] = useState<File | null>(null);
+  const [editProdImagePreview, setEditProdImagePreview] = useState<string | null>(null);
 
   // Variant editor state
   const [variantSku, setVariantSku] = useState('');
@@ -189,6 +194,12 @@ export const AdminPage: React.FC = () => {
     const validStock = Math.max(0, prodStock || 0);
     const validDiscount = Math.min(100, Math.max(0, prodDiscountPct || 0));
     try {
+      let uploadedImageUrl: string | undefined = undefined;
+      if (prodImageFile) {
+        const uploadRes = await adminApi.uploadProductImage(prodImageFile);
+        uploadedImageUrl = uploadRes.url;
+      }
+
       await adminApi.createProduct({
         name: prodName,
         sku: prodSku.toUpperCase(),
@@ -198,6 +209,7 @@ export const AdminPage: React.FC = () => {
         category_id: prodCatId || undefined,
         vendor_id: prodVendorId || undefined,
         discount_percentage: validDiscount,
+        image_url: uploadedImageUrl,
       } as any);
       setSuccessMsg(`Product '${prodName}' created with ${validDiscount}% discount.`);
       setProdName('');
@@ -205,6 +217,8 @@ export const AdminPage: React.FC = () => {
       setProdDesc('');
       setProdVendorId('');
       setProdDiscountPct(0);
+      setProdImageFile(null);
+      setProdImagePreview(null);
       loadAdminData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to create product.');
@@ -221,6 +235,8 @@ export const AdminPage: React.FC = () => {
     setEditProdCatId(typeof p.category === 'object' ? (p.category as any)?.id || '' : p.category_id || '');
     setEditProdVendorId(p.vendor_id || '');
     setEditProdDiscountPct(Math.min(100, Math.max(0, Number((p as any).discount_percentage) || 0)));
+    setEditProdImageFile(null);
+    setEditProdImagePreview(p.image_url || (p.images && p.images.length > 0 ? p.images[0] : null));
   };
 
   const handleSaveEditProduct = async (e: React.FormEvent) => {
@@ -233,6 +249,16 @@ export const AdminPage: React.FC = () => {
     const validStock = Math.max(0, editProdStock || 0);
     const validDiscount = Math.min(100, Math.max(0, editProdDiscountPct || 0));
     try {
+      let finalImageUrl: string | null = null;
+      if (editProdImageFile) {
+        const uploadRes = await adminApi.uploadProductImage(editProdImageFile);
+        finalImageUrl = uploadRes.url;
+      } else if (editProdImagePreview) {
+        finalImageUrl = editProdImagePreview;
+      } else {
+        finalImageUrl = null;
+      }
+
       await adminApi.updateProduct(editProduct.id, {
         name: editProdName,
         price: validPrice,
@@ -241,9 +267,13 @@ export const AdminPage: React.FC = () => {
         category_id: editProdCatId || undefined,
         vendor_id: editProdVendorId || undefined,
         discount_percentage: validDiscount,
+        image_url: finalImageUrl,
+        images: finalImageUrl ? [finalImageUrl] : [],
       } as any);
       setSuccessMsg(`Product '${editProdName}' updated successfully (${validDiscount}% discount applied).`);
       setEditProduct(null);
+      setEditProdImageFile(null);
+      setEditProdImagePreview(null);
       loadAdminData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to update product stock.');
@@ -978,13 +1008,48 @@ export const AdminPage: React.FC = () => {
                   onChange={(e) => setProdDesc(e.target.value)}
                   className="w-full sm:flex-1 bg-paper border border-rule px-3 py-1.5 text-ink focus:outline-none"
                 />
-                <button
-                  type="submit"
-                  disabled={isCreatingProduct}
-                  className="w-full sm:w-auto bg-ink text-paper px-6 py-1.5 hover:bg-graphite uppercase whitespace-nowrap"
-                >
-                  {isCreatingProduct ? 'ISSUING...' : '+ CREATE PRODUCT'}
-                </button>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <label className="cursor-pointer bg-paper border border-rule px-3 py-1.5 text-ink hover:bg-paper-sunk flex items-center gap-1.5 whitespace-nowrap">
+                    <span>📷 {prodImagePreview ? 'CHANGE IMAGE' : 'UPLOAD IMAGE'}</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setProdImageFile(file);
+                          setProdImagePreview(URL.createObjectURL(file));
+                        }
+                      }}
+                    />
+                  </label>
+                  {prodImagePreview && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-7 h-7 border border-rule overflow-hidden bg-paper flex-shrink-0">
+                        <img src={prodImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProdImageFile(null);
+                          setProdImagePreview(null);
+                        }}
+                        className="text-signal hover:text-ink font-bold px-1"
+                        title="Remove image"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isCreatingProduct}
+                    className="flex-1 sm:flex-initial bg-ink text-paper px-6 py-1.5 hover:bg-graphite uppercase whitespace-nowrap"
+                  >
+                    {isCreatingProduct ? 'ISSUING...' : '+ CREATE PRODUCT'}
+                  </button>
+                </div>
               </div>
             </form>
 
@@ -1010,7 +1075,16 @@ export const AdminPage: React.FC = () => {
                   {products.map((p) => (
                     <React.Fragment key={p.id}>
                     <tr className="hover:bg-paper-sunk/40">
-                      <td className="py-2.5 px-3 font-sans font-medium text-ink">{p.name}</td>
+                      <td className="py-2.5 px-3 font-sans font-medium text-ink flex items-center gap-2">
+                        {(p.image_url || (p.images && p.images.length > 0 ? p.images[0] : null)) ? (
+                          <img
+                            src={p.image_url || p.images![0]}
+                            alt={p.name}
+                            className="w-7 h-7 object-cover rounded border border-rule flex-shrink-0"
+                          />
+                        ) : null}
+                        <span>{p.name}</span>
+                      </td>
                       <td className="py-2.5 px-3 text-ash">{p.sku}</td>
                       <td className="py-2.5 px-3">
                         <span className="bg-paper-sunk px-2 py-0.5 border border-rule text-ink font-semibold">
@@ -2204,179 +2278,16 @@ export const AdminPage: React.FC = () => {
 
 
       {/* 📦 EDIT PRODUCT & STOCK MODAL */}
-      {editProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-ink/60" onClick={() => setEditProduct(null)} />
-          <div className="relative w-full max-w-md bg-paper border border-rule p-6 space-y-4 font-mono text-xs z-10">
-            <div className="border-b border-rule pb-3 flex justify-between items-center">
-              <h3 className="font-serif text-2xl text-ink">Update Product & Stock</h3>
-              <button onClick={() => setEditProduct(null)} className="text-ash hover:text-ink font-mono text-xs">✕</button>
-            </div>
-
-            <form onSubmit={handleSaveEditProduct} className="space-y-4">
-              <div className="space-y-1">
-                <Eyebrow className="text-ash block">PRODUCT NAME</Eyebrow>
-                <input
-                  type="text"
-                  required
-                  value={editProdName}
-                  onChange={(e) => setEditProdName(e.target.value)}
-                  className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Eyebrow className="text-ash block">PRICE ($)</Eyebrow>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    required
-                    value={editProdPrice}
-                    onChange={(e) => setEditProdPrice(Math.max(0.01, parseFloat(e.target.value) || 0))}
-                    className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Eyebrow className="text-ash block">DISCOUNT (%)</Eyebrow>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={editProdDiscountPct}
-                    onChange={(e) => setEditProdDiscountPct(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                    className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Eyebrow className="text-ash block">STOCK (UNITS)</Eyebrow>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={editProdStock}
-                    onChange={(e) => setEditProdStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                    className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink font-semibold focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Eyebrow className="text-ash block">ASSIGN CATEGORY</Eyebrow>
-                <select
-                  value={editProdCatId}
-                  onChange={(e) => setEditProdCatId(e.target.value)}
-                  className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
-                >
-                  <option value="">NO CATEGORY / GENERAL</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <Eyebrow className="text-ash block">ASSIGN VENDOR</Eyebrow>
-                <select
-                  value={editProdVendorId}
-                  onChange={(e) => setEditProdVendorId(e.target.value)}
-                  className="w-full bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
-                >
-                  <option value="">NO VENDOR / CENTRAL OUTLET</option>
-                  {usersList.filter((u) => u.role === 'vendor').map((vendor) => (
-                    <option key={vendor.id} value={vendor.id}>{vendor.full_name || vendor.email}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="pt-4 border-t border-rule space-y-3">
-                <div className="flex items-center justify-between">
-                  <Eyebrow className="text-ash block">ADD VARIANT</Eyebrow>
-                  <span className="text-[11px] text-ash font-mono">{editProduct.variants?.length || 0} EXISTING</span>
-                </div>
-                <form onSubmit={handleCreateVariant} className="grid grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    required
-                    placeholder="VARIANT SKU"
-                    value={variantSku}
-                    onChange={(e) => setVariantSku(e.target.value)}
-                    className="bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    required
-                    placeholder="VARIANT NAME"
-                    value={variantName}
-                    onChange={(e) => setVariantName(e.target.value)}
-                    className="bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="COLOR"
-                    value={variantColor}
-                    onChange={(e) => setVariantColor(e.target.value)}
-                    className="bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="SIZE"
-                    value={variantSize}
-                    onChange={(e) => setVariantSize(e.target.value)}
-                    className="bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
-                  />
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    required
-                    placeholder="PRICE"
-                    value={variantPrice || ''}
-                    onChange={(e) => setVariantPrice(Math.max(0.01, parseFloat(e.target.value) || 0))}
-                    className="bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    placeholder="STOCK"
-                    value={variantStock || ''}
-                    onChange={(e) => setVariantStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                    className="bg-paper-sunk border border-rule px-3 py-2 text-ink focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isCreatingVariant}
-                    className="col-span-2 px-4 py-2 bg-signal text-paper font-semibold hover:bg-signal/90 disabled:opacity-50"
-                  >
-                    {isCreatingVariant ? 'CREATING VARIANT...' : 'CREATE VARIANT →'}
-                  </button>
-                </form>
-              </div>
-
-              <div className="pt-2 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setEditProduct(null)}
-                  className="px-4 py-2 border border-rule bg-paper text-ink hover:bg-paper-sunk"
-                >
-                  CANCEL
-                </button>
-                <button
-                  type="submit"
-                  disabled={isUpdatingProduct}
-                  className="px-4 py-2 bg-ink text-paper font-semibold hover:bg-graphite disabled:opacity-50"
-                >
-                  {isUpdatingProduct ? 'SAVING...' : 'UPDATE & SYNC STOCK →'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <UpdateProductModal
+        product={editProduct}
+        categories={categories}
+        vendors={usersList.filter((u) => u.role === 'vendor')}
+        isOpen={!!editProduct}
+        onClose={() => setEditProduct(null)}
+        onSuccess={() => {
+          loadAdminData();
+        }}
+      />
 
       {/* 🚢 SHIP MODAL */}
       {shippingModalOrder && (

@@ -66,59 +66,60 @@ class MainLayoutScreen extends StatelessWidget {
                         currentIndex: navigationShell.currentIndex,
                         selectedItemColor: amberColor,
                         unselectedItemColor: unselectedColor,
-                  selectedFontSize: 10,
-                  unselectedFontSize: 10,
-                  selectedLabelStyle: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w800),
-                  unselectedLabelStyle: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w600),
-                  onTap: (index) => _onTap(context, index),
-                  items: [
-                    const BottomNavigationBarItem(
-                      icon: Icon(Icons.bolt, size: 20),
-                      label: 'Floor',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Badge(
-                        isLabelVisible: wishlistCount > 0,
-                        label: Text('$wishlistCount', style: GoogleFonts.jetBrainsMono(fontSize: 9, color: onAmberColor, fontWeight: FontWeight.bold)),
-                        backgroundColor: amberColor,
-                        child: const Icon(Icons.favorite_border, size: 20),
+                        selectedFontSize: 10,
+                        unselectedFontSize: 10,
+                        selectedLabelStyle: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700),
+                        unselectedLabelStyle: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w500),
+                        onTap: (index) => _onTap(context, index),
+                        items: [
+                          const BottomNavigationBarItem(
+                            icon: Icon(Icons.storefront_outlined, size: 20),
+                            activeIcon: Icon(Icons.storefront, size: 20),
+                            label: 'Shop',
+                          ),
+                          BottomNavigationBarItem(
+                            icon: Badge(
+                              isLabelVisible: wishlistCount > 0,
+                              label: Text('$wishlistCount', style: GoogleFonts.jetBrainsMono(fontSize: 9, color: onAmberColor, fontWeight: FontWeight.bold)),
+                              backgroundColor: amberColor,
+                              child: const Icon(Icons.favorite_border, size: 20),
+                            ),
+                            activeIcon: Badge(
+                              isLabelVisible: wishlistCount > 0,
+                              label: Text('$wishlistCount', style: GoogleFonts.jetBrainsMono(fontSize: 9, color: onAmberColor, fontWeight: FontWeight.bold)),
+                              backgroundColor: amberColor,
+                              child: const Icon(Icons.favorite, size: 20),
+                            ),
+                            label: 'Saved',
+                          ),
+                          BottomNavigationBarItem(
+                            icon: Badge(
+                              isLabelVisible: cartCount > 0,
+                              label: Text('$cartCount', style: GoogleFonts.jetBrainsMono(fontSize: 9, color: onAmberColor, fontWeight: FontWeight.bold)),
+                              backgroundColor: amberColor,
+                              child: const Icon(Icons.shopping_bag_outlined, size: 20),
+                            ),
+                            activeIcon: Badge(
+                              isLabelVisible: cartCount > 0,
+                              label: Text('$cartCount', style: GoogleFonts.jetBrainsMono(fontSize: 9, color: onAmberColor, fontWeight: FontWeight.bold)),
+                              backgroundColor: amberColor,
+                              child: const Icon(Icons.shopping_bag, size: 20),
+                            ),
+                            label: 'Cart',
+                          ),
+                          const BottomNavigationBarItem(
+                            icon: Icon(Icons.receipt_long_outlined, size: 20),
+                            activeIcon: Icon(Icons.receipt_long, size: 20),
+                            label: 'Orders',
+                          ),
+                          const BottomNavigationBarItem(
+                            icon: Icon(Icons.person_outline, size: 20),
+                            activeIcon: Icon(Icons.person, size: 20),
+                            label: 'Account',
+                          ),
+                        ],
                       ),
-                      activeIcon: Badge(
-                        isLabelVisible: wishlistCount > 0,
-                        label: Text('$wishlistCount', style: GoogleFonts.jetBrainsMono(fontSize: 9, color: onAmberColor, fontWeight: FontWeight.bold)),
-                        backgroundColor: amberColor,
-                        child: const Icon(Icons.favorite, size: 20),
-                      ),
-                      label: 'Saved',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Badge(
-                        isLabelVisible: cartCount > 0,
-                        label: Text('$cartCount', style: GoogleFonts.jetBrainsMono(fontSize: 9, color: onAmberColor, fontWeight: FontWeight.bold)),
-                        backgroundColor: amberColor,
-                        child: const Icon(Icons.shopping_bag_outlined, size: 20),
-                      ),
-                      activeIcon: Badge(
-                        isLabelVisible: cartCount > 0,
-                        label: Text('$cartCount', style: GoogleFonts.jetBrainsMono(fontSize: 9, color: onAmberColor, fontWeight: FontWeight.bold)),
-                        backgroundColor: amberColor,
-                        child: const Icon(Icons.shopping_bag, size: 20),
-                      ),
-                      label: 'Vault',
-                    ),
-                    const BottomNavigationBarItem(
-                      icon: Icon(Icons.receipt_long_outlined, size: 20),
-                      activeIcon: Icon(Icons.receipt_long, size: 20),
-                      label: 'Orders',
-                    ),
-                    const BottomNavigationBarItem(
-                      icon: Icon(Icons.person_outline, size: 20),
-                      activeIcon: Icon(Icons.person, size: 20),
-                      label: 'Account',
-                    ),
-                  ],
-                ),
-              );
+                    );
             },
           );
         },

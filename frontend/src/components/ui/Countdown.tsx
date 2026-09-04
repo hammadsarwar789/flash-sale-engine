@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface CountdownProps {
+  expiresAt?: string | number | Date | null;
   targetSeconds?: number;
   initialSeconds?: number;
   onExpire?: () => void;
@@ -9,41 +10,47 @@ interface CountdownProps {
 }
 
 export const Countdown: React.FC<CountdownProps> = ({
+  expiresAt,
   targetSeconds,
   initialSeconds = 600,
   onExpire,
   className = '',
   label,
 }) => {
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
+  const onExpireRef = useRef(onExpire);
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
+
+  const calculateRemaining = (): number => {
+    if (expiresAt) {
+      const targetMs = new Date(expiresAt).getTime();
+      if (!isNaN(targetMs)) {
+        return Math.max(0, Math.floor((targetMs - Date.now()) / 1000));
+      }
+    }
     return targetSeconds !== undefined ? targetSeconds : initialSeconds;
-  });
+  };
+
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(calculateRemaining);
 
   useEffect(() => {
-    if (targetSeconds !== undefined) {
-      setSecondsRemaining(targetSeconds);
-    }
-  }, [targetSeconds]);
+    setSecondsRemaining(calculateRemaining());
+  }, [expiresAt, targetSeconds]);
 
   useEffect(() => {
-    if (secondsRemaining <= 0) {
-      onExpire?.();
-      return;
-    }
+    const updateTimer = () => {
+      const remaining = calculateRemaining();
+      setSecondsRemaining(remaining);
+      if (remaining <= 0) {
+        onExpireRef.current?.();
+      }
+    };
 
-    const timer = setInterval(() => {
-      setSecondsRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          onExpire?.();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [secondsRemaining, onExpire]);
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
 
   const hours = Math.floor(secondsRemaining / 3600);
   const minutes = Math.floor((secondsRemaining % 3600) / 60);

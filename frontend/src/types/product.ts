@@ -22,6 +22,15 @@ export interface Category {
   created_at?: string;
 }
 
+export interface ProductImage {
+  id: string;
+  product_id?: string;
+  image_url: string;
+  is_primary?: boolean;
+  display_order?: number;
+  created_at?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -39,11 +48,14 @@ export interface Product {
   seller_id?: string;
   seller_name?: string;
   seller_slug?: string;
-  images: string[];
+  image_url?: string;
+  primary_image_url?: string;
+  images: (ProductImage | string | any)[];
   is_active: boolean;
   variants?: ProductVariant[];
   created_at?: string;
 }
+
 
 export function computeProductPoolStock(product: Product): number {
   if (product.variants && product.variants.length > 0) {

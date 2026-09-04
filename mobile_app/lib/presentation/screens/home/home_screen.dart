@@ -238,67 +238,79 @@ class _HomeScreenState extends State<HomeScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (val) {
-                    context.read<ProductBloc>().add(SearchQueryChangedEvent(val));
-                  },
-                  style: GoogleFonts.manrope(fontSize: 13, color: primaryTextColor),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: cardBg,
-                    hintText: 'SEARCH FLOORS & COMMODITIES...',
-                    hintStyle: GoogleFonts.jetBrainsMono(fontSize: 11, color: muteTextColor),
-                    prefixIcon: Icon(Icons.search, size: 18, color: muteTextColor),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.close, size: 16, color: muteTextColor),
-                            onPressed: () {
-                              _searchController.clear();
-                              context.read<ProductBloc>().add(const SearchQueryChangedEvent(''));
-                              setState(() {});
-                            },
-                          )
-                        : null,
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(C.radiusCard),
-                      borderSide: BorderSide(color: cardBorder, width: 1),
+                child: SizedBox(
+                  height: C.heightInput,
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (val) {
+                      context.read<ProductBloc>().add(SearchQueryChangedEvent(val));
+                    },
+                    style: GoogleFonts.manrope(fontSize: 13, color: primaryTextColor),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: cardBg,
+                      hintText: 'Search products...',
+                      hintStyle: GoogleFonts.manrope(fontSize: 13, color: muteTextColor),
+                      prefixIcon: Icon(Icons.search, size: 18, color: muteTextColor),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.close, size: 16, color: muteTextColor),
+                              onPressed: () {
+                                _searchController.clear();
+                                context.read<ProductBloc>().add(const SearchQueryChangedEvent(''));
+                                setState(() {});
+                              },
+                            )
+                          : null,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(C.radiusCard),
+                        borderSide: BorderSide(color: cardBorder, width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(C.radiusCard),
+                        borderSide: BorderSide(color: amberColor, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(C.radiusCard),
-                      borderSide: BorderSide(color: amberColor, width: 1.5),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
                 ),
               ),
             ),
 
-            // Category Filter Chips
+            // Category Filter Chips (Sentence Case, No Checkmark)
             SliverToBoxAdapter(
               child: BlocBuilder<ProductBloc, ProductState>(
                 builder: (context, state) {
-                  String selectedCategory = 'ALL POOLS';
-                  final List<String> chipCategories = ['ALL POOLS', 'FOOTWEAR', 'OUTERWEAR', 'TECH'];
+                  String selectedCategory = 'All';
+                  final List<String> chipCategories = ['All', 'Footwear', 'Outerwear', 'Tech'];
 
                   if (state is ProductLoaded) {
-                    selectedCategory = state.selectedCategory;
+                    final rawSelected = state.selectedCategory;
+                    selectedCategory = (rawSelected == 'ALL POOLS' || rawSelected.toUpperCase() == 'ALL')
+                        ? 'All'
+                        : rawSelected;
+
                     for (final c in state.categories) {
-                      final name = c.name.toUpperCase();
-                      if (!chipCategories.contains(name)) {
+                      final name = c.name.isNotEmpty
+                          ? '${c.name[0].toUpperCase()}${c.name.substring(1).toLowerCase()}'
+                          : c.name;
+                      if (!chipCategories.any((cat) => cat.toLowerCase() == name.toLowerCase())) {
                         chipCategories.add(name);
                       }
                     }
                     for (final p in state.allProducts) {
-                      final cat = p.category.toUpperCase();
-                      if (cat.isNotEmpty && !chipCategories.contains(cat) && cat != 'CATALOG') {
-                        chipCategories.add(cat);
+                      final cat = p.category;
+                      if (cat.isNotEmpty && cat.toLowerCase() != 'catalog') {
+                        final formatted = '${cat[0].toUpperCase()}${cat.substring(1).toLowerCase()}';
+                        if (!chipCategories.any((c) => c.toLowerCase() == formatted.toLowerCase())) {
+                          chipCategories.add(formatted);
+                        }
                       }
                     }
                   }
 
                   return SizedBox(
-                    height: 38,
+                    height: 36,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
@@ -307,17 +319,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       separatorBuilder: (_, _) => const SizedBox(width: 8),
                       itemBuilder: (context, index) {
                         final chipCategory = chipCategories[index];
-                        final isSelected = selectedCategory.toUpperCase() == chipCategory.toUpperCase();
+                        final isSelected = selectedCategory.toLowerCase() == chipCategory.toLowerCase();
 
                         return ChoiceChip(
                           key: ValueKey('cat_chip_$chipCategory'),
                           label: Text(chipCategory),
+                          showCheckmark: false, // Clean pill without checkmark
                           selected: isSelected,
                           selectedColor: amberColor,
                           backgroundColor: cardBg,
-                          labelStyle: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(C.radiusPill),
+                          ),
+                          labelStyle: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                             color: isSelected ? onAmberColor : secondaryTextColor,
                           ),
                           side: BorderSide(
@@ -325,7 +341,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             width: 1,
                           ),
                           onSelected: (_) {
-                            context.read<ProductBloc>().add(FilterByCategoryEvent(category: chipCategory));
+                            context.read<ProductBloc>().add(
+                                  FilterByCategoryEvent(
+                                    category: chipCategory == 'All' ? 'ALL' : chipCategory,
+                                  ),
+                                );
                           },
                         );
                       },
@@ -355,17 +375,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.error_outline, size: 48, color: roseColor),
+                            Icon(Icons.error_outline, size: 44, color: roseColor),
                             const SizedBox(height: 12),
                             Text(
-                              'Floor Feed Disconnected',
+                              'Unable to load products',
                               style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               state.message,
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.manrope(fontSize: 12, color: muteTextColor),
+                              style: GoogleFonts.manrope(fontSize: 13, color: muteTextColor),
                             ),
                             const SizedBox(height: 16),
                             ElevatedButton(
@@ -373,9 +393,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: amberColor,
                                 foregroundColor: onAmberColor,
-                                minimumSize: const Size(140, 40),
+                                minimumSize: const Size(140, C.heightButtonPrimary),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(C.radiusCard)),
                               ),
-                              child: const Text('RETRY'),
+                              child: const Text('Try again'),
                             ),
                           ],
                         ),
@@ -394,16 +415,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.inventory_2_outlined, color: muteTextColor, size: 48),
+                              Icon(Icons.inventory_2_outlined, color: muteTextColor, size: 44),
                               const SizedBox(height: 12),
                               Text(
-                                'NO PRODUCTS LOCATED',
-                                style: GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.bold, color: secondaryTextColor),
+                                'No products found',
+                                style: GoogleFonts.sora(fontSize: 15, fontWeight: FontWeight.w700, color: primaryTextColor),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 'Try adjusting your search query or category filters.',
-                                style: GoogleFonts.manrope(fontSize: 12, color: muteTextColor),
+                                style: GoogleFonts.manrope(fontSize: 13, color: muteTextColor),
                               ),
                             ],
                           ),

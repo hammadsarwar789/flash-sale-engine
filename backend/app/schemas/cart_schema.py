@@ -43,7 +43,9 @@ class CartItemResponseSchema(Schema):
     quantity = fields.Integer(dump_only=True)
     unit_price = fields.Float(dump_only=True)
     subtotal = fields.Float(dump_only=True)
+    image_url = fields.String(dump_only=True, allow_none=True)
     created_at = fields.String(dump_only=True)
+    expires_at = fields.String(dump_only=True, allow_none=True, metadata={"description": "ISO 8601 UTC timestamp when active hold expires"})
 
 
 class CartResponseSchema(Schema):

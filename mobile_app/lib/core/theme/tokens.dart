@@ -125,8 +125,11 @@ abstract class C {
   static Color roseOf(BuildContext context) => isDark(context) ? darkRose : lightRose;
   static Color violetOf(BuildContext context) => isDark(context) ? darkViolet : lightViolet;
 
-  // ─── Radii ───
-  static const double radiusCard = 10.0;
+  // ─── Standardized Radii & Control Dimensions ───
+  static const double radiusCard = 12.0; // rounded-xl
   static const double radiusModal = 20.0;
   static const double radiusPill = 999.0;
+
+  static const double heightButtonPrimary = 44.0; // h-11 min tap target
+  static const double heightInput = 44.0;
 }

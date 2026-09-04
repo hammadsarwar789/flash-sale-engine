@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../core/constants/api_constants.dart';
 
 class VariantModel extends Equatable {
   final String id;
@@ -74,6 +75,43 @@ class ReviewModel extends Equatable {
   List<Object?> get props => [id, rating, title, comment, userName, createdAt];
 }
 
+class ProductImage extends Equatable {
+  final String? id;
+  final String imageUrl;
+  final bool isPrimary;
+  final int displayOrder;
+
+  const ProductImage({
+    this.id,
+    required this.imageUrl,
+    this.isPrimary = false,
+    this.displayOrder = 0,
+  });
+
+  factory ProductImage.fromJson(dynamic json) {
+    if (json is String) {
+      final resolved = ApiConstants.resolveImageUrl(json) ?? json;
+      return ProductImage(imageUrl: resolved);
+    }
+    if (json is Map<String, dynamic>) {
+      final rawUrl = json['image_url'] ?? json['url'] ?? '';
+      final resolved = ApiConstants.resolveImageUrl(rawUrl.toString()) ?? rawUrl.toString();
+      return ProductImage(
+        id: json['id']?.toString(),
+        imageUrl: resolved,
+        isPrimary: json['is_primary'] == true,
+        displayOrder: (json['display_order'] is int)
+            ? json['display_order'] as int
+            : int.tryParse(json['display_order']?.toString() ?? '0') ?? 0,
+      );
+    }
+    return const ProductImage(imageUrl: '');
+  }
+
+  @override
+  List<Object?> get props => [id, imageUrl, isPrimary, displayOrder];
+}
+
 class ProductModel extends Equatable {
   final dynamic id;
   final String name;
@@ -87,7 +125,9 @@ class ProductModel extends Equatable {
   final String? flashSaleStart;
   final String? flashSaleEnd;
   final String? imageUrl;
+  final String? primaryImageUrl;
   final List<String> images;
+  final List<ProductImage> productImages;
   final dynamic categoryId;
   final String? categoryName;
   final String? sellerName;
@@ -107,7 +147,9 @@ class ProductModel extends Equatable {
     this.flashSaleStart,
     this.flashSaleEnd,
     this.imageUrl,
+    this.primaryImageUrl,
     this.images = const [],
+    this.productImages = const [],
     this.categoryId,
     this.categoryName,
     this.sellerName,
@@ -169,16 +211,66 @@ class ProductModel extends Equatable {
         : double.tryParse(json['discount_percentage']?.toString() ?? '0') ?? 0.0;
     final isFlash = json['is_flash_sale'] as bool? ?? (discountPct > 0);
 
-    // Extract images list
+    // Extract product_images / images list
+    List<ProductImage> parsedProductImages = [];
     List<String> imageList = [];
+
     if (json['images'] is List && (json['images'] as List).isNotEmpty) {
-      imageList = (json['images'] as List).map((e) => e.toString()).toList();
+      for (final item in (json['images'] as List)) {
+        final imgObj = ProductImage.fromJson(item);
+        if (imgObj.imageUrl.isNotEmpty) {
+          parsedProductImages.add(imgObj);
+          imageList.add(imgObj.imageUrl);
+        }
+      }
     }
 
-    const defaultImg = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80';
-    String? imageUrl = json['image_url'] as String?;
+    // Contextual image fallback to prevent "Laptop Bag" showing wristwatch
+    final rawName = ((json['name'] as String?)?.trim().isNotEmpty == true
+            ? json['name'] as String
+            : (json['title'] as String?)) ??
+        '';
+    final lowerName = rawName.toLowerCase();
+    final lowerCat = (json['category_name']?.toString() ?? json['category']?.toString() ?? '').toLowerCase();
+
+    String defaultImg = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80'; // Default watch
+    if (lowerName.contains('bag') || lowerName.contains('backpack') || lowerCat.contains('bag') || lowerCat.contains('accessory')) {
+      defaultImg = 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80'; // Laptop Bag / Backpack
+    } else if (lowerName.contains('laptop') || lowerName.contains('macbook') || lowerName.contains('computer')) {
+      defaultImg = 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80'; // Laptop
+    } else if (lowerName.contains('shoe') || lowerName.contains('sneaker') || lowerCat.contains('footwear')) {
+      defaultImg = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80'; // Footwear
+    } else if (lowerName.contains('phone') || lowerName.contains('iphone') || lowerName.contains('android')) {
+      defaultImg = 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=600&q=80'; // Phone
+    } else if (lowerName.contains('headphone') || lowerName.contains('audio') || lowerName.contains('earbud')) {
+      defaultImg = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80'; // Headphones
+    } else if (lowerCat.contains('outerwear') || lowerName.contains('jacket') || lowerName.contains('hoodie')) {
+      defaultImg = 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=600&q=80'; // Outerwear
+    }
+
+    String? rawPrimary = json['primary_image_url'] as String?;
+    String? primaryImageUrl = ApiConstants.resolveImageUrl(rawPrimary);
+
+    // If primary not set in field, check parsedProductImages
+    if (primaryImageUrl == null || primaryImageUrl.isEmpty) {
+      final primaryItem = parsedProductImages.where((p) => p.isPrimary).firstOrNull;
+      if (primaryItem != null && primaryItem.imageUrl.isNotEmpty) {
+        primaryImageUrl = primaryItem.imageUrl;
+      }
+    }
+
+    String? rawImageUrl = json['image_url'] as String? ?? json['imageUrl'] as String?;
+    String? imageUrl = ApiConstants.resolveImageUrl(rawImageUrl);
+
+    final finalPrimaryUrl = primaryImageUrl ?? imageUrl ?? (imageList.isNotEmpty ? imageList.first : defaultImg);
+
     if (imageUrl == null || imageUrl.isEmpty) {
-      imageUrl = imageList.isNotEmpty ? imageList.first : defaultImg;
+      imageUrl = finalPrimaryUrl;
+    }
+
+    // Ensure finalPrimaryUrl is in imageList
+    if (!imageList.contains(finalPrimaryUrl)) {
+      imageList.insert(0, finalPrimaryUrl);
     }
 
     // Extract variants
@@ -202,7 +294,7 @@ class ProductModel extends Equatable {
     final catName = json['category_name'] as String? ??
         (json['category'] is Map
             ? json['category']['name']?.toString()
-            : (json['category'] is String ? json['category'] as String : 'CATALOG'));
+            : (json['category'] is String ? json['category'] as String : 'Catalog'));
 
     final rawPrice = json['price'] ?? json['regular_price'] ?? json['unit_price'] ?? 0.0;
     final parsedPrice = (rawPrice is num)
@@ -214,17 +306,21 @@ class ProductModel extends Equatable {
         ? ((rawSalePrice is num) ? rawSalePrice.toDouble() : double.tryParse(rawSalePrice.toString()))
         : null;
 
+    final resolvedName = (json['name'] as String?)?.trim().isNotEmpty == true
+        ? json['name'] as String
+        : ((json['title'] as String?)?.trim().isNotEmpty == true
+            ? json['title'] as String
+            : 'Product #${parsedId.toString().substring(0, parsedId.toString().length > 4 ? 4 : parsedId.toString().length)}');
+
+    final resolvedSku = json['sku'] as String? ??
+        (parsedId.toString().isNotEmpty
+            ? 'SKU-${parsedId.toString().substring(0, parsedId.toString().length > 6 ? 6 : parsedId.toString().length).toUpperCase()}'
+            : null);
+
     return ProductModel(
       id: parsedId,
-      name: (json['name'] as String?)?.trim().isNotEmpty == true
-          ? json['name'] as String
-          : ((json['title'] as String?)?.trim().isNotEmpty == true
-              ? json['title'] as String
-              : 'Trading Asset #${parsedId.toString().substring(0, parsedId.toString().length > 4 ? 4 : parsedId.toString().length)}'),
-      sku: json['sku'] as String? ??
-          (parsedId.toString().isNotEmpty
-              ? 'LOT-${parsedId.toString().substring(0, parsedId.toString().length > 6 ? 6 : parsedId.toString().length).toUpperCase()}'
-              : null),
+      name: resolvedName,
+      sku: resolvedSku,
       description: json['description'] as String?,
       price: parsedPrice,
       salePrice: parsedSalePrice,
@@ -236,7 +332,9 @@ class ProductModel extends Equatable {
       flashSaleStart: json['flash_sale_start'] as String?,
       flashSaleEnd: json['flash_sale_end'] as String?,
       imageUrl: imageUrl,
-      images: imageList.isNotEmpty ? imageList : [imageUrl],
+      primaryImageUrl: finalPrimaryUrl,
+      images: imageList,
+      productImages: parsedProductImages,
       categoryId: parsedCatId,
       categoryName: catName,
       sellerName: json['seller_name'] as String? ??
@@ -260,7 +358,9 @@ class ProductModel extends Equatable {
         flashSaleStart,
         flashSaleEnd,
         imageUrl,
+        primaryImageUrl,
         images,
+        productImages,
         categoryId,
         categoryName,
         sellerName,

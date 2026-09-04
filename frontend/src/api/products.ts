@@ -59,4 +59,45 @@ export const productsApi = {
       method: 'DELETE',
     });
   },
+
+  async uploadImage(file: File): Promise<{ url: string; filename: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('image', file);
+    return apiFetch<{ url: string; filename: string }>('/upload/image', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  async uploadImages(files: File[]): Promise<{ urls: string[]; images: { url: string; filename: string }[] }> {
+    const formData = new FormData();
+    files.forEach((f) => {
+      formData.append('images', f);
+    });
+    return apiFetch<{ urls: string[]; images: { url: string; filename: string }[] }>('/upload/images', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  async updateProduct(productId: string, data: Partial<Product>): Promise<Product> {
+    return apiFetch<Product>(`/products/${productId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteProductImage(productId: string): Promise<any> {
+    return apiFetch<any>(`/products/${productId}/image`, {
+      method: 'DELETE',
+    });
+  },
+
+  async deleteProductImageById(imageId: string): Promise<any> {
+    return apiFetch<any>(`/admin/products/images/${imageId}`, {
+      method: 'DELETE',
+    });
+  },
 };
+

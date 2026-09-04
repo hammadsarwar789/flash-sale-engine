@@ -9,11 +9,12 @@ import 'package:mobile_app/logic/products/product_state.dart';
 
 class MarqueeTickerWidget extends StatefulWidget implements PreferredSizeWidget {
   final List<ProductModel>? products;
+  final VoidCallback? onDismiss;
 
-  const MarqueeTickerWidget({super.key, this.products});
+  const MarqueeTickerWidget({super.key, this.products, this.onDismiss});
 
   @override
-  Size get preferredSize => const Size.fromHeight(32);
+  Size get preferredSize => const Size.fromHeight(26);
 
   @override
   State<MarqueeTickerWidget> createState() => _MarqueeTickerWidgetState();
@@ -23,6 +24,7 @@ class _MarqueeTickerWidgetState extends State<MarqueeTickerWidget> {
   late final ScrollController _scrollController;
   Timer? _timer;
   bool _isDisposed = false;
+  bool _isDismissed = false;
 
   @override
   void initState() {
@@ -61,33 +63,35 @@ class _MarqueeTickerWidgetState extends State<MarqueeTickerWidget> {
     if (list != null && list.isNotEmpty) {
       final items = <String>[];
       for (final p in list) {
-        final name = p.name.toUpperCase();
+        final name = p.name;
         final price = '\$${p.currentPrice.toStringAsFixed(2)}';
         if (p.isSoldOut) {
-          items.add('SOLD OUT: $name');
+          items.add('Sold out: $name');
         } else if (p.discountPercentage > 0) {
-          items.add('DROP: $name — ${p.discountPercentage}% OFF ($price) · ${p.stock} LEFT');
+          items.add('Deal: $name — ${p.discountPercentage}% off ($price) · ${p.stock} left');
         } else if (p.stock <= 15) {
-          items.add('▲ SCARCITY: $name — ONLY ${p.stock} LEFT ($price)');
+          items.add('Low stock: $name — only ${p.stock} left ($price)');
         } else {
-          items.add('LIVE: $name · $price (${p.stock} IN STOCK)');
+          items.add('$name · $price');
         }
       }
       if (items.isNotEmpty) return items;
     }
 
     return const [
-      'FLASH SALE ENGINE LIVE',
-      '10:00 MIN RESERVATION TIMERS',
-      'ORDERS/MIN: 428',
-      'DIRECT WAREHOUSE ALLOCATION',
-      'SETTLEMENT: STRIPE WEBHOOK ACTIVE',
-      'NEXT HIGH-VELOCITY DROP IN 00:14:22',
+      'Flash deals live now',
+      'Items held in cart for 10 minutes',
+      'Fast direct shipping',
+      'Free returns on all orders',
     ];
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isDismissed) {
+      return const SizedBox.shrink();
+    }
+
     return BlocBuilder<ProductBloc, ProductState>(
       builder: (context, state) {
         List<ProductModel>? liveProducts;
@@ -96,50 +100,44 @@ class _MarqueeTickerWidgetState extends State<MarqueeTickerWidget> {
         }
 
         final tickerItems = _buildTickerItems(liveProducts);
-        final fullText = '${tickerItems.join('   ●   ')}   ●   ';
+        final fullText = '${tickerItems.join('   •   ')}   •   ';
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final amberColor = isDark ? C.darkAmber : C.lightAmber;
         final lineColor = isDark ? C.darkLine : const Color(0xFFE2DED5);
+        final muteTextColor = isDark ? C.darkTextMute : const Color(0xFF6B7280);
 
         return Container(
-          height: 32,
+          height: 26,
           decoration: BoxDecoration(
-            color: isDark ? C.darkRaised : const Color(0xFFF1EFEA),
+            color: isDark ? C.darkRaised : const Color(0xFFF7F6F3),
             border: Border(
-              top: BorderSide(color: lineColor, width: 1),
-              bottom: BorderSide(color: lineColor, width: 1),
+              bottom: BorderSide(color: lineColor.withValues(alpha: 0.7), width: 0.5),
             ),
           ),
           child: Row(
             children: [
-              // Static Live Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                height: double.infinity,
-                decoration: BoxDecoration(
-                  color: isDark ? C.darkSurface : Colors.white,
-                  border: Border(right: BorderSide(color: lineColor, width: 1)),
-                ),
+              // Slim Live Indicator
+              Padding(
+                padding: const EdgeInsets.only(left: 10, right: 6),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 6,
-                      height: 6,
+                      width: 5,
+                      height: 5,
                       decoration: BoxDecoration(
                         color: amberColor,
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Text(
-                      'LIVE',
-                      style: GoogleFonts.jetBrainsMono(
+                      'Live',
+                      style: GoogleFonts.manrope(
                         color: amberColor,
                         fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.0,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -155,19 +153,31 @@ class _MarqueeTickerWidgetState extends State<MarqueeTickerWidget> {
                   itemBuilder: (context, index) {
                     return Center(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
                         child: Text(
                           fullText,
-                          style: GoogleFonts.jetBrainsMono(
+                          style: GoogleFonts.manrope(
                             fontSize: 10,
                             color: isDark ? C.darkTextDim : const Color(0xFF4B5563),
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
                     );
                   },
+                ),
+              ),
+
+              // Dismiss Icon
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  setState(() => _isDismissed = true);
+                  widget.onDismiss?.call();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Icon(Icons.close, size: 12, color: muteTextColor),
                 ),
               ),
             ],

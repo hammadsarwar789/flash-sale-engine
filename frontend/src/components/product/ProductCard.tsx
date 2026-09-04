@@ -29,12 +29,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const isLive = stock > 0 && stock <= 15;
   const variantColors = Array.from(new Set((product.variants || []).map((variant) => variant.color).filter(Boolean))) as string[];
 
-  // Dynamic Image extraction - do NOT hardcode smartwatch fallback
-  const rawImage =
-    (product.images && product.images.length > 0 && product.images[0]) ||
-    (product as any).imageUrl ||
-    (product as any).image ||
-    null;
+  // Dynamic Image extraction - prioritizing primary_image_url
+  const extractPrimaryImage = (): string | null => {
+    if (product.primary_image_url) return product.primary_image_url;
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      const primObj = product.images.find((i: any) => typeof i === 'object' && i?.is_primary);
+      if (primObj && typeof primObj === 'object' && primObj.image_url) return primObj.image_url;
+      const first = product.images[0];
+      if (typeof first === 'string') return first;
+      if (first && typeof first === 'object' && first.image_url) return first.image_url;
+    }
+    return product.image_url || (product as any).imageUrl || (product as any).image || null;
+  };
+
+  const rawImage = extractPrimaryImage();
 
   const discountPct = Number((product as any).discount_percentage) || 0;
   const originalPrice = Number(product.price) || 0;

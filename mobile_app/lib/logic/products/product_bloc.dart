@@ -61,7 +61,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     if (currentState is ProductLoaded) {
       final category = event.category.trim();
       List<ProductModel> filtered;
-      if (category.toUpperCase() == 'ALL POOLS' || category.isEmpty) {
+      if (category.toUpperCase() == 'ALL' || category.toUpperCase() == 'ALL POOLS' || category.isEmpty) {
         filtered = List.from(currentState.allProducts);
       } else {
         filtered = currentState.allProducts.where((p) {

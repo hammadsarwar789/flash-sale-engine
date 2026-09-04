@@ -12,6 +12,7 @@ import 'package:mobile_app/logic/orders/order_bloc.dart';
 import 'package:mobile_app/logic/orders/order_event.dart';
 import 'package:mobile_app/logic/orders/order_state.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile_app/presentation/widgets/empty_state_widget.dart';
 import 'package:mobile_app/presentation/widgets/price_text.dart';
 import 'package:mobile_app/presentation/widgets/status_pill_widget.dart';
 
@@ -45,7 +46,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final secondaryTextColor = isDark ? C.darkTextDim : const Color(0xFF4B5563);
     final muteTextColor = isDark ? C.darkTextMute : const Color(0xFF6B7280);
     final cardBg = isDark ? C.darkSurface : Colors.white;
-    final chipBarBg = isDark ? C.darkRaised : const Color(0xFFF1EFEA);
+    final chipBarBg = isDark ? C.darkRaised : const Color(0xFFF9FAFB);
     final cardBorder = isDark ? C.darkLine : const Color(0xFFE5E7EB);
 
     return Scaffold(
@@ -55,12 +56,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         title: Text(
-          'ORDERS',
+          'Orders',
           style: GoogleFonts.sora(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
             color: primaryTextColor,
-            letterSpacing: 0.5,
           ),
         ),
         actions: [
@@ -92,7 +92,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
           }
         },
         child: authState is! Authenticated
-            ? _buildUnauthenticatedView(isDark, primaryTextColor, muteTextColor, amberColor)
+            ? EmptyStateWidget.unauthenticated(
+                context,
+                title: 'Sign in to view orders',
+                message: 'Track your packages, view past orders, and manage returns.',
+                onSignIn: () => context.push('/login', extra: {'returnTo': '/orders'}),
+              )
             : RefreshIndicator(
                 color: amberColor,
                 backgroundColor: cardBg,
@@ -111,25 +116,34 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                           itemCount: 6,
-                          separatorBuilder: (_, _) => const SizedBox(width: 6),
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
                           itemBuilder: (context, idx) {
-                            final statuses = ['ALL', 'PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
-                            final s = statuses[idx];
-                            final isSelected = _filterStatus == s;
+                            final statusValues = ['ALL', 'PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+                            final statusLabels = ['All', 'Pending', 'Paid', 'Shipped', 'Delivered', 'Cancelled'];
+                            final val = statusValues[idx];
+                            final label = statusLabels[idx];
+                            final isSelected = _filterStatus == val;
 
                             return ChoiceChip(
-                              key: ValueKey('status_chip_$s'),
-                              label: Text(s),
+                              key: ValueKey('status_chip_$val'),
+                              label: Text(label),
+                              showCheckmark: false,
                               selected: isSelected,
                               selectedColor: amberColor,
                               backgroundColor: cardBg,
-                              labelStyle: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
-                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              labelStyle: GoogleFonts.manrope(
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                                 color: isSelected ? onAmberColor : secondaryTextColor,
                               ),
-                              side: BorderSide(color: isSelected ? amberColor : cardBorder),
-                              onSelected: (_) => setState(() => _filterStatus = s),
+                              side: BorderSide(
+                                color: isSelected ? amberColor : cardBorder,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(C.radiusCard),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              onSelected: (_) => setState(() => _filterStatus = val),
                             );
                           },
                         ),
@@ -171,7 +185,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                           borderRadius: BorderRadius.circular(C.radiusCard),
                                         ),
                                       ),
-                                      child: const Text('RETRY'),
+                                      child: const Text('Try again'),
                                     ),
                                   ],
                                 ),
@@ -183,73 +197,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                 : state.orders.where((o) => o.status.toUpperCase() == _filterStatus).toList();
 
                             if (filtered.isEmpty) {
-                              return ScrollConfiguration(
-                                behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-                                child: Center(
-                                  child: SingleChildScrollView(
-                                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                                    padding: const EdgeInsets.all(32),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Container(
-                                          width: 72,
-                                          height: 72,
-                                          decoration: BoxDecoration(
-                                            color: isDark ? C.darkRaised : const Color(0xFFF3F4F6),
-                                            shape: BoxShape.circle,
-                                            border: Border.all(color: amberColor.withValues(alpha: 0.3)),
-                                          ),
-                                          child: Center(
-                                            child: Icon(Icons.receipt_long_outlined, size: 36, color: amberColor),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Text(
-                                          'No Orders Yet',
-                                          style: GoogleFonts.sora(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w700,
-                                            color: primaryTextColor,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          'Your completed flash sale orders will appear here.',
-                                          textAlign: TextAlign.center,
-                                          style: GoogleFonts.manrope(
-                                            fontSize: 13,
-                                            color: muteTextColor,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 24),
-                                        SizedBox(
-                                          height: 44,
-                                          child: ElevatedButton(
-                                            onPressed: () => context.go('/home'),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: amberColor,
-                                              foregroundColor: onAmberColor,
-                                              elevation: 0,
-                                              padding: const EdgeInsets.symmetric(horizontal: 24),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(C.radiusCard),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              'EXPLORE THE FLOOR',
-                                              style: GoogleFonts.manrope(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w800,
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                              return EmptyStateWidget.ordersEmpty(
+                                onBrowseDeals: () => context.go('/home'),
                               );
                             }
 
@@ -276,10 +225,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   String _formatOrderTimestamp(String? raw) {
-    if (raw == null || raw.isEmpty) return 'RECENT';
+    if (raw == null || raw.isEmpty) return 'Recent';
     try {
       final parsed = DateTime.parse(raw).toLocal();
-      return DateFormat('MMM dd, yyyy • h:mm a').format(parsed);
+      return DateFormat('MMM d, yyyy • h:mm a').format(parsed);
     } catch (_) {
       return raw;
     }
@@ -287,7 +236,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Widget _buildOrderCard(OrderModel order) {
     final idStr = order.id.toString();
-    final shortId = idStr.length > 8 ? idStr.substring(0, 8).toUpperCase() : idStr.toUpperCase();
+    final shortId = idStr.length > 8 ? idStr.substring(0, 8) : idStr;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? C.darkSurface : Colors.white;
     final cardBorder = isDark ? C.darkLine : const Color(0xFFE5E7EB);
@@ -304,6 +253,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
           color: cardBg,
           borderRadius: BorderRadius.circular(C.radiusCard),
           border: Border.all(color: cardBorder),
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,10 +270,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'ORD-$shortId',
-                  style: GoogleFonts.jetBrainsMono(
+                  'Order #$shortId',
+                  style: GoogleFonts.manrope(
                     fontSize: 13,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     color: primaryTextColor,
                   ),
                 ),
@@ -328,13 +286,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${order.items.length} ITEM(S)',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 11, color: muteTextColor),
+                  '${order.items.length} ${order.items.length == 1 ? 'item' : 'items'}',
+                  style: GoogleFonts.manrope(fontSize: 12, color: muteTextColor),
                 ),
                 PriceText(amount: order.totalAmount, size: PriceTextSize.md),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
 
             Row(
               children: [
@@ -343,7 +301,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     _formatOrderTimestamp(order.createdAt),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.jetBrainsMono(fontSize: 10, color: muteTextColor),
+                    style: GoogleFonts.manrope(fontSize: 11, color: muteTextColor),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -351,8 +309,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'VIEW TIMELINE',
-                      style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.bold, color: amberColor),
+                      'View details',
+                      style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w600, color: amberColor),
                     ),
                     Icon(Icons.chevron_right, size: 16, color: amberColor),
                   ],
@@ -360,54 +318,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUnauthenticatedView(bool isDark, Color primaryTextColor, Color muteTextColor, Color amberColor) {
-    return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-      child: Center(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: isDark ? C.darkRaised : const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(C.radiusCard),
-                  border: Border.all(color: amberColor.withValues(alpha: 0.3)),
-                ),
-                child: Icon(Icons.receipt_long_outlined, size: 36, color: amberColor),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Orders Authentication Required',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Please sign in to view your order history, delivery tracking, and settlement receipts.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.manrope(fontSize: 12, color: muteTextColor),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => context.push('/login', extra: {'returnTo': '/orders'}),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: amberColor,
-                  foregroundColor: isDark ? C.darkOnAmber : Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
-                child: const Text('SIGN IN TO VIEW ORDERS'),
-              ),
-            ],
-          ),
         ),
       ),
     );

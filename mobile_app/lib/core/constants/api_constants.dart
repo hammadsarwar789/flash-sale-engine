@@ -2,17 +2,31 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 class ApiConstants {
-  // Base URLs configured for Android emulator, iOS simulator, web & desktop
-  static String get baseUrl {
+  // Server host without /api/v1 prefix (for static uploads)
+  static String get serverHost {
     if (kIsWeb) {
-      return 'http://localhost:5000/api/v1';
+      return 'http://localhost:5000';
     }
     if (Platform.isAndroid) {
-      // 10.0.2.2 maps to host machine localhost in standard Android emulator
-      return 'http://10.0.2.2:5000/api/v1';
+      return 'http://10.0.2.2:5000';
     }
-    // iOS simulator / macOS / Windows / Linux
-    return 'http://localhost:5000/api/v1';
+    return 'http://localhost:5000';
+  }
+
+  // Base URLs configured for Android emulator, iOS simulator, web & desktop
+  static String get baseUrl => '$serverHost/api/v1';
+
+  /// Resolves relative URLs (e.g. /static/uploads/...) to absolute HTTP URLs using the server host
+  static String? resolveImageUrl(String? path) {
+    if (path == null || path.trim().isEmpty) return null;
+    final trimmed = path.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (trimmed.startsWith('/')) {
+      return '$serverHost$trimmed';
+    }
+    return '$serverHost/$trimmed';
   }
 
   // Auth Endpoints

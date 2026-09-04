@@ -52,7 +52,7 @@ class CartActionSuccess extends CartState {
 
 class ReservationExpiredState extends CartState {
   final String message;
-  const ReservationExpiredState({this.message = 'Reservation hold expired. Held inventory has been returned.'});
+  const ReservationExpiredState({this.message = 'Your reservation has expired. Stock released to the floor.'});
 
   @override
   List<Object?> get props => [message];

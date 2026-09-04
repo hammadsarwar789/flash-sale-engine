@@ -15,6 +15,7 @@ export interface CartItem {
   variant_sku?: string;
   image_url?: string;
   created_at?: string;
+  expires_at?: string | null;
 }
 
 export interface Cart {
