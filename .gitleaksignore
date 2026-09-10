@@ -1,0 +1,21 @@
+# Gitleaks ignore list for known false positives and safe documentation / template files
+
+# backend/app/core/config.py (local fallback key)
+b537cae5a639454bc77bddee7c46f4496048d73c:backend/app/core/config.py:generic-api-key:52
+
+# frontend/.env.example
+bc3b39dcc579d25dea5abcc805fbc83307aed3a8:frontend/.env.example:generic-api-key:12
+
+# frontend/FRONTEND_DESIGN.md
+624bb3d4a88483eca49b2a9069f83447cdc7b1f8:frontend/FRONTEND_DESIGN.md:generic-api-key:259
+
+# backend/.env.example
+bc3b39dcc579d25dea5abcc805fbc83307aed3a8:backend/.env.example:generic-api-key:50
+
+# backend/tests/*
+4f05a67ac450d8db90fc165fde87a21c87bc175b:backend/tests/test_integrations/test_shopify.py:generic-api-key:133
+
+# docs/API.md
+6548df2fc3e80bf756c1e5765a2dc6a44be08280:docs/API.md:generic-api-key:91
+6548df2fc3e80bf756c1e5765a2dc6a44be08280:docs/API.md:generic-api-key:171
+6548df2fc3e80bf756c1e5765a2dc6a44be08280:docs/API.md:generic-api-key:207

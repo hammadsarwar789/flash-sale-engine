@@ -154,8 +154,8 @@ def drain_outbox_events(batch_size: int = 25):
         bind = db.session.get_bind()
         if bind and bind.dialect.name != "sqlite":
             query = query.with_for_update(skip_locked=True)
-    except Exception:
-        pass
+    except Exception as ex:
+        logger.debug("Failed to apply with_for_update(skip_locked=True) to outbox query: %s", ex)
     events = query.all()
 
     if not events:

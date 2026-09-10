@@ -44,6 +44,7 @@ celerybeat.pid
 .pytest_cache/
 .coverage
 htmlcov/
+bandit_report.txt
 
 # Node / Frontend
 node_modules/

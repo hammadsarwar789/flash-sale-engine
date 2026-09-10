@@ -1,6 +1,9 @@
+import logging
 from flask import jsonify, g, request
 from flask_smorest import Blueprint
 from app.core.extensions import db
+
+logger = logging.getLogger(__name__)
 from app.models.order import Order
 from app.schemas.order_schema import (
     OrderReserveSchema,
@@ -227,8 +230,8 @@ def pay_order(order_id):
             token = auth_header.split(" ")[1]
             payload = AuthService.decode_token(token)
             user_id = payload.get("sub")
-        except Exception:
-            pass
+        except Exception as ex:
+            logger.debug("Failed to extract optional user_id from token: %s", ex)
 
     success, msg = OrderService.pay_order(order_id=order_id, user_id=user_id)
 

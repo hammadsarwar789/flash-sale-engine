@@ -1,7 +1,10 @@
+import logging
 from datetime import datetime, timezone, timedelta
 from flask import jsonify, g, request
 from flask_smorest import Blueprint
 from app.core.extensions import db
+
+logger = logging.getLogger(__name__)
 from app.models.coupon import Coupon
 from app.models.review import Review
 from app.models.wishlist import WishlistItem
@@ -43,8 +46,8 @@ def validate_coupon():
                 payload = decode_access_token(token_str, secret_key)
                 if payload and "sub" in payload:
                     user_id = payload["sub"]
-        except Exception:
-            pass
+        except Exception as ex:
+            logger.debug("Failed to extract optional user_id from auth header: %s", ex)
 
     if not code:
         return jsonify({"message": "Coupon code is required"}), 400
@@ -120,8 +123,8 @@ def create_coupon():
     elif data.get("expires_at"):
         try:
             expires_at = datetime.fromisoformat(str(data["expires_at"]).replace("Z", "+00:00"))
-        except Exception:
-            pass
+        except Exception as ex:
+            logger.warning("Failed to parse coupon expires_at string: %s", ex)
 
     usage_limit = None
     if data.get("usage_limit") is not None and str(data["usage_limit"]).isdigit() and int(data["usage_limit"]) > 0:

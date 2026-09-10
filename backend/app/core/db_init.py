@@ -116,8 +116,8 @@ def sync_database_schema():
                     # would only survive the first commit. We clean it up explicitly
                     # below instead, right before the connection goes back to the pool.
                     conn.execute(text("SET lock_timeout = '2s';"))
-                except Exception:
-                    pass
+                except Exception as ex:
+                    logger.debug("Failed to set connection lock_timeout: %s", ex)
                 for stmt in statements:
                     try:
                         conn.execute(text(stmt))
@@ -131,8 +131,8 @@ def sync_database_schema():
                 try:
                     conn.execute(text("RESET lock_timeout;"))
                     conn.commit()
-                except Exception:
-                    pass
+                except Exception as ex:
+                    logger.debug("Failed to reset connection lock_timeout: %s", ex)
 
         _run_initial_seeds()
         logger.info("Database schema synchronized successfully.")
@@ -147,8 +147,8 @@ def _run_initial_seeds():
     # Ensure any active aborted transaction from DDL migration is cleared first
     try:
         db.session.remove()
-    except Exception:
-        pass
+    except Exception as ex:
+        logger.debug("Non-critical error removing db session before seed: %s", ex)
 
     try:
         from app import models  # Ensure all ORM models are registered in metadata
@@ -165,8 +165,8 @@ def _run_initial_seeds():
         # actually breaks the "every seed helper fails the same way" cascade.
         try:
             db.engine.dispose()
-        except Exception:
-            pass
+        except Exception as ex:
+            logger.debug("Non-critical error disposing db engine pool: %s", ex)
 
     # FIX: db.session.remove() (not just rollback()) between each helper — this tears
     # down the session and its connection entirely, forcing a genuinely fresh checkout
@@ -185,8 +185,8 @@ def _run_initial_seeds():
 
     try:
         db.session.remove()
-    except Exception:
-        pass
+    except Exception as ex:
+        logger.debug("Non-critical error removing db session after seed: %s", ex)
 
 
 def ensure_default_outlets():

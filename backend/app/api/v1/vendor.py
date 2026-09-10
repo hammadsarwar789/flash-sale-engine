@@ -1,7 +1,10 @@
+import logging
 from datetime import datetime, timezone
 from flask import request, jsonify, g
 from flask_smorest import Blueprint
 from app.core.extensions import db
+
+logger = logging.getLogger(__name__)
 from app.api.decorators import jwt_required
 from app.models.seller import Seller, SellerStaff, SellerKYCDocument
 from app.models.user import User
@@ -155,7 +158,7 @@ def update_vendor_sub_order_status(sub_order_id: str):
             from app.services.escrow_engine import set_sub_order_delivery_escrow
             set_sub_order_delivery_escrow(sub_order_id)
         except Exception as escrow_err:
-            pass
+            logger.warning("Failed to initialize delivery escrow for sub_order %s: %s", sub_order_id, escrow_err)
 
     return jsonify({"message": f"Sub-order status updated to '{new_status}'.", "sub_order": sub_order.to_dict()}), 200
 
@@ -383,8 +386,8 @@ def create_vendor_product():
 
     try:
         redis_client.set(f"product:{product.id}:stock", total_stock)
-    except Exception:
-        pass
+    except Exception as ex:
+        logger.debug("Failed to cache product stock in redis: %s", ex)
 
     db.session.commit()
     return jsonify({"message": f"Product '{name}' created successfully with {len(variants_data)} variants!", "product": product.to_dict()}), 201
@@ -483,10 +486,10 @@ def update_vendor_product(product_id: str):
             product.available_stock = max(0, (product.available_stock or 0) + diff)
             try:
                 redis_client.set(f"product:{product.id}:stock", product.available_stock)
-            except Exception:
-                pass
-        except (ValueError, TypeError):
-            pass
+            except Exception as ex:
+                logger.debug("Failed to update product stock cache in redis: %s", ex)
+        except (ValueError, TypeError) as parse_err:
+            logger.debug("Non-integer total_stock provided: %s", parse_err)
 
     db.session.commit()
     return jsonify({

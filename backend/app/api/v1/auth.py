@@ -209,8 +209,8 @@ def login(login_data):
     try:
         redis_client.delete(failed_key)
         redis_client.delete(lockout_key)
-    except Exception:
-        pass
+    except Exception as ex:
+        logger.warning("Failed to clear lockout keys from redis: %s", ex)
 
     if not user.is_active or user.status != "ACTIVE":
         return (
@@ -254,7 +254,7 @@ def login(login_data):
 
     return {
         "access_token": token,
-        "token_type": "Bearer",
+        "token_type": "Bearer",  # nosec B105
         "expires_in": expires_minutes * 60,
         "user": user.to_dict(),
     }, 200
@@ -299,7 +299,7 @@ def refresh():
         secret_key=secret_key,
         expires_minutes=current_app.config["JWT_ACCESS_TOKEN_EXPIRES_MINUTES"],
     )
-    return jsonify({"access_token": new_token, "token_type": "Bearer"}), 200
+    return jsonify({"access_token": new_token, "token_type": "Bearer"}), 200  # nosec B105
 
 
 @auth_bp.route("/logout", methods=["POST"])
@@ -313,8 +313,8 @@ def logout():
         token_str = auth_header.split(" ")[1]
         try:
             redis_client.set(f"blacklist:{token_str}", "revoked", ex=86400)
-        except Exception:
-            pass
+        except Exception as ex:
+            logger.warning("Failed to blacklist token in redis: %s", ex)
 
     return jsonify({"message": "Successfully logged out"}), 200
 
@@ -337,8 +337,8 @@ def forgot_password():
         reset_token = secrets.token_urlsafe(48)
         try:
             redis_client.set(f"password_reset:{reset_token}", user.id, ex=3600)  # 1 hour TTL
-        except Exception:
-            pass
+        except Exception as ex:
+            logger.warning("Failed to store password reset token in redis: %s", ex)
         return jsonify({"message": "Password reset link sent to email", "reset_token": reset_token}), 200
 
     return jsonify({"message": "If that email exists, a reset link has been sent"}), 200
@@ -377,8 +377,8 @@ def reset_password():
     # Invalidate used token
     try:
         redis_client.delete(f"password_reset:{token}")
-    except Exception:
-        pass
+    except Exception as ex:
+        logger.warning("Failed to delete password reset token from redis: %s", ex)
 
     return jsonify({"message": "Password reset successfully"}), 200
 

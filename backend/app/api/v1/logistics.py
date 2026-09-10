@@ -1,6 +1,9 @@
+import logging
 from flask import request, jsonify, g
 from flask_smorest import Blueprint
 from app.core.extensions import db
+
+logger = logging.getLogger(__name__)
 from app.api.decorators import jwt_required, admin_required
 from app.models.logistics import Carrier, Shipment
 from app.models.sub_order import SubOrder
@@ -87,8 +90,8 @@ def update_shipment_status(shipment_id: str):
                 try:
                     from app.services.escrow_engine import set_sub_order_delivery_escrow
                     set_sub_order_delivery_escrow(shipment.sub_order_id)
-                except Exception:
-                    pass
+                except Exception as ex:
+                    logger.warning("Failed to initialize escrow for delivered sub_order %s: %s", shipment.sub_order_id, ex)
 
     if proof_url:
         shipment.proof_of_delivery_url = proof_url

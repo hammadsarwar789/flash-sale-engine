@@ -1,5 +1,8 @@
 import os
+import logging
 from flask import Flask, jsonify, request
+
+logger = logging.getLogger(__name__)
 from app.core.config import config_by_name
 from app.core.extensions import db, migrate, smorest_api, init_redis, make_celery
 from app.api import (
@@ -44,8 +47,8 @@ def create_app(config_name: str = None) -> Flask:
             import sentry_sdk
             from sentry_sdk.integrations.flask import FlaskIntegration
             sentry_sdk.init(dsn=sentry_dsn, integrations=[FlaskIntegration()], traces_sample_rate=1.0)
-        except Exception:
-            pass
+        except Exception as ex:
+            logger.warning("Failed to initialize Sentry SDK: %s", ex)
 
     # CORS cross-origin configuration
     try:
@@ -57,8 +60,8 @@ def create_app(config_name: str = None) -> Flask:
             methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             expose_headers=["Content-Type", "Authorization"],
         )
-    except Exception:
-        pass
+    except Exception as ex:
+        logger.warning("Failed to initialize flask_cors extension: %s", ex)
 
     @app.after_request
     def add_cors_headers(response):

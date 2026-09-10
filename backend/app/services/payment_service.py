@@ -81,8 +81,8 @@ class PaymentService:
                 }
                 try:
                     redis_client.set(cache_key, json.dumps(res_data), ex=86400)
-                except Exception:
-                    pass
+                except Exception as ex:
+                    logger.debug("Failed to cache PaymentIntent in redis: %s", ex)
                 return True, "PaymentIntent created successfully", res_data
             except Exception as e:
                 logger.error(f"Stripe API error when creating PaymentIntent: {e}")
@@ -106,8 +106,8 @@ class PaymentService:
             }
             try:
                 redis_client.set(cache_key, json.dumps(res_data), ex=86400)
-            except Exception:
-                pass
+            except Exception as ex:
+                logger.debug("Failed to cache Sandbox PaymentIntent in redis: %s", ex)
             return True, "Sandbox PaymentIntent created successfully", res_data
 
     @classmethod

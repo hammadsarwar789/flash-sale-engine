@@ -1,6 +1,7 @@
-import random
+import secrets
 import string
 import time
+import logging
 from datetime import datetime, timezone
 from app.core.extensions import db
 from app.customer_support.models.ticket import Ticket, TicketAI
@@ -8,6 +9,8 @@ from app.customer_support.models.ticket_message import TicketMessage
 from app.models.user import User
 from app.models.order import Order
 from app.models.seller import Seller, SellerStaff
+
+logger = logging.getLogger(__name__)
 
 
 class TicketService:
@@ -21,7 +24,7 @@ class TicketService:
         """
         year = datetime.now(timezone.utc).year
         micro = int(time.time() * 1000000) % 1000000
-        rand_suffix = ''.join(random.choices(string.digits, k=2))
+        rand_suffix = ''.join(secrets.choice(string.digits) for _ in range(2))
         return f"TICK-{year}-{micro:06d}{rand_suffix}"
 
     def create_ticket(
@@ -93,8 +96,8 @@ class TicketService:
         try:
             from app.customer_support.workers.ai_tasks import process_new_ticket_task
             process_new_ticket_task.delay(ticket.id)
-        except Exception:
-            pass  # Non-blocking async dispatch safeguard
+        except Exception as ex:
+            logger.warning("Non-blocking failure to dispatch async ticket analysis task: %s", ex)
 
         return ticket
 

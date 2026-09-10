@@ -1,8 +1,8 @@
 import json
 import time
 import logging
-import urllib.request
-import urllib.error
+import requests
+from urllib.parse import urlparse
 from typing import Dict, Any, Optional
 from app.integrations.shopify.auth import ShopifyAuthManager
 from app.integrations.shopify.exceptions import ShopifyApiError, ShopifyRateLimitError
@@ -22,45 +22,59 @@ class ShopifyClient:
     def _request(self, method: str, path: str, data: Optional[Dict[str, Any]] = None, _retries: int = 3) -> Dict[str, Any]:
         """Execute HTTPS request to Shopify Admin API with automatic rate-limit retry."""
         url = f"{self.base_url}{path}" if path.startswith("/") else f"{self.base_url}/{path}"
+        parsed = urlparse(url)
+        if parsed.scheme != "https":
+            raise ValueError(f"Invalid URL scheme '{parsed.scheme}'. Only HTTPS is permitted.")
+
         headers = {
             "Content-Type": "application/json",
             "X-Shopify-Access-Token": self.access_token,
             "User-Agent": "FlashSaleEngine-ShopifySync/1.0",
         }
 
-        payload_bytes = json.dumps(data).encode("utf-8") if data is not None else None
-
         for attempt in range(_retries + 1):
-            req = urllib.request.Request(url, data=payload_bytes, headers=headers, method=method.upper())
-
             try:
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    body = resp.read().decode("utf-8")
-                    return json.loads(body) if body else {}
-            except urllib.error.HTTPError as err:
-                status_code = err.code
-                body = err.read().decode("utf-8") if err.fp else ""
-                err_data = {}
-                try:
-                    err_data = json.loads(body) if body else {}
-                except Exception:
-                    err_data = {"raw": body}
+                resp = requests.request(
+                    method=method.upper(),
+                    url=url,
+                    json=data,
+                    headers=headers,
+                    timeout=15,
+                )
 
-                if status_code == 429:
-                    retry_after = int(err.headers.get("Retry-After", 2 * (attempt + 1)))
+                if resp.status_code == 429:
+                    retry_after = int(resp.headers.get("Retry-After", 2 * (attempt + 1)))
                     if attempt < _retries:
                         logger.warning(f"Shopify rate limit (429). Retry {attempt + 1}/{_retries} after {retry_after}s...")
                         time.sleep(retry_after)
                         continue
                     raise ShopifyRateLimitError(retry_after=retry_after)
 
-                msg = err_data.get("errors") or err_data.get("message") or f"HTTP {status_code}"
-                if isinstance(msg, dict):
-                    msg = json.dumps(msg)
-                logger.error(f"Shopify API Error [{status_code}] on {method} {url}: {msg}")
-                raise ShopifyApiError(status_code=status_code, message=str(msg), payload=err_data)
-            except Exception as ex:
+                if resp.status_code >= 400:
+                    err_data = {}
+                    try:
+                        err_data = resp.json() if resp.text else {}
+                    except Exception:
+                        err_data = {"raw": resp.text}
+
+                    msg = err_data.get("errors") or err_data.get("message") or f"HTTP {resp.status_code}"
+                    if isinstance(msg, dict):
+                        msg = json.dumps(msg)
+                    logger.error(f"Shopify API Error [{resp.status_code}] on {method} {url}: {msg}")
+                    raise ShopifyApiError(status_code=resp.status_code, message=str(msg), payload=err_data)
+
+                return resp.json() if resp.text else {}
+            except requests.RequestException as ex:
+                if attempt < _retries:
+                    logger.warning(f"Network error calling Shopify API [{method} {url}]: {ex}. Retrying {attempt + 1}/{_retries}...")
+                    time.sleep(2 * (attempt + 1))
+                    continue
                 logger.error(f"Network error calling Shopify API [{method} {url}]: {ex}")
+                raise ShopifyApiError(status_code=500, message=str(ex))
+            except (ShopifyApiError, ShopifyRateLimitError):
+                raise
+            except Exception as ex:
+                logger.error(f"Unexpected error calling Shopify API [{method} {url}]: {ex}")
                 raise ShopifyApiError(status_code=500, message=str(ex))
 
     def create_product(self, product_payload: Dict[str, Any]) -> Dict[str, Any]:

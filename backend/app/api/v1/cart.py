@@ -1,6 +1,9 @@
+import logging
 from flask import jsonify, g
 from flask_smorest import Blueprint
 from app.core.extensions import db
+
+logger = logging.getLogger(__name__)
 from app.models.cart import CartItem
 from app.models.product import Product
 from app.schemas.cart_schema import (
@@ -118,8 +121,8 @@ def add_to_cart(data):
             r_stock = redis_client.get(redis_key)
             if r_stock is not None:
                 available_stock = int(r_stock)
-    except Exception:
-        pass
+    except Exception as ex:
+        logger.debug("Could not fetch cached stock from redis: %s", ex)
 
     cart_item = db.session.query(CartItem).filter_by(user_id=user_id, product_id=product_id, variant_id=variant_id).first()
     current_qty = cart_item.quantity if cart_item else 0
@@ -189,8 +192,8 @@ def update_cart_item(data, item_id):
             r_stock = redis_client.get(redis_key)
             if r_stock is not None:
                 available_stock = int(r_stock)
-    except Exception:
-        pass
+    except Exception as ex:
+        logger.debug("Could not fetch cached stock from redis: %s", ex)
 
     # If quantity is reduced to 0 or less, auto-remove item and release hold
     if data["quantity"] <= 0:
